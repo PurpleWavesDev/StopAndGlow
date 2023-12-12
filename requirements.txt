@@ -1,0 +1,6 @@
+python=3.11
+jupyter
+akode
+gphoto2
+opencv
+colour-science
