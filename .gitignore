@@ -1,0 +1,8 @@
+# Images
+*.jpg
+*.png
+*.exr
+*.tif
+
+# virtual env
+.venv/
