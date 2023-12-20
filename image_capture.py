@@ -1,147 +1,96 @@
-# DMX and Camera (gphoto2) interfaces
-
 # Imports
-import os
 import sys
+import os
 import io
 import time
-import logging
-import threading
-import subprocess
-import signal
+from collections import namedtuple
+
+import logging as log
+from importlib import reload
+#import threading
+#import subprocess
 #import locale
 
-# DMX imports
-from dmx import DMXInterface, DMXUniverse
-from dmx.constants import DMX_MAX_ADDRESS
-from typing import List
+# DMX, Timer and Camera interfaces
+from src.camera import Cam
+from src.timer import Timer, Worker
+from src.lights import Lights
 
-# Camera imports
-import gphoto2 as gp
-import rawpy
-import imageio
-from PIL import Image
+# Abseil flags
+from absl import app
+from absl import flags
 
-#kill gphoto2 process that occurs whenever connect camera
-def killgphoto2():
-    p = subprocess.Popen(['ps', '-A'], stdout=subprocess.PIPE)
-    out,err = p.communicate()
-    for line in out.splitlines():
-        if b'gvfsd-gphoto2' in line:
-            #kill process
-            pid = int(line.split(None, 1)[0])
-            os.kill(pid, signal.SIGKILL)
-   
-killgphoto2()
+# Types
+HW = namedtuple("HW", ["cam", "lights"])
 
+# Globals
+FLAGS = flags.FLAGS
+DATA_BASE_PATH='../HdM_BA/data'
 
-def light():
-    # Open an interface
-    with DMXInterface("FT232R") as interface:
-        # Create a universe
-        universe = DMXUniverse()
+# Global flag defines
+flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download'], 'What the script should do.')
+flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
+flags.DEFINE_string('img_output_path', '../HdM_BA/data', 'Where the image data should be written to.')
+flags.DEFINE_string('download_name', 'download', 'Sequence name for downloads.')
+flags.DEFINE_integer('download_offset', 1, 'Frame count starting from this number', lower_bound=0)
+flags.DEFINE_boolean('delete_img', False, 'Delete captured images after download.')
 
-        # New black frame
-        frame = [0] * DMX_MAX_ADDRESS
+#flags.DEFINE_integer('age', None, 'Your age in years.', lower_bound=0)
 
-        # Set values
-        frame[132] = 50
+def main(argv):
+    # Init logger
+    reload(log)
+    log.basicConfig(level=log._nameToLevel[FLAGS.loglevel], format='[%(levelname)s] %(message)s')
 
-        # Set frame and send update
-        interface.set_frame(frame)
-        interface.send_update()
+    # Prepare for tasks
+    hw = HW(Cam(), Lights())
 
+    # Execute task for requested mode
+    if FLAGS.mode == 'calibrate':
+        calibrate(hw)
+    elif FLAGS.mode == 'download':
+        download(hw, FLAGS.download_name, download_all=True)
 
-def capture():
-    camera = gp.Camera()
-    camera.init()
+def calibrate(hw):
+    log.info("Starting calibration")
+    # Worker class
+    class CalWorker(Worker):
+        def __init__(self, hw, range_start, range_end):
+            self.cam=hw.cam
+            self.lights=hw.lights
+            self.i = range_start
+            self.end = range_end
 
-    # Open an interface
-    with DMXInterface("FT232R") as interface:
-        # Create a universe
-        universe = DMXUniverse()
+        def work(self) -> bool:
+            # Set values
+            self.lights.setList([self.i])
+            self.lights.write()
 
-        time_begin = time.time()
-        print('Capturing image')
-        for i in range (10,240):
-            # Set light on
-            frame = [0] * DMX_MAX_ADDRESS
-            frame[i] = 255
-            interface.set_frame(frame)
-            interface.send_update()
+            # Trigger camera
+            self.cam.capture(self.i)
 
-            # Capture image
-            file_path = camera.capture(gp.GP_CAPTURE_IMAGE)
-            print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
-            target = os.path.join('.tmp', file_path.name)
-            print(i)
-            #print('Copying image to', target)
-            #camera_file = camera.file_get(
-            #    file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL)
-            #camera_file.save(target)
+            # Abort condition
+            self.i+=1
+            if self.i >= self.end:
+                return False
+            return True
 
-    print(f"Zeit: {time.time()-time_begin}")
+    worker = CalWorker(hw, 0, 512)
+    t = Timer(worker)
 
-    # Convert and save image
-    raw = rawpy.imread(target)
-    params=rawpy.Params(output_color=rawpy.ColorSpace.sRGB, noise_thr=20)
-    rgb = raw.postprocess(params)
-    imageio.imsave('default.png', rgb)
-    #subprocess.call(['xdg-open', target])
-    camera.exit()
+    t.start(0)
+    t.join()
 
-#capture()
+    download(hw, 'calibration')
 
 
-def timer_fn(delay):
-    next_call = time.time()
-    i = 20
-    while running:
-        # Work
-        # New black frame
-        frame = [0] * DMX_MAX_ADDRESS
+def download(hw, name, download_all=False):
+    log.info(f"Downloading sequence '{name}' to {FLAGS.img_output_path} (deletion is {FLAGS.delete_img})")
+    if download_all:
+        # Search for files on camera
+        hw.cam.add_files(hw.cam.list_files(), FLAGS.download_offset)
+    hw.cam.download(FLAGS.img_output_path, name, delete=FLAGS.delete_img)
 
-        # Set values
-        frame[i] = 255
-        i=(i+1)%512
 
-        # Set frame and send update
-        interface.set_frame(frame)
-        interface.send_update()
-
-        # Trigger camera
-        #camera.trigger_capture()
-        camera.capture(gp.GP_CAPTURE_IMAGE)
-
-        # Capture image/preview
-        #capture = camera.capture_preview()
-        #filedata = capture.get_data_and_size()
-        #data = memoryview(filedata)
-        #image = Image.open(io.BytesIO(filedata))
-        #image.save(f"test_{i}.png")
-
-        # Sleep until next frame
-        next_call = next_call+delay
-        time_sleep = next_call - time.time()
-        if time_sleep < 0:
-            print(f"Error: Overrun timer by {abs(time_sleep)}")
-            next_call = time.time()
-        else:
-            time.sleep(time_sleep)
-
-running=True
-interface = DMXInterface("FT232R")
-
-camera = gp.Camera()
-camera.init()
-#camera.capture(gp.GP_CAPTURE_IMAGE)
-#camera.trigger_capture()
-
-timerThread = threading.Thread(target=timer_fn, args=(1,))
-timerThread.start()
-
-time.sleep(5)
-running=False
-timerThread.join()
-#camera.trigger_capture()
-
+if __name__ == '__main__':
+    app.run(main)
