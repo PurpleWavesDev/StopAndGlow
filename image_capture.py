@@ -15,6 +15,8 @@ from importlib import reload
 from src.camera import Cam
 from src.timer import Timer, Worker
 from src.lights import Lights
+from src.imgdata import ImgData
+from src.eval import Eval
 
 # Abseil flags
 from absl import app
@@ -28,7 +30,7 @@ FLAGS = flags.FLAGS
 DATA_BASE_PATH='../HdM_BA/data'
 
 # Global flag defines
-flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download', 'eval_cal'], 'What the script should do.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 flags.DEFINE_string('img_output_path', '../HdM_BA/data', 'Where the image data should be written to.')
 flags.DEFINE_string('download_name', 'download', 'Sequence name for downloads.')
@@ -46,10 +48,27 @@ def main(argv):
     hw = HW(Cam(), Lights())
 
     # Execute task for requested mode
+    #if True:
+    #    capture_all_on(hw)
     if FLAGS.mode == 'calibrate':
         calibrate(hw)
     elif FLAGS.mode == 'download':
-        download(hw, FLAGS.download_name, download_all=True)
+        download(hw, FLAGS.download_name, download_all=True, delete=FLAGS.delete_img)
+    elif FLAGS.mode == 'eval_cal':
+        eval_cal()
+
+def capture_all_on(hw):
+    frame = [100] * hw.lights.DMX_MAX_ADDRESS
+    hw.lights.setFrame(frame)
+    hw.lights.write()
+
+    # Trigger camera
+    hw.cam.capture(0)
+    hw.lights.off()
+
+    # Download image
+    download(hw, 'allon', delete=True)
+
 
 def calibrate(hw):
     log.info("Starting calibration")
@@ -81,15 +100,19 @@ def calibrate(hw):
     t.start(0)
     t.join()
 
-    download(hw, 'calibration')
+    download(hw, 'calibration', delete=FLAGS.delete_img)
 
 
-def download(hw, name, download_all=False):
-    log.info(f"Downloading sequence '{name}' to {FLAGS.img_output_path} (deletion is {FLAGS.delete_img})")
+def download(hw, name, download_all=False, delete=False):
+    log.info(f"Downloading sequence '{name}' to {FLAGS.img_output_path} (deletion is {delete})")
     if download_all:
         # Search for files on camera
         hw.cam.add_files(hw.cam.list_files(), FLAGS.download_offset)
-    hw.cam.download(FLAGS.img_output_path, name, delete=FLAGS.delete_img)
+    hw.cam.download(FLAGS.img_output_path, name, delete=delete)
+
+def eval_cal():
+    # Load data
+    ImgData.load()
 
 
 if __name__ == '__main__':
