@@ -6,6 +6,7 @@ import cv2 as cv
 from PIL import Image
 
 from src.imgdata import *
+from src.config import Config
 
 class Eval:
     def __init__(self):
@@ -104,14 +105,6 @@ class Eval:
             i += 1
         if DEBUG_SAVE_IMG:
             img_save(img_pos, "positions.png")
-
-    def save_config(self, path, name='calibration.endig'):
-        full_path = os.path.join(path, name)
-        if not os.path.exists(full_path):
-            os.makedirs(full_path)
-
-        with open(full_path, "w") as file:
-            file.write("Test\n")
 
     def img_save(img, name):
         if img.dtype != 'uint8':
