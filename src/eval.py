@@ -16,12 +16,12 @@ class Eval:
 
     # Find center and radius of chromeball
     def find_center(self, imgdata):
-        frame = imgdata.get(0, delete=True)
+        frame = imgdata.get(0).get()
         cb_center = (0,0)
         cb_radius = 0
 
         # use red channel only
-        cb_mask = (frame[...,1] * 255).astype('uint8')
+        cb_mask = colour.io.convert_bit_depth(frame[...,1], 'uint8')
 
         gray = cb_mask
         #cv.medianBlur(mask, 5)
