@@ -1,10 +1,11 @@
+import logging as log
 import numpy as np
 import math
 
 import cv2 as cv
 from PIL import Image
-import colour
 
+from src.imgdata import *
 
 class Eval:
     def __init__(self):
@@ -12,43 +13,46 @@ class Eval:
         self.thresh_min=100
         self.thresh_max=255
 
-    def find_center(self, frame):
-        # Find center and radius of chromeball (use alpha mask here)
-        cb_mask = (frames[0][...,3] * 255).astype('uint8')
+    # Find center and radius of chromeball
+    def find_center(self, imgdata):
+        frame = imgdata.get(0, delete=True)
         cb_center = (0,0)
         cb_radius = 0
 
-        if True:
-            gray = cb_mask
-            #cv.medianBlur(mask, 5)
+        # use red channel only
+        cb_mask = (frame[...,1] * 255).astype('uint8')
 
-            #cv.Smooth(orig, orig, cv.CV_GAUSSIAN, 5, 5)
-            #cv.CvtColor(orig, grey_scale, cv.CV_RGB2GRAY)
-            #cv.Erode(grey_scale, processed, None, 10)
-            #cv.Dilate(processed, processed, None, 10)
-            #cv.Canny(processed, processed, 5, 70, 3)
-            #cv.Smooth(processed, processed, cv.CV_GAUSSIAN, 15, 15)
+        gray = cb_mask
+        #cv.medianBlur(mask, 5)
+
+        #cv.Smooth(orig, orig, cv.CV_GAUSSIAN, 5, 5)
+        #cv.CvtColor(orig, grey_scale, cv.CV_RGB2GRAY)
+        #cv.Erode(grey_scale, processed, None, 10)
+        #cv.Dilate(processed, processed, None, 10)
+        #cv.Canny(processed, processed, 5, 70, 3)
+        #cv.Smooth(processed, processed, cv.CV_GAUSSIAN, 15, 15)
             
-            rows = gray.shape[0]
-            circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 1, rows / 8,
-                                        param1=100, param2=30,
-                                        minRadius=100, maxRadius=1080)
+        rows = gray.shape[0]
+        circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 1, rows / 8,
+                                    param1=100, param2=30,
+                                    minRadius=100, maxRadius=1080)
                 
-            if circles is not None:
-                circles = np.uint16(np.around(circles))
-                for i in circles[0, :]:
-                    cb_center = np.array((i[0], i[1]))
-                    cb_radius = i[2]
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            for i in circles[0, :]:
+                cb_center = np.array((i[0], i[1]))
+                cb_radius = i[2]
                     
-                    #orig = np.dstack((gray, gray, gray))
-                    # circle center
-                    #cv.circle(orig, center, 1, (0, 100, 100), 3)
-                    # circle outline
-                    #cv.circle(orig, center, radius, (255, 0, 255), 3)
+                #orig = np.dstack((gray, gray, gray))
+                # circle center
+                #cv.circle(orig, center, 1, (0, 100, 100), 3)
+                # circle outline
+                #cv.circle(orig, center, radius, (255, 0, 255), 3)
 
+    def filter_blackframes(self, imgdata, threshold=0.1):
+        pass
 
-
-    def find_reflections(self, frames):
+    def find_reflections(self, imgdata):
         # Find reflections in each image
         # Globals
         img_pos = img_float2byte(original)
@@ -56,7 +60,7 @@ class Eval:
 
         # Iterate and prepare frames
         i = 0
-        for frame in frames:
+        for frame in imgdata:
             frame = frame[:,:,:1] # Only use red channel
             frame = img_float2byte(frame)
     

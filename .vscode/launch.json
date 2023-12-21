@@ -21,6 +21,15 @@
             "args": ["--loglevel=DEBUG", "--mode=download", "--delete_img=True"],
             "console": "integratedTerminal",
             "justMyCode": true
+        },
+        {
+            "name": "Eval Calibration",
+            "type": "python",
+            "request": "launch",
+            "program": "image_capture.py",
+            "args": ["--loglevel=DEBUG", "--mode=eval_cal"],
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ]
 }

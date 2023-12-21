@@ -15,7 +15,7 @@ from importlib import reload
 from src.camera import Cam
 from src.timer import Timer, Worker
 from src.lights import Lights
-from src.imgdata import ImgData
+from src.imgdata import *
 from src.eval import Eval
 
 # Abseil flags
@@ -44,18 +44,21 @@ def main(argv):
     reload(log)
     log.basicConfig(level=log._nameToLevel[FLAGS.loglevel], format='[%(levelname)s] %(message)s')
 
-    # Prepare for tasks
-    hw = HW(Cam(), Lights())
+    # First check modes without hardware requirements
+    if FLAGS.mode == 'eval_cal':
+        eval_cal(os.path.join(FLAGS.img_output_path, "allon"), os.path.join(FLAGS.img_output_path, "calibration"))
+    else:
+        # Prepare for tasks
+        hw = HW(Cam(), Lights())
 
-    # Execute task for requested mode
-    #if True:
-    #    capture_all_on(hw)
-    if FLAGS.mode == 'calibrate':
-        calibrate(hw)
-    elif FLAGS.mode == 'download':
-        download(hw, FLAGS.download_name, download_all=True, delete=FLAGS.delete_img)
-    elif FLAGS.mode == 'eval_cal':
-        eval_cal()
+        # Execute task for requested mode
+        #if True:
+        #    capture_all_on(hw)
+        if FLAGS.mode == 'calibrate':
+            calibrate(hw)
+            download(hw, 'calibration_back', delete=FLAGS.delete_img)
+        elif FLAGS.mode == 'download':
+            download(hw, FLAGS.download_name, download_all=True, delete=FLAGS.delete_img)
 
 def capture_all_on(hw):
     frame = [100] * hw.lights.DMX_MAX_ADDRESS
@@ -100,8 +103,6 @@ def calibrate(hw):
     t.start(0)
     t.join()
 
-    download(hw, 'calibration', delete=FLAGS.delete_img)
-
 
 def download(hw, name, download_all=False, delete=False):
     log.info(f"Downloading sequence '{name}' to {FLAGS.img_output_path} (deletion is {delete})")
@@ -110,9 +111,13 @@ def download(hw, name, download_all=False, delete=False):
         hw.cam.add_files(hw.cam.list_files(), FLAGS.download_offset)
     hw.cam.download(FLAGS.img_output_path, name, delete=delete)
 
-def eval_cal():
+def eval_cal(path_allon, path_sequence):
     # Load data
-    ImgData.load()
+    img_allon = ImgData(path_allon)
+    img_seq = ImgData(path_sequence)
+
+    eval=Eval()
+    eval.find_center(img_allon)
 
 
 if __name__ == '__main__':
