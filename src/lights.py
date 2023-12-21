@@ -7,6 +7,7 @@ class Lights:
     def __init__(self):
         self.interface = DMXInterface("FT232R")
         self.DMX_MAX_ADDRESS = dmx.constants.DMX_MAX_ADDRESS
+        self.DMX_MAX_VALUE = 255
         self.frame = [0] * self.DMX_MAX_ADDRESS
         #universe = DMXUniverse()
 
@@ -17,7 +18,7 @@ class Lights:
     def setList(self, list):
         self.frame = [0] * self.DMX_MAX_ADDRESS
         for light in list:
-            self.frame[light] = 512
+            self.frame[light] = self.DMX_MAX_VALUE
 
 
     def write(self):
