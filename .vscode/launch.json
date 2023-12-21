@@ -18,7 +18,7 @@
             "type": "python",
             "request": "launch",
             "program": "image_capture.py",
-            "args": ["--loglevel=DEBUG", "--mode=download", "--delete_img=True"],
+            "args": ["--loglevel=DEBUG", "--mode=download"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

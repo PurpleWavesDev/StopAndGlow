@@ -45,7 +45,7 @@ class Cam:
     #def trigger(self, id):
         #camera.trigger_capture()
 
-    def download(self, path, name='img', delete=True):
+    def download(self, path, name, keep=False):
         # Download all files with new path and their ID in the name
         for id, file in self.files.items():
             # Create path if not exists
@@ -55,7 +55,7 @@ class Cam:
 
             image = self.cam.file_get(file[0], file[1], gp.GP_FILE_TYPE_NORMAL)
             image.save(os.path.join(full_path, f"{name}_{id:03d}{os.path.splitext(file[1])[1]}"))
-            if delete:
+            if not keep:
                 self.cam.file_delete(file[0], file[1])
 
         # Reset dict
