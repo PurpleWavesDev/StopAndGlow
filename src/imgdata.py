@@ -3,6 +3,7 @@ import os
 import re
 
 import logging as log
+from src.utils import logging_disabled
 
 import numpy as np
 import colour
@@ -75,9 +76,10 @@ class ImgBuffer:
 
     def load(self):
         if self._path is not None:
-            self._img = colour.read_image(self._path, bit_depth=IMAGE_DTYPE, method='Imageio')
-            self._from_file=True
-            log.debug("Loaded image {self._path}")
+            with logging_disabled():
+                self._img = colour.read_image(self._path, bit_depth=IMAGE_DTYPE, method='Imageio')
+                self._from_file=True
+                log.debug(f"Loaded image {self._path}")
         else:
             log.error("Can't load image without path")
         #original = original[:,:,:3] # Only use red channel
@@ -97,7 +99,7 @@ class ImgBuffer:
                     colour.write_image(self._img, self._path, 'float32', method='Imageio')
                 case _: # PNG and JPG
                     colour.write_image(self._img, self._path, 'uint8', method='Imageio')
-            log.debug("Saved image {self._path}")
+            log.debug(f"Saved image {self._path}")
             
         else:
             log.error("Can't save image without path")
@@ -165,8 +167,11 @@ class ImgData():
     def __getitem__(self, key):
         return self._frames[key]
     
+    def __delitem__(self, key):
+        del self._frames[key]
+    
     def __iter__(self):
-        return iter(self._frames)
+        return iter(self._frames.items())
 
     def __len__(self):
         return len(self._frames)

@@ -118,10 +118,27 @@ def eval_cal(path_allon, path_sequence):
     # Load data
     img_allon = ImgData(path_allon)
     img_seq = ImgData(path_sequence)
+    log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
 
     eval=Eval()
-    eval.find_center(img_allon)
+    #eval.find_center(img_allon)
+    
+    # Loop for all calibration frames
+    del_list = []
+    for id, img in img_seq:
+        if not eval.filter_blackframe(img, 0.9):
+            # Process frame
+            eval.find_reflection(img)
+        else:
+            log.debug(f"Found blackframe '{id}'")
+            del_list.append(id)
+        img.unload()
+    # Delete blackframes
+    for id in del_list:
+        del img_seq[id]
 
+    # Save config
+    log.info(f"Saving config '{0}' with {len(img_seq)} valid entries")
 
 if __name__ == '__main__':
     app.run(main)

@@ -50,12 +50,18 @@ class Eval:
                 # circle outline
                 #cv.circle(orig, center, radius, (255, 0, 255), 3)
 
-    def filter_blackframes(self, imgdata, threshold=0.1):
-        pass
+    def filter_blackframe(self, imgbuf, threshold=0.5):
+        thresh = imgbuf.get()[...,1]
+        if not np.argmax(thresh>threshold):
+            # Below threshold 
+            return True
+        return False
 
-    def find_reflections(self, imgdata):
+
+    def find_reflection(self, imgbuf, debugimg=None):
         # Find reflections in each image
         # Globals
+        return
         img_pos = img_float2byte(original)
         self.pos_map = dict()
 
