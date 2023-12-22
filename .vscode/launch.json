@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "image_capture.py",
-            "args": ["--loglevel=DEBUG", "--mode=capture", "--sequence_name=dragon"],
+            "args": ["--loglevel=DEBUG", "--mode=capture", "--sequence_name=dragon_wide"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

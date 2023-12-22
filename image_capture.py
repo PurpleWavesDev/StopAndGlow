@@ -73,7 +73,9 @@ def main(argv):
             #name = "capture" if FLAGS.sequence_name == "" else FLAGS.sequence_name
             #download(hw, name, keep=FLAGS.keep_sequence)
         elif FLAGS.mode == 'calibrate':
-            calibrate(hw)
+            #calibrate(hw)
+            capture_all_on(hw)
+            capture(hw)
             name = "calibration" if FLAGS.sequence_name == "" else FLAGS.sequence_name
             download(hw, name, keep=FLAGS.keep_sequence)
         elif FLAGS.mode == 'download':
@@ -120,26 +122,41 @@ def capture_quick(hw):
             self.hw=hw
             self.lights=self.hw.config.get()
             self.i=0
+            self.blackframe=False
 
         def work(self) -> bool:
-            # Set values
-            light_id = self.lights[self.i]['id']
-            self.hw.lights.setList([light_id])
-            self.hw.lights.write()
+            if not self.blackframe:
+                # Set values
+                light_id = self.lights[self.i]['id']
+                self.hw.lights.setList([light_id])
+                self.hw.lights.write()
+                self.blackframe=True
 
-             # Trigger camera
-            #self.hw.cam.capture(light_id)
+                # Trigger camera
+                #self.hw.cam.capture(light_id)
+                return True
 
-            # Abort condition
-            self.i+=1
-            return self.i < len(self.lights)
+            else:
+                self.hw.lights.off()
+                self.blackframe=False
+                # Abort condition
+                self.i+=1
+                return self.i < len(self.lights)
 
     time.sleep(10)
     worker = CaptureWorker(hw)
     t = Timer(worker)
     hw.lights.off()
-    time.sleep(2)
-    t.start(1/(29.97/3))
+    time.sleep(1)
+    # All on
+    frame = [60] * hw.lights.DMX_MAX_ADDRESS
+    hw.lights.setFrame(frame)
+    hw.lights.write()
+    time.sleep(0.5)
+    # And off again
+    hw.lights.off()
+    time.sleep(0.5)
+    t.start(1/(29.97/2))
     t.join()
 
 def capture_all_on(hw):
