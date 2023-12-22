@@ -5,6 +5,24 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Capture",
+            "type": "python",
+            "request": "launch",
+            "program": "image_capture.py",
+            "args": ["--loglevel=DEBUG", "--mode=capture", "--sequence_name=dragon"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Capture Quick",
+            "type": "python",
+            "request": "launch",
+            "program": "image_capture.py",
+            "args": ["--loglevel=DEBUG", "--mode=capture_quick"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Calibrate",
             "type": "python",
             "request": "launch",
@@ -27,7 +45,16 @@
             "type": "python",
             "request": "launch",
             "program": "image_capture.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_cal"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=calibration_back"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Debug Lighttest",
+            "type": "python",
+            "request": "launch",
+            "program": "image_capture.py",
+            "args": ["--loglevel=DEBUG", "--mode=debug_lightrun"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

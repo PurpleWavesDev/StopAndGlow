@@ -155,10 +155,10 @@ class ImgData():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def get_key_bounds():
+    def get_key_bounds(self):
         return [self._min, self._max]
     
-    def get_keys():
+    def get_keys(self):
         return self._frames.keys()
 
     def get(self, index):
