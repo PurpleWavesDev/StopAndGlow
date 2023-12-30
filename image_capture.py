@@ -227,7 +227,7 @@ def eval_cal(path_allon, path_sequence):
     eval=Eval()
 
     # Find center of chrome ball with allon frame
-    #eval.find_center(img_allon.get(0))
+    eval.find_center(img_allon.get(0))
     
     # Loop for all calibration frames
     del_list = []

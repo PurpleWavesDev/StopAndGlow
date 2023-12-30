@@ -16,12 +16,13 @@ class Eval:
 
     # Find center and radius of chromeball
     def find_center(self, imgdata):
-        frame = imgdata.get(0).get()
+        # use red channel only, as ints
+        cb_mask = imgdata.r().asInt().get()
         cb_center = (0,0)
         cb_radius = 0
 
         # use red channel only
-        cb_mask = colour.io.convert_bit_depth(frame[...,1], 'uint8')
+        #cb_mask = colour.io.convert_bit_depth(frame[...,1], 'uint8')
 
         gray = cb_mask
         #cv.medianBlur(mask, 5)
@@ -32,6 +33,8 @@ class Eval:
         #cv.Dilate(processed, processed, None, 10)
         #cv.Canny(processed, processed, 5, 70, 3)
         #cv.Smooth(processed, processed, cv.CV_GAUSSIAN, 15, 15)
+        
+        return
             
         rows = gray.shape[0]
         circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 1, rows / 8,
@@ -62,14 +65,14 @@ class Eval:
         # Find reflections in each image
         # Globals
         return
-        img_pos = img_float2byte(original)
+        img_pos = Eval.img_float2byte(original)
         self.pos_map = dict()
 
         # Iterate and prepare frames
         i = 0
         for frame in imgdata:
             frame = frame[:,:,:1] # Only use red channel
-            frame = img_float2byte(frame)
+            frame = Eval.img_float2byte(frame)
     
             # Filter
             thresh = cv.threshold(frame, thresh_min, thresh_max, cv.THRESH_BINARY + cv.THRESH_OTSU)[1]
@@ -103,19 +106,19 @@ class Eval:
             elif len(cnts) >1:
                 lg.error(f"Frame {i} has {len(cnts)} detected lights, fix threshold / mask.")
                 if DEBUG_SAVE_IMG:
-                    img_save(thresh, "threshold.png")
+                    Eval.img_save(thresh, "threshold.png")
             else:
                 lg.warning(f"Warning: Frame {i} has no detected lights.")
             
             # Increment frame counter
             i += 1
         if DEBUG_SAVE_IMG:
-            img_save(img_pos, "positions.png")
+            Eval.img_save(img_pos, "positions.png")
 
     def img_save(img, name):
         if img.dtype != 'uint8':
             lg.debug("Converting image to uint8")
-            img = img_float2byte(img)
+            img = Eval.img_float2byte(img)
             
         file = os.path.join(OUTPUT_PATH, name)
         colour.write_image(img, file, 'uint8', method='Imageio')

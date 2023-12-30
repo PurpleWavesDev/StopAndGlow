@@ -11,7 +11,8 @@ import colour.models as models
 import imageio
 imageio.plugins.freeimage.download()
 
-IMAGE_DTYPE='float16'
+IMAGE_DTYPE_FLOAT='float16'
+IMAGE_DTYPE_INT='uint8'
 
 
 class ImgFormat(Enum):
@@ -77,7 +78,16 @@ class ImgBuffer:
     def load(self):
         if self._path is not None:
             with logging_disabled():
-                self._img = colour.read_image(self._path, bit_depth=IMAGE_DTYPE, method='Imageio')
+                # Load images as uint or float according to format and assign domain if not specified
+                if self._format != ImgFormat.EXR:# and self._domain != ImgDomain.Lin:
+                    self._img = colour.read_image(self._path, bit_depth=IMAGE_DTYPE_INT, method='Imageio')
+                    if self._domain == ImgDomain.Keep:
+                        self._domain=ImgDomain.sRGB
+                else:
+                    self._img = colour.read_image(self._path, bit_depth=IMAGE_DTYPE_FLOAT, method='Imageio')
+                    if self._domain == ImgDomain.Keep:
+                        self._domain=ImgDomain.Lin
+                        
                 self._from_file=True
                 log.debug(f"Loaded image {self._path}")
         else:
@@ -90,7 +100,7 @@ class ImgBuffer:
         self._img=None
         
     def save(self, img_format=ImgFormat.Keep):
-        if self._path is not None:
+        if self._path is not None and self._img is not None:
             # Check if different format is requested and update path
             self.setFormat(img_format)
                 
@@ -104,29 +114,48 @@ class ImgBuffer:
         else:
             log.error("Can't save image without path")
         
-    def convert(self, domain):#TODO Return value?
+    def convert(self, domain, as_float=False):
         if domain != ImgDomain.Keep and domain != self._domain:
             # Convert to optical/neutral
+            img = self.get() if as_float is False else self.get().astype(IMAGE_DTYPE_FLOAT)
             match self._domain:
                 case ImgDomain.sRGB:
-                    self._img = colour.cctf_decoding(self._img, 'sRGB')
+                    img = colour.cctf_decoding(img, 'sRGB')
                 case ImgDomain.Rec709:
-                    self._img = colour.cctf_decoding(self._img, 'ITU-R BT.709')
+                    img = colour.cctf_decoding(img, 'ITU-R BT.709')
                 case _: # Raw/Linear
                     pass
                     
             match domain:
                 case ImgDomain.sRGB:
-                    self._img = colour.cctf_encoding(self._img, 'sRGB')
+                    img = colour.cctf_encoding(img, 'sRGB')
                 case ImgDomain.Rec709:
-                    self._img = colour.cctf_encoding(self._img, 'ITU-R BT.709')
+                    img = colour.cctf_encoding(img, 'ITU-R BT.709')
                 case _: # Raw/Linear
                     pass
 
-# TODO: Pass domain argument to buffer objects
+            return ImgBuffer(path=self._path, img=img, domain=domain)
+        
+    def asFloat(self):
+        return ImgBuffer(path=self._path, img=colour.io.convert_bit_depth(self.get(), IMAGE_DTYPE_FLOAT), domain=self._domain)
+    def asInt(self):
+        return ImgBuffer(path=self._path, img=colour.io.convert_bit_depth(self.get(), IMAGE_DTYPE_INT), domain=self._domain)
+    def r(self):
+        return ImgBuffer(path=self._path, img=self.get()[:,:,:0], domain=self._domain) # TODO: Indexing right
+    def g(self):
+        return ImgBuffer(path=self._path, img=self.get()[:,:,:1], domain=self._domain)
+    def b(self):
+        return ImgBuffer(path=self._path, img=self.get()[:,:,:2], domain=self._domain)
+    def a(self):
+        return ImgBuffer(path=self._path, img=self.get()[:,:,:3], domain=self._domain)
+    #def gray(self):
+    #    return ImgBuffer(path=self._path, img=cv2.cvtColor(self.get(), cv2.COLOR_BGR2GRAY), domain=self._domain)
+            
+
 class ImgData():
-    def __init__(self, path=None):
+    def __init__(self, path=None, domain=ImgDomain.Keep):
         self._frames = dict()
+        self._domain=domain
         self._min=-1
         self._max=-1
         if path is not None:
@@ -141,7 +170,7 @@ class ImgData():
                 match = re.search("[\.|_](\d+)\.[a-zA-Z]+$", f)
                 if match is not None:
                     n = int(match.group(1))
-                    self._frames[n] = ImgBuffer(p)
+                    self._frames[n] = ImgBuffer(p, domain=self._domain)
                     
                     # Set lowest and highest frame number
                     self._min = n if self._min == -1 else min(self._min, n)
