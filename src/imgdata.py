@@ -6,6 +6,7 @@ import logging as log
 from src.utils import logging_disabled
 
 import numpy as np
+import cv2 as cv
 import colour
 import colour.models as models
 import imageio
@@ -27,7 +28,7 @@ class ImgDomain(Enum):
     Rec709 = 2
     Keep = -1
 
-# TODO: Make domain argument actually work -> convert when loading images
+
 class ImgBuffer:
     def __init__(self, path=None, img=None, domain=ImgDomain.Keep):
         self._img=img
@@ -141,15 +142,18 @@ class ImgBuffer:
     def asInt(self):
         return ImgBuffer(path=self._path, img=colour.io.convert_bit_depth(self.get(), IMAGE_DTYPE_INT), domain=self._domain)
     def r(self):
-        return ImgBuffer(path=self._path, img=self.get()[:,:,:0], domain=self._domain) # TODO: Indexing right
+        return ImgBuffer(path=self._path, img=self.get()[...,0], domain=self._domain)
     def g(self):
-        return ImgBuffer(path=self._path, img=self.get()[:,:,:1], domain=self._domain)
+        return ImgBuffer(path=self._path, img=self.get()[...,1], domain=self._domain)
     def b(self):
-        return ImgBuffer(path=self._path, img=self.get()[:,:,:2], domain=self._domain)
+        return ImgBuffer(path=self._path, img=self.get()[...,2], domain=self._domain)
     def a(self):
-        return ImgBuffer(path=self._path, img=self.get()[:,:,:3], domain=self._domain)
-    #def gray(self):
-    #    return ImgBuffer(path=self._path, img=cv2.cvtColor(self.get(), cv2.COLOR_BGR2GRAY), domain=self._domain)
+        return ImgBuffer(path=self._path, img=self.get()[...,3], domain=self._domain)
+    def RGB2Gray(self):
+        return ImgBuffer(path=self._path, img=cv.cvtColor(self.get(), cv.COLOR_RGB2GRAY), domain=self._domain)
+    def gray2RGB(self):
+        return ImgBuffer(path=self._path, img=np.dstack((self.get(),self.get(),self.get())), domain=self._domain)
+        
             
 
 class ImgData():

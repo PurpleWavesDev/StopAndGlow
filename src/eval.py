@@ -3,7 +3,8 @@ import numpy as np
 import math
 
 import cv2 as cv
-from PIL import Image
+#from PIL import Image
+import imutils
 
 from src.imgdata import *
 from src.config import Config
@@ -17,36 +18,44 @@ class Eval:
     # Find center and radius of chromeball
     def find_center(self, imgdata):
         # use red channel only, as ints
-        cb_mask = imgdata.r().asInt().get()
+        cb_mask = imgdata.g().asInt().get()
         cb_center = (0,0)
         cb_radius = 0
 
-        # use red channel only
-        #cb_mask = colour.io.convert_bit_depth(frame[...,1], 'uint8')
-
-        gray = cb_mask
-        #cv.medianBlur(mask, 5)
-
-        #cv.Smooth(orig, orig, cv.CV_GAUSSIAN, 5, 5)
-        #cv.CvtColor(orig, grey_scale, cv.CV_RGB2GRAY)
-        #cv.Erode(grey_scale, processed, None, 10)
-        #cv.Dilate(processed, processed, None, 10)
-        #cv.Canny(processed, processed, 5, 70, 3)
-        #cv.Smooth(processed, processed, cv.CV_GAUSSIAN, 15, 15)
+        # Reduce noise
+        cb_mask = cv.medianBlur(cb_mask, 15)
+        # High pass
+        intensity=25
+        cb_mask = cb_mask - cv.GaussianBlur(cb_mask, (intensity*2+1,intensity*2+1), 50) + 127
         
-        return
-            
-        rows = gray.shape[0]
-        circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 1, rows / 8,
-                                    param1=100, param2=30,
-                                    minRadius=100, maxRadius=1080)
+        #cv.smooth(cb_mask, cb_mask, cv.CV_GAUSSIAN, 5, 5)
+        #cv.erode(cb_mask, cb_mask, None, 10)
+        #cv.dilate(cb_mask, cb_mask, None, 10)
+        #cv.canny(cb_mask, cb_mask, 5, 70, 3)
+        #cv.smooth(cb_mask, cb_mask, cv.CV_GAUSSIAN, 15, 15)
+        
+        # TODO: Resize and HoughCircles functions just block, wtf 
+        #cb_mask = Image.resize((6960/5,3904/5))
+        #cb_mask = imutils.resize(cb_mask, width=6960/5)
+        #cb_mask = cv.resize(cb_mask,(6960/10,3904/10),interpolation=cv.INTER_NEAREST)
+        cb_mask = cb_mask[::4, ::4]
+        
+
+        x,y = (cb_mask.shape[1],cb_mask.shape[0])
+        circles = cv.HoughCircles(cb_mask, cv.HOUGH_GRADIENT_ALT, 20, minDist=10,
+                                    param1=10, # Edge detect filter
+                                    param2=50, # Threshold for detections
+                                    minRadius=x/3, maxRadius=y)
                 
         if circles is not None:
+            lg.debug(f"Found {len(circles)} circles!")
             circles = np.uint16(np.around(circles))
             for i in circles[0, :]:
                 cb_center = np.array((i[0], i[1]))
                 cb_radius = i[2]
                     
+        Eval.img_save(np.dstack((cb_mask, cb_mask, cb_mask)), 'mask.png')
+        
                 #orig = np.dstack((gray, gray, gray))
                 # circle center
                 #cv.circle(orig, center, 1, (0, 100, 100), 3)
@@ -120,7 +129,7 @@ class Eval:
             lg.debug("Converting image to uint8")
             img = Eval.img_float2byte(img)
             
-        file = os.path.join(OUTPUT_PATH, name)
+        file = os.path.join('../HdM_BA/data/eval', name)
         colour.write_image(img, file, 'uint8', method='Imageio')
         
     def img_float2byte(img):

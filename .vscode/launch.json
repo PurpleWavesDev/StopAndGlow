@@ -45,7 +45,7 @@
             "type": "python",
             "request": "launch",
             "program": "image_capture.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=calibration_back"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=calibration2"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

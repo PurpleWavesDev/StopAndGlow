@@ -29,6 +29,7 @@ HW = namedtuple("HW", ["cam", "lights", "config"])
 # Globals
 FLAGS = flags.FLAGS
 DATA_BASE_PATH='../HdM_BA/data'
+NAME_MASK_EXT='_mask'
 
 # Global flag defines
 # Mode and logging
@@ -41,7 +42,7 @@ flags.DEFINE_string('lights_config_name', '', 'Name of config to read available 
 # Sequence 
 flags.DEFINE_string('output_path', '../HdM_BA/data', 'Where the image data should be written to.')
 flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evaluate.')
-flags.DEFINE_string('mask_name', 'allon', 'Sequence name for the mask data.')
+#flags.DEFINE_string('mask_name', 'mask', 'Sequence name for the mask data.')
 flags.DEFINE_integer('sequence_start', 1, 'Frame count starting from this number for downloads', lower_bound=0)
 flags.DEFINE_boolean('keep_sequence', False, 'Keep images on camera after downloading.')
 
@@ -54,11 +55,11 @@ def main(argv):
 
     # First check modes without hardware requirements
     if FLAGS.mode == 'eval_cal':
-        eval_cal(os.path.join(FLAGS.output_path, FLAGS.mask_name), os.path.join(FLAGS.output_path, FLAGS.sequence_name)) # TODO: Flags
+        name = "calibration" if FLAGS.sequence_name == "" else FLAGS.sequence_name
+        eval_cal(os.path.join(FLAGS.output_path, name))
 
     else:
         # Prepare for tasks
-        #hw = HW(None, Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
         hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
 
         # Execute task for requested mode
@@ -73,10 +74,11 @@ def main(argv):
             #name = "capture" if FLAGS.sequence_name == "" else FLAGS.sequence_name
             #download(hw, name, keep=FLAGS.keep_sequence)
         elif FLAGS.mode == 'calibrate':
-            #calibrate(hw)
-            capture_all_on(hw)
-            capture(hw)
             name = "calibration" if FLAGS.sequence_name == "" else FLAGS.sequence_name
+            # Capture with all lights on for masking frame
+            capture_all_on(hw)
+            download(hw, name+NAME_MASK_EXT, keep=False)
+            capture(hw)
             download(hw, name, keep=FLAGS.keep_sequence)
         elif FLAGS.mode == 'download':
             name = "download" if FLAGS.sequence_name == "" else FLAGS.sequence_name
@@ -168,9 +170,6 @@ def capture_all_on(hw):
     hw.cam.capture(0)
     hw.lights.off()
 
-    # Download image
-    download(hw, 'allon', keep=False)
-
 
 #################### CALIBRATE MODES ####################
 
@@ -217,17 +216,17 @@ def download(hw, name, download_all=False, keep=False):
 
 #################### EVAL MODES ####################
 
-def eval_cal(path_allon, path_sequence):
+def eval_cal(path_sequence):
     # Load data
-    img_allon = ImgData(path_allon)
+    img_mask = ImgData(path_sequence+NAME_MASK_EXT)
     img_seq = ImgData(path_sequence)
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
 
     config=Config()
     eval=Eval()
 
-    # Find center of chrome ball with allon frame
-    eval.find_center(img_allon.get(0))
+    # Find center of chrome ball with mask frame
+    eval.find_center(img_mask.get(0))
     
     # Loop for all calibration frames
     del_list = []
