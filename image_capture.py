@@ -12,9 +12,7 @@ from importlib import reload
 #import locale
 
 # DMX, Timer and Camera interfaces
-from src.camera import Cam
 from src.timer import Timer, Worker
-from src.lights import Lights
 from src.imgdata import *
 from src.eval import Eval
 from src.config import Config
@@ -60,6 +58,8 @@ def main(argv):
 
     else:
         # Prepare for tasks
+        from src.camera import Cam
+        from src.lights import Lights
         hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
 
         # Execute task for requested mode

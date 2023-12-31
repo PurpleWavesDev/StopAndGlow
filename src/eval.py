@@ -3,11 +3,11 @@ import numpy as np
 import math
 
 import cv2 as cv
-#from PIL import Image
-import imutils
 
 from src.imgdata import *
 from src.config import Config
+from src.utils import logging_disabled
+
 
 class Eval:
     def __init__(self):
@@ -17,50 +17,93 @@ class Eval:
 
     # Find center and radius of chromeball
     def find_center(self, imgdata):
-        # use red channel only, as ints
-        cb_mask = imgdata.g().asInt().get()
-        cb_center = (0,0)
-        cb_radius = 0
-
-        # Reduce noise
-        cb_mask = cv.medianBlur(cb_mask, 15)
-        # High pass
-        intensity=25
-        cb_mask = cb_mask - cv.GaussianBlur(cb_mask, (intensity*2+1,intensity*2+1), 50) + 127
+        # Globals; 
+        self.cb_center = (0,0)
+        self.cb_radius = 0
+        # Locals, use only red channel in frame, as ints
+        mask_rgb = imgdata.asInt()
+        cb_mask = imgdata.r().asInt().get()
+        res_x, res_y = (cb_mask.shape[1],cb_mask.shape[0])
         
-        #cv.smooth(cb_mask, cb_mask, cv.CV_GAUSSIAN, 5, 5)
-        #cv.erode(cb_mask, cb_mask, None, 10)
-        #cv.dilate(cb_mask, cb_mask, None, 10)
-        #cv.canny(cb_mask, cb_mask, 5, 70, 3)
-        #cv.smooth(cb_mask, cb_mask, cv.CV_GAUSSIAN, 15, 15)
+        # Reduce noise and blend features
+        cb_mask = cv.medianBlur(cb_mask, 5)
+        #cb_mask = np.clip(cb_mask, 0, 200)
         
-        # TODO: Resize and HoughCircles functions just block, wtf 
-        #cb_mask = Image.resize((6960/5,3904/5))
-        #cb_mask = imutils.resize(cb_mask, width=6960/5)
-        #cb_mask = cv.resize(cb_mask,(6960/10,3904/10),interpolation=cv.INTER_NEAREST)
-        cb_mask = cb_mask[::4, ::4]
+        # Canny Edge detect
+        cb_mask = cv.Canny(image=cb_mask,
+                 threshold1=10.0, # Lower threshold
+                 threshold2=100.0, # Upper threshold
+                 apertureSize=3,
+                 L2gradient=False)
         
-
-        x,y = (cb_mask.shape[1],cb_mask.shape[0])
-        circles = cv.HoughCircles(cb_mask, cv.HOUGH_GRADIENT_ALT, 20, minDist=10,
-                                    param1=10, # Edge detect filter
-                                    param2=50, # Threshold for detections
-                                    minRadius=x/3, maxRadius=y)
+        # Dilate and smooth edge
+        erosion_size = 1
+        blur_size = 1
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (2 * erosion_size + 1, 2 * erosion_size + 1), (erosion_size, erosion_size))
+        cb_mask = cv.dilate(cb_mask, kernel)
+        cb_mask = cv.GaussianBlur(cb_mask, (blur_size*2+1,blur_size*2+1), blur_size)
+        
+        # Masking
+        grey = np.full(cb_mask.shape[:2], 0, dtype='uint8')
+        alpha = np.zeros(cb_mask.shape[:2], dtype='uint8')
+        cv.rectangle(alpha, (0, int(res_y*0.85)), (res_x, res_y), 255, -1)
+        alpha = colour.io.convert_bit_depth(cv.GaussianBlur(alpha, (55,55), 200), 'float32')
+        beta = (1-alpha)
+        # Apply mask
+        cb_mask = cv.blendLinear(cb_mask, grey, beta, alpha)
                 
-        if circles is not None:
-            lg.debug(f"Found {len(circles)} circles!")
-            circles = np.uint16(np.around(circles))
-            for i in circles[0, :]:
-                cb_center = np.array((i[0], i[1]))
-                cb_radius = i[2]
-                    
-        Eval.img_save(np.dstack((cb_mask, cb_mask, cb_mask)), 'mask.png')
+        # Binary Filter
+        thresh = cv.threshold(cb_mask, 100, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)[1]
+        # Find circle contours
+        cnts = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+        all_cnts = None
+        for i, cnt in enumerate(cnts):
+            if i == 0:
+                all_cnts=cnt
+            else:
+                all_cnts = np.append(all_cnts, cnt, axis=0)
+
+        if all_cnts is not None:
+            # Found contour, get circle
+            ((x, y), r) = cv.minEnclosingCircle(all_cnts)
+            self.cb_center = (x+0.5,y+0.5)
+            self.radius = r
+            if True:
+                cv.circle(mask_rgb.get(), (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
+                Eval.img_save(mask_rgb.get(), 'chromeball_center.png')
         
-                #orig = np.dstack((gray, gray, gray))
-                # circle center
-                #cv.circle(orig, center, 1, (0, 100, 100), 3)
-                # circle outline
-                #cv.circle(orig, center, radius, (255, 0, 255), 3)
+        
+        # Don't need full resolution
+        #scale=0.5
+        #cb_mask = cv.resize(cb_mask, None, fx=scale, fy=scale)# (int(cb_mask.shape[1]/scale_div), int(cb_mask.shape[0]/scale_div)), interpolation=cv.INTER_NEAREST)
+
+        # High pass 
+        #intensity=15
+        #cb_mask = np.abs(cb_mask - cv.GaussianBlur(cb_mask, (intensity*2+1,intensity*2+1), 50).astype('int16')).astype('uint8')
+        #cb_mask = cb_mask - cv.GaussianBlur(cb_mask, (intensity*2+1,intensity*2+1), intensity) + 127
+        
+        
+        
+        
+        # Detect circles
+        #circles = cv.HoughCircles(cb_mask, cv.HOUGH_GRADIENT,
+        #                            dp=1, # Resolution
+        #                            minDist=1,
+        #                            param1=50, # Higher threshold for threshold detection
+        #                            param2=110, # Accumulator threshold for centers, Higher=Less circles
+        #                            minRadius=int(x/6), maxRadius=int(y/2))
+        
+        #if circles is not None:
+        #    log.debug(f"Found {len(circles[0])} circles!")
+        #    circles = np.uint16(np.around(circles))
+        #    for i in circles[0, :]:
+        #        cb_center = np.array((i[0], i[1]))
+        #        cb_radius = i[2]
+        #        # Draw circle
+        #        cv.circle(mask_rgb,(i[0],i[1]),i[2],(0,255,0),2)
+        #        cv.circle(mask_rgb,(i[0],i[1]),2,(0,0,255),3)
+                            
 
     def filter_blackframe(self, imgbuf, threshold=0.5):
         thresh = imgbuf.get()[...,1]
@@ -95,7 +138,7 @@ class Eval:
                 area = cv.contourArea(cnts[0])
                 center = (int(x+0.5),int(y+0.5))
                 
-                lg.debug(f"Reflection at frame {i}: {center} {area}")
+                log.debug(f"Reflection at frame {i}: {center} {area}")
                 if DEBUG_SAVE_IMG:
                     cv.circle(img_pos, center, int(r), (0, 0, 255), 2)
                     cv.line(img_pos, center, cb_center, (0,255,0))
@@ -103,21 +146,21 @@ class Eval:
                 # Calculate spherical coordinates (O = cb_center, I = center reflection)
                 OI = (center - cb_center) / cb_radius
                 OI[1] *= -1
-                lg.debug(f"{OI}")
+                log.debug(f"{OI}")
                 pos_map[i] = OI
                 #length = np.linalg.norm(OI) / cb_radius
                 #phi = np.angle(-OI[1]+OI[0]*1j, deg=True)
-                #lg.info(f"{i}: {phi} - {length}")
+                #log.info(f"{i}: {phi} - {length}")
                 ## Calculate angles relative to z axis
                 #z = math.sin(length*math.pi/2)
-                #lg.info(f">: {z} - {length}")
+                #log.info(f">: {z} - {length}")
                     
             elif len(cnts) >1:
-                lg.error(f"Frame {i} has {len(cnts)} detected lights, fix threshold / mask.")
+                log.error(f"Frame {i} has {len(cnts)} detected lights, fix threshold / mask.")
                 if DEBUG_SAVE_IMG:
                     Eval.img_save(thresh, "threshold.png")
             else:
-                lg.warning(f"Warning: Frame {i} has no detected lights.")
+                log.warning(f"Warning: Frame {i} has no detected lights.")
             
             # Increment frame counter
             i += 1
@@ -126,11 +169,12 @@ class Eval:
 
     def img_save(img, name):
         if img.dtype != 'uint8':
-            lg.debug("Converting image to uint8")
+            log.debug("Converting image to uint8")
             img = Eval.img_float2byte(img)
             
         file = os.path.join('../HdM_BA/data/eval', name)
-        colour.write_image(img, file, 'uint8', method='Imageio')
+        with logging_disabled():
+            colour.write_image(img, file, 'uint8', method='Imageio')
         
     def img_float2byte(img):
         return (np.clip(img, 0, 1) * 255).astype('uint8')
