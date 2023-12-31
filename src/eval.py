@@ -12,18 +12,18 @@ from src.utils import logging_disabled
 class Eval:
     def __init__(self):
         # Settings
-        self.thresh_min=100
-        self.thresh_max=255
+        self.reflection_threshold=230
 
     # Find center and radius of chromeball
     def find_center(self, imgdata):
-        # Globals; 
-        self.cb_center = (0,0)
-        self.cb_radius = 0
         # Locals, use only red channel in frame, as ints
         mask_rgb = imgdata.asInt()
         cb_mask = imgdata.r().asInt().get()
         res_x, res_y = (cb_mask.shape[1],cb_mask.shape[0])
+        # Globals; 
+        self.cb_center = (0,0)
+        self.cb_radius = 0
+        self.cb_mask = np.zeros(cb_mask.shape[:2], dtype="uint8")
         
         # Reduce noise and blend features
         cb_mask = cv.medianBlur(cb_mask, 5)
@@ -67,8 +67,9 @@ class Eval:
         if all_cnts is not None:
             # Found contour, get circle
             ((x, y), r) = cv.minEnclosingCircle(all_cnts)
-            self.cb_center = (x+0.5,y+0.5)
-            self.radius = r
+            self.cb_center = np.array([x, y])
+            self.cb_radius = r
+            cv.circle(self.cb_mask, (int(x+0.5),int(y+0.5)), int(r), 255, -1)
             if True:
                 cv.circle(mask_rgb.get(), (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
                 Eval.img_save(mask_rgb.get(), 'chromeball_center.png')
@@ -105,67 +106,59 @@ class Eval:
         #        cv.circle(mask_rgb,(i[0],i[1]),2,(0,0,255),3)
                             
 
-    def filter_blackframe(self, imgbuf, threshold=0.5):
-        thresh = imgbuf.get()[...,1]
-        if not np.argmax(thresh>threshold):
+    def filter_blackframe(self, imgbuf):
+        frame = imgbuf.r().get()
+        frame = cv.bitwise_and(frame, frame, mask=self.cb_mask)
+        if not np.argmax(frame>self.reflection_threshold):
             # Below threshold 
             return True
         return False
 
 
-    def find_reflection(self, imgbuf, debugimg=None):
+    def find_reflection(self, imgdata, id, debug_img=None):
         # Find reflections in each image
-        # Globals
-        return
-        img_pos = Eval.img_float2byte(original)
-        self.pos_map = dict()
-
-        # Iterate and prepare frames
-        i = 0
-        for frame in imgdata:
-            frame = frame[:,:,:1] # Only use red channel
-            frame = Eval.img_float2byte(frame)
+        # Locals
+        frame = imgdata.r().asInt().get()
+        # Binary filter and mask
+        frame = cv.bitwise_and(frame, frame, mask=self.cb_mask)
+        frame = cv.threshold(frame, self.reflection_threshold, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)[1]
     
-            # Filter
-            thresh = cv.threshold(frame, thresh_min, thresh_max, cv.THRESH_BINARY + cv.THRESH_OTSU)[1]
-    
-            # Find circle contours
-            cnts = cv.findContours(thresh, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
-            cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-            if len(cnts) == 1:
-                # Found reflection
-                ((x, y), r) = cv.minEnclosingCircle(cnts[0])
-                area = cv.contourArea(cnts[0])
-                center = (int(x+0.5),int(y+0.5))
+        # Find circle contours
+        cnts = cv.findContours(frame, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+        if len(cnts) == 1:
+            # Found reflection
+            ((x, y), r) = cv.minEnclosingCircle(cnts[0])
+            center = np.array([x, y])
                 
-                log.debug(f"Reflection at frame {i}: {center} {area}")
-                if DEBUG_SAVE_IMG:
-                    cv.circle(img_pos, center, int(r), (0, 0, 255), 2)
-                    cv.line(img_pos, center, cb_center, (0,255,0))
+            if debug_img is not None:
+                cv.circle(debug_img, (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)
+                #cv.line(debug_img, (int(x+0.5),int(y+0.5)), self.cb_center, (0,255,0))
                     
-                # Calculate spherical coordinates (O = cb_center, I = center reflection)
-                OI = (center - cb_center) / cb_radius
-                OI[1] *= -1
-                log.debug(f"{OI}")
-                pos_map[i] = OI
-                #length = np.linalg.norm(OI) / cb_radius
-                #phi = np.angle(-OI[1]+OI[0]*1j, deg=True)
-                #log.info(f"{i}: {phi} - {length}")
-                ## Calculate angles relative to z axis
-                #z = math.sin(length*math.pi/2)
-                #log.info(f">: {z} - {length}")
+            # Calculate spherical coordinates (O = cb_center, I = center reflection)
+            OI = (center - self.cb_center) / self.cb_radius
+            OI[1] *= -1
+            log.debug(f"Found reflection for frame {id}: {center} x {r}; UV {OI}")
+            #length = np.linalg.norm(OI) / cb_radius
+            #phi = np.angle(-OI[1]+OI[0]*1j, deg=True)
+            #log.info(f"{i}: {phi} - {length}")
+            ## Calculate angles relative to z axis
+            #z = math.sin(length*math.pi/2)
+            #log.info(f">: {z} - {length}")
+                
+            return OI
                     
-            elif len(cnts) >1:
-                log.error(f"Frame {i} has {len(cnts)} detected lights, fix threshold / mask.")
-                if DEBUG_SAVE_IMG:
-                    Eval.img_save(thresh, "threshold.png")
-            else:
-                log.warning(f"Warning: Frame {i} has no detected lights.")
+        elif len(cnts) >1:
+            log.error(f"Frame {id} has {len(cnts)} detected lights, fix threshold / mask.")
+            if debug_img is not None:
+                for cnt in cnts:
+                    ((x, y), r) = cv.minEnclosingCircle(cnt)
+                    cv.circle(debug_img, (int(x+0.5),int(y+0.5)), int(r), (255, 0, 0), 2)
+        else:
+            log.warning(f"Warning: Frame {id} has no detected lights.")
             
-            # Increment frame counter
-            i += 1
-        if DEBUG_SAVE_IMG:
-            Eval.img_save(img_pos, "positions.png")
+        return None
+
 
     def img_save(img, name):
         if img.dtype != 'uint8':

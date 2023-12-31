@@ -230,11 +230,13 @@ def eval_cal(path_sequence):
     
     # Loop for all calibration frames
     del_list = []
+    debug_img = img_mask.get(0).asInt().get()
     for id, img in img_seq:
-        if not eval.filter_blackframe(img, 0.9):
+        if not eval.filter_blackframe(img):
             # Process frame
-            eval.find_reflection(img)
-            config.addLight(id, [0,0], [0,0])
+            uv = eval.find_reflection(img, id, debug_img)
+            if uv is not None:
+                config.addLight(id, uv, [0,0])
         else:
             log.debug(f"Found blackframe '{id}'")
             del_list.append(id)
@@ -242,6 +244,9 @@ def eval_cal(path_sequence):
     # Delete blackframes
     for id in del_list:
         del img_seq[id]
+        
+    # Save debug image
+    Eval.img_save(debug_img, "reflections.png")
 
     # Save config
     log.info(f"Saving config to '{FLAGS.config_path}' with lights from ID {config.get_key_bounds()}")
