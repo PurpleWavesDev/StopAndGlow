@@ -226,17 +226,17 @@ def eval_cal(path_sequence):
     eval=Eval()
 
     # Find center of chrome ball with mask frame
-    eval.find_center(img_mask.get(0))
+    eval.findCenter(img_mask.get(0))
     
     # Loop for all calibration frames
     del_list = []
     debug_img = img_mask.get(0).asInt().get()
     for id, img in img_seq:
-        if not eval.filter_blackframe(img):
+        if not eval.filterBlackframe(img):
             # Process frame
-            uv = eval.find_reflection(img, id, debug_img)
+            uv = eval.findReflection(img, id, debug_img)
             if uv is not None:
-                config.addLight(id, uv, [0,0])
+                config.addLight(id, uv, eval.sphericalToLatlong(uv))
         else:
             log.debug(f"Found blackframe '{id}'")
             del_list.append(id)
@@ -246,7 +246,7 @@ def eval_cal(path_sequence):
         del img_seq[id]
         
     # Save debug image
-    Eval.img_save(debug_img, "reflections.png")
+    Eval.imgSave(debug_img, "reflections")
 
     # Save config
     log.info(f"Saving config to '{FLAGS.config_path}' with lights from ID {config.get_key_bounds()}")

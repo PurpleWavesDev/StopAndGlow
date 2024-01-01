@@ -50,11 +50,13 @@ class ImgBuffer:
                 self._format=ImgFormat.PNG
             elif ext.lower() == ".exr":
                 self._format=ImgFormat.EXR
+            else:
+                self._format=ImgFormat.Keep
                 
-    def setFormat(self, format):
-        if img_format != ImgFormat.Keep and img_format != self._format:
+    def setFormat(self, img_format):
+        if img_format != ImgFormat.Keep:
             root, ext = os.path.splitext(self._path)
-            match self._format:
+            match img_format:
                 case ImgFormat.PNG:
                     self._path = root+".png"
                 case ImgFormat.JPG:
@@ -62,8 +64,11 @@ class ImgBuffer:
                 case ImgFormat.EXR:
                     self._path = root+".exr"
                         
-            self._path=self._path #TODO
             self._format=img_format
+            
+        elif self._format == ImgFormat.Keep:
+            log.warn("No valid format specified, defaulting to PNG")
+            self._path = root+".png"
         
     def get(self):
         # Lazy loading
@@ -104,13 +109,14 @@ class ImgBuffer:
         if self._path is not None and self._img is not None:
             # Check if different format is requested and update path
             self.setFormat(img_format)
-                
-            match self._format:
-                case ImgFormat.EXR:
-                    colour.write_image(self._img, self._path, 'float32', method='Imageio')
-                case _: # PNG and JPG
-                    colour.write_image(self._img, self._path, 'uint8', method='Imageio')
-            log.debug(f"Saved image {self._path}")
+            
+            with logging_disabled():
+                match self._format:
+                    case ImgFormat.EXR:
+                        colour.write_image(self._img, self._path, 'float32', method='Imageio')
+                    case _: # PNG and JPG
+                        colour.write_image(self._img, self._path, 'uint8', method='Imageio')
+            #log.debug(f"Saved image {self._path}")
             
         else:
             log.error("Can't save image without path")
@@ -138,9 +144,11 @@ class ImgBuffer:
             return ImgBuffer(path=self._path, img=img, domain=domain)
         
     def asFloat(self):
-        return ImgBuffer(path=self._path, img=colour.io.convert_bit_depth(self.get(), IMAGE_DTYPE_FLOAT), domain=self._domain)
+        img = self._img if self.get().dtype == IMAGE_DTYPE_FLOAT else colour.io.convert_bit_depth(self._img, IMAGE_DTYPE_FLOAT)
+        return ImgBuffer(path=self._path, img=img, domain=self._domain)
     def asInt(self):
-        return ImgBuffer(path=self._path, img=colour.io.convert_bit_depth(self.get(), IMAGE_DTYPE_INT), domain=self._domain)
+        img = self._img if self.get().dtype == IMAGE_DTYPE_INT else colour.io.convert_bit_depth(self._img, IMAGE_DTYPE_INT)
+        return ImgBuffer(path=self._path, img=img, domain=self._domain)
     def r(self):
         return ImgBuffer(path=self._path, img=self.get()[...,0], domain=self._domain)
     def g(self):
