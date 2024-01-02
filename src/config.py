@@ -22,11 +22,10 @@ class Config:
     def load(self, path):
         with open(path, "r") as file:
             self._data = json.load(file)
-            if not self._data['lights']:
-                # Sort it - possibly just sort while saving?
-                self._data['lights'] = dict(sorted(self._data['lights'].items())) # TODO: Test it!
-                self._min = list(self._data['lights'])[0][id]
-                self._max = list(self._data['lights'])[-1][id]
+            if self._data['lights']:
+                # List should always be sorted (there is no gurantee though), access ID of first and last element
+                self._min = self.getByIndex(0)['id']
+                self._max = self.getByIndex(-1)['id']
 
     def save(self, path, name='calibration.json'):
         if not os.path.exists(path):
@@ -34,31 +33,28 @@ class Config:
         full_path = os.path.join(path, name)
 
         with open(full_path, "w") as file:
-            json.dump(self._data, file, indent=4) # sort_keys=True
+            json.dump(self._data, file, indent=4)
 
 
-    def get_key_bounds(self):
+    def getByIndex(self, index):
+        return self._data['lights'][index]
+
+    def getIdBounds(self):
         return [self._min, self._max]
-
-    def get(self):
-        return self._data['lights']
-
-    # TODO: Geht alles nicht:
     
-    def get_keys(self):
-        return self._data['lights'].keys()
+    def getIds(self):
+        return [d['id'] for d in self._data['lights']]
 
-    #def get(self, index):
-    #    return list(self._data['lights'].values())[index]
-        
     def __getitem__(self, key):
-        return self._data['lights'][key]
-    
-    def __delitem__(self, key):
-        del self._data['lights'][key]
-    
-    def __iter__(self):
-        return iter(self._data['lights'].items())
+        return next((item for item in self._data['lights'] if item["id"] == key), None)
 
     def __len__(self):
         return len(self._data['lights'])
+        
+    # TODO: Nicht getestet
+    def __delitem__(self, key):
+        del self[key]
+    
+    # TODO: Geht nicht
+    def __iter__(self):
+        return iter(self._data['lights'].items())

@@ -4,22 +4,22 @@ import os
 import io
 import time
 from collections import namedtuple
-
-import logging as log
 from importlib import reload
-#import threading
-#import subprocess
-#import locale
+
+# Flags and logging
+from absl import app
+from absl import flags
+import logging as log
 
 # DMX, Timer and Camera interfaces
 from src.timer import Timer, Worker
 from src.imgdata import *
 from src.eval import Eval
 from src.config import Config
+from src.camera import Cam
+from src.lights import Lights
+import src.capture_worker as worker
 
-# Abseil flags
-from absl import app
-from absl import flags
 
 # Types
 HW = namedtuple("HW", ["cam", "lights", "config"])
@@ -58,8 +58,6 @@ def main(argv):
 
     else:
         # Prepare for tasks
-        from src.camera import Cam
-        from src.lights import Lights
         hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
 
         # Execute task for requested mode
@@ -90,68 +88,20 @@ def main(argv):
 #################### CAPTURE MODES ####################
 
 def capture(hw):
-    log.info("Starting capturing")
-    # Worker class
-    class CaptureWorker(Worker):
-        def __init__(self, hw):
-            self.hw=hw
-            self.lights=self.hw.config.get()
-            self.i=0
-
-        def work(self) -> bool:
-            # Set values
-            light_id = self.lights[self.i]['id']
-            self.hw.lights.setList([light_id])
-            self.hw.lights.write()
-
-             # Trigger camera
-            self.hw.cam.capture(light_id)
-
-            # Abort condition
-            self.i+=1
-            return self.i < len(self.lights)
-
-    worker = CaptureWorker(hw)
-    t = Timer(worker)
+    log.info("Starting image capture")
+    t = Timer(worker.ImageCapture(hw), self.hw.config)
     t.start(0)
     t.join()
 
 def capture_quick(hw):
     log.info("Starting quick capture (video)")
     # Worker class
-    class CaptureWorker(Worker):
-        def __init__(self, hw):
-            self.hw=hw
-            self.lights=self.hw.config.get()
-            self.i=0
-            self.blackframe=False
-
-        def work(self) -> bool:
-            if not self.blackframe:
-                # Set values
-                light_id = self.lights[self.i]['id']
-                self.hw.lights.setList([light_id])
-                self.hw.lights.write()
-                self.blackframe=True
-
-                # Trigger camera
-                #self.hw.cam.capture(light_id)
-                return True
-
-            else:
-                self.hw.lights.off()
-                self.blackframe=False
-                # Abort condition
-                self.i+=1
-                return self.i < len(self.lights)
-
     time.sleep(10)
-    worker = CaptureWorker(hw)
-    t = Timer(worker)
+    t = Timer(worker.VideoCapture(hw))
     hw.lights.off()
     time.sleep(1)
     # All on
-    frame = [60] * hw.lights.DMX_MAX_ADDRESS
+    frame = [60] * Lights.DMX_MAX_ADDRESS
     hw.lights.setFrame(frame)
     hw.lights.write()
     time.sleep(0.5)
@@ -162,7 +112,7 @@ def capture_quick(hw):
     t.join()
 
 def capture_all_on(hw):
-    frame = [100] * hw.lights.DMX_MAX_ADDRESS
+    frame = [100] * Lights.DMX_MAX_ADDRESS
     hw.lights.setFrame(frame)
     hw.lights.write()
 
@@ -175,30 +125,7 @@ def capture_all_on(hw):
 
 def calibrate(hw):
     log.info("Starting image capture")
-    # Worker class
-    class CalWorker(Worker):
-        def __init__(self, hw, range_start, range_end):
-            self.cam=hw.cam
-            self.lights=hw.lights
-            self.i = range_start
-            self.end = range_end
-
-        def work(self) -> bool:
-            # Set values
-            self.lights.setList([self.i])
-            self.lights.write()
-
-            # Trigger camera
-            self.cam.capture(self.i)
-
-            # Abort condition
-            self.i+=1
-            if self.i >= self.end:
-                return False
-            return True
-
-    worker = CalWorker(hw, 0, hw.lights.DMX_MAX_ADDRESS)
-    t = Timer(worker)
+    t = Timer(worker.ImageCapture(hw, range_start=0, range_end=Lights.DMX_MAX_ADDRESS))
 
     t.start(0)
     t.join()
@@ -212,6 +139,18 @@ def download(hw, name, download_all=False, keep=False):
         # Search for files on camera
         hw.cam.add_files(hw.cam.list_files(), FLAGS.sequence_start)
     hw.cam.download(FLAGS.output_path, name, keep=keep)
+
+
+#################### Light MODES ####################
+
+def debug_lightrun(hw):
+    log.info("Starting lightrun")
+    # Worker class
+
+    log.info(f"Running through {len(hw.config)} lights with IDs {hw.config.getIdBounds()}")
+    t = Timer(worker.LightWorker(hw, hw.config))
+    t.start(1/15)
+    t.join()
 
 
 #################### EVAL MODES ####################
@@ -236,7 +175,7 @@ def eval_cal(path_sequence):
             # Process frame
             uv = eval.findReflection(img, id, debug_img)
             if uv is not None:
-                config.addLight(id, uv, eval.sphericalToLatlong(uv))
+                config.addLight(id, uv, Eval.sphericalToLatlong(uv))
         else:
             log.debug(f"Found blackframe '{id}'")
             del_list.append(id)
@@ -249,36 +188,10 @@ def eval_cal(path_sequence):
     Eval.imgSave(debug_img, "reflections")
 
     # Save config
-    log.info(f"Saving config to '{FLAGS.config_path}' with lights from ID {config.get_key_bounds()}")
+    log.info(f"Saving config to '{FLAGS.config_path}' with lights from ID {config.getIdBounds()}")
     config.save(FLAGS.config_path, FLAGS.config_name)
 
 
-#################### DEBUG MODES ####################
-
-def debug_lightrun(hw):
-    log.info("Starting lightrun")
-    # Worker class
-    class LightTest(Worker):
-        def __init__(self, hw):
-            self.hw=hw
-            self.lights=self.hw.config.get()
-            self.i=0
-
-        def work(self) -> bool:
-            # Set values
-            self.hw.lights.setList([self.lights[self.i]['id']])
-            self.hw.lights.write()
-
-            # Abort condition
-            self.i+=1
-            return self.i < len(self.lights)
-
-
-    log.info(f"Running through {len(hw.config)} lights with IDs {hw.config.get_key_bounds()}")
-    worker = LightTest(hw)
-    t = Timer(worker)
-    t.start(1/15)
-    t.join()
 
 if __name__ == '__main__':
     app.run(main)

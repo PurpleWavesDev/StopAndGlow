@@ -109,12 +109,7 @@ class Eval:
 
     def filterBlackframe(self, imgbuf):
         frame = imgbuf.r().get()
-        frame = cv.bitwise_and(frame, frame, mask=self.cb_mask)
-        if not np.argmax(frame>self.reflection_threshold):
-            # Below threshold 
-            return True
-        return False
-
+        return ImgOp.blackframe(frame, threshold=self.reflection_threshold, mask=self.cb_mask)
 
     def findReflection(self, imgdata, id, debug_img=None):
         # Find reflections in each image
@@ -170,20 +165,33 @@ class Eval:
             log.warning(f"Frame {id} has no detected reflection.")
         
         return None
+    
 
     ### Static functions ###
     
-    def sphericalToLatlong(uv):
-            #length = np.linalg.norm(OI) / cb_radius
-            #phi = np.angle(-OI[1]+OI[0]*1j, deg=True)
-            #log.info(f"{i}: {phi} - {length}")
-            ## Calculate angles relative to z axis
-            #z = math.sin(length*math.pi/2)
-            #log.info(f">: {z} - {length}")
-            return (0,0)
+    def sphericalToLatlong(uv, perspective_distortion=1):
+            # That's the coordinates ON THE SPHERE not on the sky
+            #latitude = math.degrees(math.asin(uv[1]))
+            #longitude = 90-math.degrees(math.acos(uv[0]))
+            # TODO: This might just work?
+            latitude = math.degrees(math.asin(uv[1])*2/perspective_distortion)
+            if latitude>90: latitude=90-(latitude-90)
+            longitude = -180+math.degrees(math.acos(uv[0])*2/perspective_distortion)
+            return (latitude, longitude)
 
     def imgSave(img, name, img_format=ImgFormat.PNG):
         BASE_PATH_EVAL='../HdM_BA/data/eval'
         img = ImgBuffer(img=img, path=os.path.join(BASE_PATH_EVAL, name))
-        img.save(img_format)        
+        img.save(img_format)
 
+
+class ImgOp:
+    def similar(img1, img2, threshold=0.1, mask=None) -> bool:
+        if mask is not None:
+            img = cv.bitwise_and(img, img, mask=mask)
+        return not np.argmax((img1-img2)>=threshold)
+    
+    def blackframe(img, threshold=0.2, mask=None) -> bool:
+        if mask is not None:
+            img = cv.bitwise_and(img, img, mask=mask)
+        return not np.argmax(img>=threshold)

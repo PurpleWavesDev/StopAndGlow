@@ -171,9 +171,20 @@ class ImgData():
         self._min=-1
         self._max=-1
         if path is not None:
-            self.load_folder(os.path.abspath(path))
+            self.load(os.path.abspath(path))
 
-    def load_folder(self, path):
+    def load(self, path):
+        match os.path.splitext(path)[1]:
+            case '':
+                # Path, load folder
+                self.loadFolder(path)
+            case '.mov' | '.mp4':
+                # Video
+                self.loadVideo(path)
+            case _:
+                log.error(f"Can't load file {path}")
+                
+    def loadFolder(self, path):
         # Search for frames in folder
         for f in os.listdir(path):
             p = os.path.join(path, f)
@@ -195,6 +206,60 @@ class ImgData():
 
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
+        
+    def loadVideo(self, path, seq_name=None, seq2_name_ext=None):
+        # Define paths and sequence names
+        base_dir = os.path.dirname(path)
+        if seq_name is None:
+            seq_name = os.path.splitext(os.path.basename(path))[0]
+        seq2_name=None
+        if seq2_name_ext is not None:
+            seq2_name=seq_name+seq2_name_ext
+            
+        img_name_base = os.path.join(base_dir, seq_name, seq_name)
+            
+        # Load video & iterate through frames
+        vidcap = cv.VideoCapture(path)
+        if vidcap is None:
+            log.error("Could not load video file '{}'")
+            return False
+        
+        class VidParseState(Enum):
+            PreBlack = 0,
+            Black = 1,
+            Skip = 2,
+            Valid = 3
+        state = VidParseState.PreBlack
+        success, frame = vidcap.read()
+        frame_number = 0
+        previous = None
+        
+        while success:
+            match state:
+                case VidParseState.PreBlack:
+                    # Wait for black frame
+                    if ImgOP.blackframe(frame):
+                        state = VidParseState.Black
+                case VidParseState.Black:
+                    # Wait for first non-black frame
+                    if not ImgOP.blackframe(frame):
+                        state = VidParseState.Skip
+                case VidParseState.Skip:
+                    state = VidParseState.Valid
+                case VidParseState.Valid:
+                    # Abort condition
+                    if ImgOP.blackframe(frame) or (previous is not None and ImgOP.similar(frame, previous)):
+                        break
+                    # Use this frame
+                    self._frames[frame_number] = ImgBuffer(path=img_name_base+f"_{frame_number:03d}", img=frame, domain=ImgDomain.sRGB)
+                    # Skip every other frame
+                    state = VidParseState.Skip
+                    frame_number += 1
+                    previous = frame
+                    
+            # Next iteration
+            success, frame = vidcap.read()
+        
         
     def get_key_bounds(self):
         return [self._min, self._max]
