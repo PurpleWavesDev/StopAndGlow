@@ -11,14 +11,18 @@ from absl import app
 from absl import flags
 import logging as log
 
-# DMX, Timer and Camera interfaces
-from src.timer import Timer, Worker
-from src.imgdata import *
-from src.eval import Eval
-from src.config import Config
+# DMX, Config and Camera interfaces
 from src.camera import Cam
 from src.lights import Lights
+from src.config import Config
+# Timer and worker
+from src.timer import Timer, Worker
 import src.capture_worker as worker
+# Image and dome data, evaluation
+from src.imgdata import *
+from src.lightdome import Lightdome
+from src.eval import Eval
+from src.rti import Rti
 
 
 # Types

@@ -17,6 +17,7 @@ class Eval:
         self.reflection_min_ratio=0.013
 
     # Find center and radius of chromeball
+    # TODO: cv.bilateralFilter respects edges, could be used here
     def findCenter(self, imgdata):
         # Locals, use only red channel in frame, as ints
         mask_rgb = imgdata.asInt()
@@ -191,10 +192,8 @@ class Eval:
         # Offsets for longitude
         if vec[2] < 0: # Back face
             longitude = (450-longitude)%360
-            #print(f"back: {latitude}, {longitude}\n")
         else: # Front face
             longitude = 90+longitude
-            #print(f"front: {latitude}, {longitude}\n")
         return (latitude, longitude)
 
 
