@@ -176,33 +176,27 @@ class Eval:
         uv=np.array(uv)
         # First get the length of the UV coordinates
         length = np.linalg.norm(uv)
-        uv = uv/length
-        # Calculate the angle to the reflection 
-        theta = math.asin(length)*2
-        # Rotate Vector around angle of uv 
-        vec = np.array([0,0,1])
-        axis = np.array([-uv[1],uv[0],0])
-        vec = np.dot(rotationMatrix(axis, theta), vec)
-        if vec[2] < 0:
-            # We're on the backface of the sphere
-            latitude = math.degrees(math.asin(vec[1]))
-            longitude = (450-math.degrees(math.acos(vec[0])))%360
-            #print(f"back: {latitude}, {longitude}\n")
-            return (latitude, longitude)
-        else:
-            # On front face
-            # That's the coordinates ON THE SPHERE not on the sky
-            latitude = math.degrees(math.asin(vec[1]))
-            longitude = 90+math.degrees(math.acos(vec[0]))
-            #print(f"front: {latitude}, {longitude}\n")
-            return (latitude, longitude)
+        uv_norm = uv/length
         
-        # TODO: This does not work
-        #latitude = math.degrees(math.asin(uv[1])*2/perspective_distortion)
-        #if latitude>90: latitude=90-(latitude-90)
-        #elif latitude<-90: latitude=-90-(latitude+90)
-        #longitude = math.degrees(math.acos(uv[0])*2/perspective_distortion)
-        #return (latitude, longitude)
+        # Get direction of light source
+        vec = np.array([0,0,1]) # Vector pointing into camera
+        axis = np.array([-uv_norm[1],uv_norm[0],0]) # Rotation axis that is the direction of the reflection rotated 90° on Z
+        theta = math.asin(length)*2 # Calculate the angle to the reflection which is two times the angle of the normal on the sphere
+        vec = np.dot(rotationMatrix(axis, theta), vec) # Rotate vector to light source
+        
+        # Calculate Latitude and Longitude
+        latitude = math.asin(vec[1])
+        longitude = math.degrees(math.acos(vec[0]/math.cos(latitude)))
+        latitude = math.degrees(latitude)
+        # Offsets for longitude
+        if vec[2] < 0: # Back face
+            longitude = (450-longitude)%360
+            #print(f"back: {latitude}, {longitude}\n")
+        else: # Front face
+            longitude = 90+longitude
+            #print(f"front: {latitude}, {longitude}\n")
+        return (latitude, longitude)
+
 
     def imgSave(img, name, img_format=ImgFormat.PNG):
         BASE_PATH_EVAL='../HdM_BA/data/eval'
