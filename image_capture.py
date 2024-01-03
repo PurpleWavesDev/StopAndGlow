@@ -31,7 +31,7 @@ NAME_MASK_EXT='_mask'
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download', 'eval_cal', 'debug_lightrun'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download', 'eval_cal', 'lights_top', 'lights_run'], 'What the script should do.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
 flags.DEFINE_string('config_path', '../HdM_BA/data/config', 'Where the configurations should be stored.')
@@ -81,8 +81,10 @@ def main(argv):
         elif FLAGS.mode == 'download':
             name = "download" if FLAGS.sequence_name == "" else FLAGS.sequence_name
             download(hw, name, download_all=True, keep=FLAGS.keep_sequence)
-        elif FLAGS.mode == 'debug_lightrun':
-            debug_lightrun(hw)
+        elif FLAGS.mode == 'lights_top':
+            lights_top(hw)
+        elif FLAGS.mode == 'lights_run':
+            lights_run(hw)
 
 
 #################### CAPTURE MODES ####################
@@ -142,8 +144,25 @@ def download(hw, name, download_all=False, keep=False):
 
 
 #################### Light MODES ####################
+    
+def lights_top(hw):
+    lights=[]
+    img_latlong = np.zeros((1000,2000,3), dtype='uint8')
+    img_uv = np.zeros((1000,1000,3), dtype='uint8')
+    cv.circle(img_uv, (500,500), 500, (0, 0, 255), 2)
+    for light_entry in hw.config:
+        if light_entry['latlong'][0] > 45:
+            lights.append(light_entry['id'])
+            cv.circle(img_latlong, (int(2000*light_entry['latlong'][1]/360), int(500-500*light_entry['latlong'][0]/90)), 6, (0, 255, 0), 2)
+            cv.circle(img_uv, (int(500+500*light_entry['uv'][0]), int(500-500*light_entry['uv'][1])), 6, (0, 255, 0), 2)
+        else:
+            cv.circle(img_latlong, (int(2000*light_entry['latlong'][1]/360), int(500-500*light_entry['latlong'][0]/90)), 6, (255, 0, 0), 2)
+            cv.circle(img_uv, (int(500+500*light_entry['uv'][0]), int(500-500*light_entry['uv'][1])), 6, (255, 0, 0), 2)
+    Eval.imgSave(img_latlong, "lights_top_latlong")
+    Eval.imgSave(img_uv, "lights_top_reflection")
+    
 
-def debug_lightrun(hw):
+def lights_run(hw):
     log.info("Starting lightrun")
     # Worker class
 

@@ -55,6 +55,5 @@ class Config:
     def __delitem__(self, key):
         del self[key]
     
-    # TODO: Geht nicht
     def __iter__(self):
-        return iter(self._data['lights'].items())
+        return iter(self._data['lights'])

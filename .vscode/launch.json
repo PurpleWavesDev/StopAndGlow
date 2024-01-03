@@ -50,11 +50,20 @@
             "justMyCode": true
         },
         {
-            "name": "Debug Lighttest",
+            "name": "Lights Top",
             "type": "python",
             "request": "launch",
             "program": "image_capture.py",
-            "args": ["--loglevel=DEBUG", "--mode=debug_lightrun"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_top"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Light Run",
+            "type": "python",
+            "request": "launch",
+            "program": "image_capture.py",
+            "args": ["--loglevel=DEBUG", "--mode=lights_run"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

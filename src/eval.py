@@ -13,7 +13,8 @@ class Eval:
     def __init__(self):
         # Settings
         self.reflection_threshold=245
-        self.reflection_min_size=20
+        #self.reflection_min_size=20
+        self.reflection_min_ratio=0.013
 
     # Find center and radius of chromeball
     def findCenter(self, imgdata):
@@ -43,6 +44,7 @@ class Eval:
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (2 * erosion_size + 1, 2 * erosion_size + 1), (erosion_size, erosion_size))
         cb_mask = cv.dilate(cb_mask, kernel)
         cb_mask = cv.GaussianBlur(cb_mask, (blur_size*2+1,blur_size*2+1), blur_size)
+        cb_mask = cv.erode(cb_mask, kernel)
         
         # Masking
         grey = np.full(cb_mask.shape[:2], 0, dtype='uint8')
@@ -52,9 +54,9 @@ class Eval:
         beta = (1-alpha)
         # Apply mask
         cb_mask = cv.blendLinear(cb_mask, grey, beta, alpha)
-                
         # Binary Filter
         thresh = cv.threshold(cb_mask, 100, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
+        
         # Find circle contours
         cnts = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         cnts = cnts[0] if len(cnts) == 2 else cnts[1]
@@ -74,13 +76,17 @@ class Eval:
             if True:
                 cv.circle(mask_rgb.get(), (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
                 Eval.imgSave(mask_rgb.get(), 'chromeball_center')
+                
+            log.info(f"Found chrome ball at ({self.cb_center[0]:5.2f}, {self.cb_center[1]:5.2f}), radius {self.cb_radius:5.2f}")
+        else:
+            log.error("Did not find chrome ball")
         
         
         # Don't need full resolution
         #scale=0.5
         #cb_mask = cv.resize(cb_mask, None, fx=scale, fy=scale)# (int(cb_mask.shape[1]/scale_div), int(cb_mask.shape[0]/scale_div)), interpolation=cv.INTER_NEAREST)
 
-        # High pass 
+        # High pass
         #intensity=15
         #cb_mask = np.abs(cb_mask - cv.GaussianBlur(cb_mask, (intensity*2+1,intensity*2+1), 50).astype('int16')).astype('uint8')
         #cb_mask = cb_mask - cv.GaussianBlur(cb_mask, (intensity*2+1,intensity*2+1), intensity) + 127
@@ -115,7 +121,7 @@ class Eval:
         # Find reflections in each image
         # Locals
         frame = imgdata.r().asInt().get()
-        orig_frame = imgdata.asInt().get()
+        reflection_min_size = self.reflection_min_ratio*self.cb_radius
         # Binary filter and mask
         frame = cv.bitwise_and(frame, frame, mask=self.cb_mask)
         frame = cv.threshold(frame, self.reflection_threshold, 255, cv.THRESH_BINARY)[1]
@@ -135,32 +141,29 @@ class Eval:
                     refl_r = r
                     refl_center = (x, y)
             
-            # Debug draw
+            # Debug draw discarted circles
             if debug_img is not None:
-                cv.circle(debug_img, (int(refl_center[0]+0.5),int(refl_center[1]+0.5)), int(refl_r), (0, 255, 0), 3)
-                cv.circle(orig_frame, (int(refl_center[0]+0.5),int(refl_center[1]+0.5)), int(refl_r), (0, 255, 0), 3)
                 for i, cnt in enumerate(cnts):
                     if i != refl_id:
                         ((x, y), r) = cv.minEnclosingCircle(cnt)
-                        cv.circle(debug_img, (int(x+0.5),int(y+0.5)), int(r), (255, 0, 0), 2)
-                        cv.circle(orig_frame, (int(x+0.5),int(y+0.5)), int(r), (255, 0, 0), 2)
-                # Save frames with discarted reflections
-                if len(cnts)>1:
-                    if refl_r > self.reflection_min_size:
-                        Eval.imgSave(orig_frame, f"good_reflection_{id:03d}")
-                    else:
-                        Eval.imgSave(orig_frame, f"bad_reflection_{id:03d}")
+                        cv.circle(debug_img, (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)
             
-            if refl_r > self.reflection_min_size:
+            if refl_r > reflection_min_size:
                 # Calculate spherical coordinates (O = cb_center, I = center reflection)
                 OI = (np.asarray(refl_center) - self.cb_center) / self.cb_radius
                 OI[1] *= -1
-                log.debug(f"Found reflection for frame {id:3d}: ({OI[0]:5.2f}, {OI[1]:5.2f}), radius {refl_r:5.2f}") 
+                log.debug(f"Found reflection for frame {id:3d}: ({OI[0]:5.2f}, {OI[1]:5.2f}), radius {refl_r:5.2f}")
+                # Debug draw
+                if debug_img is not None:
+                    cv.circle(debug_img, (int(refl_center[0]+0.5),int(refl_center[1]+0.5)), int(refl_r), (0, 255, 0), 3)
                 # Return calculated UV values
                 return tuple(OI)
             
             else:
-                log.warning(f"Radius of found reflection too small ({refl_r:5.2f}), ignoring.")
+                # Debug draw
+                if debug_img is not None:
+                    cv.circle(debug_img, (int(refl_center[0]+0.5),int(refl_center[1]+0.5)), int(refl_r), (255, 0, 0), 3)
+                log.warning(f"Radius of found reflection too small ({refl_r:.2f}<{reflection_min_size:.2f}), ignoring.")
         else:
             log.warning(f"Frame {id} has no detected reflection.")
         
@@ -170,14 +173,36 @@ class Eval:
     ### Static functions ###
     
     def sphericalToLatlong(uv, perspective_distortion=1):
-            # That's the coordinates ON THE SPHERE not on the sky
-            #latitude = math.degrees(math.asin(uv[1]))
-            #longitude = 90-math.degrees(math.acos(uv[0]))
-            # TODO: This might just work?
-            latitude = math.degrees(math.asin(uv[1])*2/perspective_distortion)
-            if latitude>90: latitude=90-(latitude-90)
-            longitude = -180+math.degrees(math.acos(uv[0])*2/perspective_distortion)
+        uv=np.array(uv)
+        # First get the length of the UV coordinates
+        length = np.linalg.norm(uv)
+        uv = uv/length
+        # Calculate the angle to the reflection 
+        theta = math.asin(length)*2
+        # Rotate Vector around angle of uv 
+        vec = np.array([0,0,1])
+        axis = np.array([-uv[1],uv[0],0])
+        vec = np.dot(rotationMatrix(axis, theta), vec)
+        if vec[2] < 0:
+            # We're on the backface of the sphere
+            latitude = math.degrees(math.asin(vec[1]))
+            longitude = (450-math.degrees(math.acos(vec[0])))%360
+            #print(f"back: {latitude}, {longitude}\n")
             return (latitude, longitude)
+        else:
+            # On front face
+            # That's the coordinates ON THE SPHERE not on the sky
+            latitude = math.degrees(math.asin(vec[1]))
+            longitude = 90+math.degrees(math.acos(vec[0]))
+            #print(f"front: {latitude}, {longitude}\n")
+            return (latitude, longitude)
+        
+        # TODO: This does not work
+        #latitude = math.degrees(math.asin(uv[1])*2/perspective_distortion)
+        #if latitude>90: latitude=90-(latitude-90)
+        #elif latitude<-90: latitude=-90-(latitude+90)
+        #longitude = math.degrees(math.acos(uv[0])*2/perspective_distortion)
+        #return (latitude, longitude)
 
     def imgSave(img, name, img_format=ImgFormat.PNG):
         BASE_PATH_EVAL='../HdM_BA/data/eval'
@@ -195,3 +220,18 @@ class ImgOp:
         if mask is not None:
             img = cv.bitwise_and(img, img, mask=mask)
         return not np.argmax(img>=threshold)
+
+def rotationMatrix(axis, theta):
+    """
+    Return the rotation matrix associated with counterclockwise rotation about
+    the given axis by theta radians.
+    """
+    axis = np.asarray(axis)
+    axis = axis / math.sqrt(np.dot(axis, axis))
+    a = math.cos(theta / 2.0)
+    b, c, d = -axis * math.sin(theta / 2.0)
+    aa, bb, cc, dd = a * a, b * b, c * c, d * d
+    bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+    return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+                     [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+                     [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
