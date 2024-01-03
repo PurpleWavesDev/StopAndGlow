@@ -8,7 +8,7 @@
             "name": "Capture",
             "type": "python",
             "request": "launch",
-            "program": "image_capture.py",
+            "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=capture", "--sequence_name=dragon_wide"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -17,7 +17,7 @@
             "name": "Capture Quick",
             "type": "python",
             "request": "launch",
-            "program": "image_capture.py",
+            "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=capture_quick"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -26,7 +26,7 @@
             "name": "Calibrate",
             "type": "python",
             "request": "launch",
-            "program": "image_capture.py",
+            "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=calibrate"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -35,7 +35,7 @@
             "name": "Download",
             "type": "python",
             "request": "launch",
-            "program": "image_capture.py",
+            "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=download"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -44,7 +44,7 @@
             "name": "Eval Calibration",
             "type": "python",
             "request": "launch",
-            "program": "image_capture.py",
+            "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=calibration2"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -53,7 +53,7 @@
             "name": "Lights Top",
             "type": "python",
             "request": "launch",
-            "program": "image_capture.py",
+            "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=lights_top"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -62,7 +62,7 @@
             "name": "Light Run",
             "type": "python",
             "request": "launch",
-            "program": "image_capture.py",
+            "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=lights_run"],
             "console": "integratedTerminal",
             "justMyCode": true
