@@ -35,7 +35,7 @@ NAME_MASK_EXT='_mask'
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download', 'eval_cal', 'lights_top', 'lights_run'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download', 'eval_cal', 'lights_top', 'lights_hdri', 'lights_run'], 'What the script should do.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
 flags.DEFINE_string('config_path', '../HdM_BA/data/config', 'Where the configurations should be stored.')
@@ -87,6 +87,8 @@ def main(argv):
             download(hw, name, download_all=True, keep=FLAGS.keep_sequence)
         elif FLAGS.mode == 'lights_top':
             lights_top(hw)
+        elif FLAGS.mode == 'lights_hdri':
+            lights_hdri(hw)
         elif FLAGS.mode == 'lights_run':
             lights_run(hw)
 
@@ -164,6 +166,11 @@ def lights_top(hw):
             cv.circle(img_uv, (int(500+500*light_entry['uv'][0]), int(500-500*light_entry['uv'][1])), 6, (255, 0, 0), 2)
     Eval.imgSave(img_latlong, "lights_top_latlong")
     Eval.imgSave(img_uv, "lights_top_reflection")
+
+def lights_hdri(hw):
+    dome = Lightdome(hw.config)
+    hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, 'HDRIs', 'blue_photo_studio_1k.exr'), domain=ImgDomain.Lin)
+    dome.sampleHdri(hdri)
     
 
 def lights_run(hw):
