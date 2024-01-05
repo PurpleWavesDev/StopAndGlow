@@ -171,7 +171,10 @@ def lights_hdri(hw):
     dome = Lightdome(hw.config)
     hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, 'HDRIs', 'blue_photo_studio_1k.exr'), domain=ImgDomain.Lin)
     dome.sampleHdri(hdri)
-    
+    img = dome.generateLatLong(hdri)
+    Lightdome.imgSave(img.get(), "hdri_latlong")
+    img = dome.generateUV()
+    Lightdome.imgSave(img.get(), "hdri_uv")
 
 def lights_run(hw):
     log.info("Starting lightrun")

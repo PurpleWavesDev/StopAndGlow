@@ -1,3 +1,4 @@
+from __future__ import annotations # For type hints
 from enum import Enum
 import os
 import re
@@ -6,6 +7,7 @@ import logging as log
 from src.utils import logging_disabled
 
 import numpy as np
+from numpy.typing import ArrayLike
 import cv2 as cv
 import colour
 import colour.models as models
@@ -29,8 +31,11 @@ class ImgDomain(Enum):
     Keep = -1
 
 
+#class PixBuf:
+    #def __init__(self, pix):
+    
 class ImgBuffer:
-    def __init__(self, path=None, img=None, domain=ImgDomain.Keep):
+    def __init__(self, path=None, img: ArrayLike = None, domain: ImgDomain = ImgDomain.Keep):
         self._img=img
         self._domain=domain
         self._format=ImgFormat.Keep
@@ -52,8 +57,10 @@ class ImgBuffer:
                 self._format=ImgFormat.EXR
             else:
                 self._format=ImgFormat.Keep
-                
-    def setFormat(self, img_format):
+    
+    def getFormat(self) -> ImgFormat:
+        return _format           
+    def setFormat(self, img_format: ImgFormat):
         if img_format != ImgFormat.Keep:
             root, ext = os.path.splitext(self._path)
             match img_format:
@@ -70,13 +77,13 @@ class ImgBuffer:
             log.warn("No valid format specified, defaulting to PNG")
             self._path = root+".png"
         
-    def get(self):
+    def get(self) -> ArrayLike:
         # Lazy loading
         if self._img is None:
             self.load()
         return self._img
 
-    def set(self, img, overwrite_file=False):
+    def set(self, img: ArrayLike, overwrite_file=False):
         self._img=img
         if overwrite_file:
             self._from_file=False
@@ -105,7 +112,7 @@ class ImgBuffer:
             self.save()
         self._img=None
         
-    def save(self, img_format=ImgFormat.Keep):
+    def save(self, img_format: ImgDomain = ImgFormat.Keep):
         if self._path is not None and self._img is not None:
             # Check if different format is requested and update path
             self.setFormat(img_format)
@@ -120,8 +127,10 @@ class ImgBuffer:
             
         else:
             log.error("Can't save image without path")
-        
-    def convert(self, domain, as_float=False):
+    
+    def domain(self):
+        return self._domain
+    def asDomain(self, domain: ImgDomain, as_float=False) -> ImgBuffer:
         if domain != ImgDomain.Keep and domain != self._domain:
             # Convert to optical/neutral
             img = self.get() if as_float is False else self.get().astype(IMAGE_DTYPE_FLOAT)
@@ -142,25 +151,41 @@ class ImgBuffer:
                     pass
 
             return ImgBuffer(path=self._path, img=img, domain=domain)
-        
-    def asFloat(self):
-        img = self._img if self.get().dtype == IMAGE_DTYPE_FLOAT else colour.io.convert_bit_depth(self._img, IMAGE_DTYPE_FLOAT)
+    
+    def isFloat(self) -> bool:
+        return self.get().dtype == IMAGE_DTYPE_FLOAT
+    def asFloat(self) -> ImgBuffer:
+        img = self._img if self.isFloat() else colour.io.convert_bit_depth(self._img, IMAGE_DTYPE_FLOAT)
         return ImgBuffer(path=self._path, img=img, domain=self._domain)
-    def asInt(self):
-        img = self._img if self.get().dtype == IMAGE_DTYPE_INT else colour.io.convert_bit_depth(self._img, IMAGE_DTYPE_INT)
+    def isInt(self) -> bool:
+        return self.get().dtype == IMAGE_DTYPE_INT
+    def asInt(self) -> ImgBuffer:
+        img = self._img if self.isInt() else colour.io.convert_bit_depth(np.clip(self._img, 0, 1), IMAGE_DTYPE_INT)
         return ImgBuffer(path=self._path, img=img, domain=self._domain)
-    def r(self):
+    def channels(self) -> int:
+        if self._img is None:
+            return 0
+        return self._img.shape[:2]
+    def r(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,0], domain=self._domain)
-    def g(self):
+    def g(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,1], domain=self._domain)
-    def b(self):
+    def b(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,2], domain=self._domain)
-    def a(self):
+    def a(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,3], domain=self._domain)
-    def RGB2Gray(self):
+    def RGB2Gray(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=cv.cvtColor(self.get(), cv.COLOR_RGB2GRAY), domain=self._domain)
-    def gray2RGB(self):
+    def gray2RGB(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=np.dstack((self.get(),self.get(),self.get())), domain=self._domain)
+    
+    # Operators
+    def __getitem__(self, coord) -> ImgBuffer:
+        return ImgBuffer(img=self.get()[coord[1]][coord[0]], domain=self._domain)
+    
+    def __setitem__(self, coord, buf: ImgBuffer):
+        val = buf.asDomain(self._domain, self.isFloat())
+        self.get()[coord[1]][coord[0]] = val.asInt().get() if self.isInt().get() else val.get()
         
             
 
