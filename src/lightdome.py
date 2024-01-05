@@ -12,7 +12,7 @@ class Lightdome:
     def __init__(self, config: Config = None):
         self.img_res_base = 1000
         self.img_background = 10
-        self.blur_size = 2
+        self.blur_size = 15
         self._lightVals = dict()
         if config is not None:
             self.setConfig(config)
@@ -23,10 +23,14 @@ class Lightdome:
     
     def sampleHdri(self, hdri: ImgBuffer):
         res_y, res_x = hdri.get().shape[:2]
-        
+        blur_size = int(self.blur_size*res_y/100)
+        blur_size += 1-blur_size%2 # Make it odd
+                        
         # Blur HDRI to reduce errors
-        #hdri = hdri.asInt()
-        #hdri.set(cv.blur(hdri.get(), int(self.blur_size*res_y/100)))
+        #hdri = hdri.asDomain(ImgDomain.sRGB) # TODO: Conversion reduces extremes but they are probably necessary for accurate light energy?
+        hdri = ImgBuffer(img=cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
+        #hdri = hdri.asDomain(ImgDomain.Lin) # Conversion back
+        
         for light in self._config:
             # Sample point in HDRI
             latlong = light['latlong']
@@ -34,8 +38,6 @@ class Lightdome:
             y = int(round(res_y/2 - res_y * latlong[0]/180.0))
             sample = hdri[x, y]
             self._lightVals[light['id']] = sample # np.round(sample*255).astype('uint8') # Linear value as Int (?)
-            #cv.circle(hdri.get(), (x, y), 8, (0, 0, 255), 1) # Show coordinates in image
-            #print(latlong, img_coord, sample)
             
         
     def sampleHdriBw(self, hdri: ImgBuffer):

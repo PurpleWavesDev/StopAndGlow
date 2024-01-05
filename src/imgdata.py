@@ -14,7 +14,7 @@ import colour.models as models
 import imageio
 imageio.plugins.freeimage.download()
 
-IMAGE_DTYPE_FLOAT='float16'
+IMAGE_DTYPE_FLOAT='float32'
 IMAGE_DTYPE_INT='uint8'
 
 
