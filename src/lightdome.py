@@ -95,11 +95,5 @@ class Lightdome:
             cv.circle(image.get(), (x, y), light_radius, (255, 255, 255), 1)
 
         return image
-    
-    
-    # TODO: Move function somewhere else
-    def imgSave(img, name, img_format=ImgFormat.PNG):
-        BASE_PATH_EVAL='../HdM_BA/data/eval'
-        img = ImgBuffer(img=img, path=os.path.join(BASE_PATH_EVAL, name))
-        img.save(img_format)
+
         

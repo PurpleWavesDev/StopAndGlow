@@ -5,6 +5,7 @@ import math
 import cv2 as cv
 
 from src.imgdata import *
+from src.img_op import *
 from src.config import Config
 from src.utils import logging_disabled
 
@@ -76,7 +77,7 @@ class Eval:
             cv.circle(self.cb_mask, (int(x+0.5),int(y+0.5)), int(r), 255, -1)
             if True:
                 cv.circle(mask_rgb.get(), (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
-                Eval.imgSave(mask_rgb.get(), 'chromeball_center')
+                ImgBuffer.SaveEval(mask_rgb.get(), 'chromeball_center')
                 
             log.info(f"Found chrome ball at ({self.cb_center[0]:5.2f}, {self.cb_center[1]:5.2f}), radius {self.cb_radius:5.2f}")
         else:
@@ -173,7 +174,7 @@ class Eval:
 
     ### Static functions ###
     
-    def sphericalToLatlong(uv, perspective_distortion=1):
+    def SphericalToLatlong(uv, perspective_distortion=1):
         uv=np.array(uv)
         # First get the length of the UV coordinates
         length = np.linalg.norm(uv)
@@ -196,23 +197,6 @@ class Eval:
             longitude = 90+longitude
         return (latitude, longitude)
 
-
-    def imgSave(img, name, img_format=ImgFormat.PNG):
-        BASE_PATH_EVAL='../HdM_BA/data/eval'
-        img = ImgBuffer(img=img, path=os.path.join(BASE_PATH_EVAL, name))
-        img.save(img_format)
-
-
-class ImgOp:
-    def similar(img1, img2, threshold=0.1, mask=None) -> bool:
-        if mask is not None:
-            img = cv.bitwise_and(img, img, mask=mask)
-        return not np.argmax((img1-img2)>=threshold)
-    
-    def blackframe(img, threshold=0.2, mask=None) -> bool:
-        if mask is not None:
-            img = cv.bitwise_and(img, img, mask=mask)
-        return not np.argmax(img>=threshold)
 
 def rotationMatrix(axis, theta):
     """

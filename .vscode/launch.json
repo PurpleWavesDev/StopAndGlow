@@ -50,6 +50,15 @@
             "justMyCode": true
         },
         {
+            "name": "Eval Calibration Video",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=calibration_front.mp4", "--video_frames_skip=3"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Lights Top",
             "type": "python",
             "request": "launch",

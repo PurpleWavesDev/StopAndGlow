@@ -1,22 +1,28 @@
 from __future__ import annotations # For type hints
 from enum import Enum
+from pathlib import Path
 import os
 import re
 
 import logging as log
-from src.utils import logging_disabled
+from absl import flags
 
-import numpy as np
 from numpy.typing import ArrayLike
+import numpy as np
 import cv2 as cv
+import imageio
 import colour
 import colour.models as models
-import imageio
 imageio.plugins.freeimage.download()
+
+from src.utils import logging_disabled
+from src.img_op import *
+
 
 IMAGE_DTYPE_FLOAT='float32'
 IMAGE_DTYPE_INT='uint8'
-
+# TODO: Unify, input variable?
+DATA_BASE_PATH='../HdM_BA/data/'
 
 class ImgFormat(Enum):
     PNG = 0
@@ -42,6 +48,9 @@ class ImgBuffer:
         self._from_file=False
         self.setPath(path)
         
+    def __del__(self):
+        self.unload()
+        
     def getPath(self):
         return self._path
         
@@ -61,8 +70,10 @@ class ImgBuffer:
     def getFormat(self) -> ImgFormat:
         return _format           
     def setFormat(self, img_format: ImgFormat):
+        root, ext = os.path.splitext(self._path)
         if img_format != ImgFormat.Keep:
-            root, ext = os.path.splitext(self._path)
+            self._format=img_format
+        if self._format != ImgFormat.Keep:
             match img_format:
                 case ImgFormat.PNG:
                     self._path = root+".png"
@@ -70,10 +81,7 @@ class ImgBuffer:
                     self._path = root+".jpg"
                 case ImgFormat.EXR:
                     self._path = root+".exr"
-                        
-            self._format=img_format
-            
-        elif self._format == ImgFormat.Keep:
+        else:
             log.warn("No valid format specified, defaulting to PNG")
             self._path = root+".png"
         
@@ -116,7 +124,9 @@ class ImgBuffer:
         if self._path is not None and self._img is not None:
             # Check if different format is requested and update path
             self.setFormat(img_format)
-            
+            # Create folder
+            Path(os.path.split(self._path)[0]).mkdir(parents=True, exist_ok=True)
+
             with logging_disabled():
                 match self._format:
                     case ImgFormat.EXR:
@@ -187,19 +197,30 @@ class ImgBuffer:
         val = buf.asDomain(self._domain, self.isFloat())
         self.get()[coord[1]][coord[0]] = val.asInt().get() if self.isInt().get() else val.get()
         
+    # Static functions
+    def SaveBase(img, name, img_format=ImgFormat.PNG):
+        path = os.path.abspath(os.path.join(DATA_BASE_PATH, name))
+        buffer = ImgBuffer(img=img, path=path)
+        buffer.save(img_format)
+        return buffer
+    
+    def SaveEval(img, name, img_format=ImgFormat.PNG):
+        return ImgBuffer.SaveBase(img, os.path.join('eval', name), img_format)
             
 
 class ImgData():
-    def __init__(self, path=None, domain=ImgDomain.Keep):
+    def __init__(self, path=None, domain=ImgDomain.Keep, video_frames_skip=1):
         self._frames = dict()
+        self._maskFrame = None
         self._domain=domain
         self._min=-1
         self._max=-1
+        self._video_frames_skip=video_frames_skip
         if path is not None:
             self.load(os.path.abspath(path))
 
     def load(self, path):
-        match os.path.splitext(path)[1]:
+        match (os.path.splitext(path)[1]).lower():
             case '':
                 # Path, load folder
                 self.loadFolder(path)
@@ -232,16 +253,14 @@ class ImgData():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def loadVideo(self, path, seq_name=None, seq2_name_ext=None):
+    def loadVideo(self, path, seq_name=None):
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
         if seq_name is None:
             seq_name = os.path.splitext(os.path.basename(path))[0]
-        seq2_name=None
-        if seq2_name_ext is not None:
-            seq2_name=seq_name+seq2_name_ext
-            
+                    
         img_name_base = os.path.join(base_dir, seq_name, seq_name)
+        mask_name_base = os.path.join(base_dir, seq_name+'_mask', seq_name+'_mask')
             
         # Load video & iterate through frames
         vidcap = cv.VideoCapture(path)
@@ -256,40 +275,59 @@ class ImgData():
             Valid = 3
         state = VidParseState.PreBlack
         success, frame = vidcap.read()
-        frame_number = 0
+        frame_number = frame_count = skip_count = 0
         previous = None
+        previous2 = None
+        #black_val = None
         
         while success:
             match state:
                 case VidParseState.PreBlack:
                     # Wait for black frame
-                    if ImgOP.blackframe(frame):
+                    if ImgOp.blackframe(frame):
                         state = VidParseState.Black
+                        # Save max value of blackframe and assign mask frame
+                        #black_val = np.max(frame)
+                        self._maskFrame = ImgBuffer(path=mask_name_base+f"_{0:03d}", img=previous2, domain=ImgDomain.sRGB)
+                        previous2 = previous = None # Don't need those anymore
+                    else:
+                        # Shuffle frames
+                        previous2 = previous
+                        previous = frame
+                        
                 case VidParseState.Black:
                     # Wait for first non-black frame
-                    if not ImgOP.blackframe(frame):
-                        state = VidParseState.Skip
+                    #max_val = np.max(frame)
+                    if not ImgOp.blackframe(frame):
+                        # Skip this frame, next one is valid
+                        # TODO: Possible check max values to find the 'real' blackframe. E.g. if last frame was slightly bright already this one is the valid one!
+                        state = VidParseState.Valid
                 case VidParseState.Skip:
-                    state = VidParseState.Valid
+                    skip_count = (skip_count+1) % self._video_frames_skip
+                    if skip_count == 0:
+                        state = VidParseState.Valid
                 case VidParseState.Valid:
                     # Abort condition
-                    if ImgOP.blackframe(frame) or (previous is not None and ImgOP.similar(frame, previous)):
+                    if ImgOp.blackframe(frame): # or (previous is not None and ImgOP.similar(frame, previous)):
                         break
                     # Use this frame
                     self._frames[frame_number] = ImgBuffer(path=img_name_base+f"_{frame_number:03d}", img=frame, domain=ImgDomain.sRGB)
                     # Skip every other frame
                     state = VidParseState.Skip
                     frame_number += 1
-                    previous = frame
+                    #previous = frame
                     
             # Next iteration
             success, frame = vidcap.read()
+            frame_count +=1
+            
+    def getMaskFrame(self):
+        return self._maskFrame
         
-        
-    def get_key_bounds(self):
+    def getKeyBounds(self):
         return [self._min, self._max]
     
-    def get_keys(self):
+    def getKeys(self):
         return self._frames.keys()
 
     def get(self, index):

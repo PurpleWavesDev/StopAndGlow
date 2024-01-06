@@ -30,6 +30,7 @@ HW = namedtuple("HW", ["cam", "lights", "config"])
 
 # Globals
 FLAGS = flags.FLAGS
+# TODO: Unify, input variable?
 DATA_BASE_PATH='../HdM_BA/data'
 NAME_MASK_EXT='_mask'
 
@@ -47,8 +48,8 @@ flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evalu
 #flags.DEFINE_string('mask_name', 'mask', 'Sequence name for the mask data.')
 flags.DEFINE_integer('sequence_start', 1, 'Frame count starting from this number for downloads', lower_bound=0)
 flags.DEFINE_boolean('keep_sequence', False, 'Keep images on camera after downloading.')
+flags.DEFINE_integer('video_frames_skip', 1, 'Frames to skip between valid frames in video sequence', lower_bound=0)
 
-#flags.DEFINE_integer('age', None, 'Your age in years.', lower_bound=0)
 
 def main(argv):
     # Init logger
@@ -164,17 +165,17 @@ def lights_top(hw):
         else:
             cv.circle(img_latlong, (int(2000*light_entry['latlong'][1]/360), int(500-500*light_entry['latlong'][0]/90)), 6, (255, 0, 0), 2)
             cv.circle(img_uv, (int(500+500*light_entry['uv'][0]), int(500-500*light_entry['uv'][1])), 6, (255, 0, 0), 2)
-    Eval.imgSave(img_latlong, "lights_top_latlong")
-    Eval.imgSave(img_uv, "lights_top_reflection")
+    ImgBuffer.SaveEval(img_latlong, "lights_top_latlong")
+    ImgBuffer.SaveEval(img_uv, "lights_top_reflection")
 
 def lights_hdri(hw):
     dome = Lightdome(hw.config)
     hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, 'HDRIs', 'blue_photo_studio_1k.exr'), domain=ImgDomain.Lin)
     dome.sampleHdri(hdri)
     img = dome.generateLatLong(hdri)
-    Lightdome.imgSave(img.get(), "hdri_latlong")
+    ImgBuffer.SaveEval(img.get(), "hdri_latlong")
     img = dome.generateUV()
-    Lightdome.imgSave(img.get(), "hdri_uv")
+    ImgBuffer.SaveEval(img.get(), "hdri_uv")
 
 def lights_run(hw):
     log.info("Starting lightrun")
@@ -190,25 +191,30 @@ def lights_run(hw):
 
 def eval_cal(path_sequence):
     # Load data
-    img_mask = ImgData(path_sequence+NAME_MASK_EXT)
-    img_seq = ImgData(path_sequence)
+    img_seq = ImgData(path_sequence, video_frames_skip=FLAGS.video_frames_skip)
+    img_mask = None
+    if os.path.splitext(path_sequence)[1] == '':
+        img_mask = ImgData(path_sequence+NAME_MASK_EXT).get(0)
+    else:
+        img_mask = img_seq.getMaskFrame()
+        
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
 
     config=Config()
     eval=Eval()
 
     # Find center of chrome ball with mask frame
-    eval.findCenter(img_mask.get(0))
+    eval.findCenter(img_mask)
     
     # Loop for all calibration frames
     del_list = []
-    debug_img = img_mask.get(0).asInt().get()
+    debug_img = img_mask.asInt().get()
     for id, img in img_seq:
         if not eval.filterBlackframe(img):
             # Process frame
             uv = eval.findReflection(img, id, debug_img)
             if uv is not None:
-                config.addLight(id, uv, Eval.sphericalToLatlong(uv))
+                config.addLight(id, uv, Eval.SphericalToLatlong(uv))
         else:
             log.debug(f"Found blackframe '{id}'")
             del_list.append(id)
@@ -218,7 +224,7 @@ def eval_cal(path_sequence):
         del img_seq[id]
         
     # Save debug image
-    Eval.imgSave(debug_img, "reflections")
+    ImgBuffer.SaveEval(debug_img, "reflections")
 
     # Save config
     log.info(f"Saving config to '{FLAGS.config_path}' with lights from ID {config.getIdBounds()}")
