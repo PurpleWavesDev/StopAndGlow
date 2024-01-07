@@ -36,7 +36,7 @@ NAME_MASK_EXT='_mask'
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download', 'eval_cal', 'lights_top', 'lights_hdri', 'lights_run'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture', ['capture', 'capture_quick', 'calibrate', 'calibrate_quick', 'download', 'eval_cal', 'lights_top', 'lights_hdri', 'lights_run', 'debug'], 'What the script should do.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
 flags.DEFINE_string('config_path', '../HdM_BA/data/config', 'Where the configurations should be stored.')
@@ -92,6 +92,8 @@ def main(argv):
             lights_hdri(hw)
         elif FLAGS.mode == 'lights_run':
             lights_run(hw)
+        elif FLAGS.mode == 'debug':
+            debug(hw)
 
 
 #################### CAPTURE MODES ####################
@@ -126,7 +128,7 @@ def capture_all_on(hw):
     hw.lights.write()
 
     # Trigger camera
-    hw.cam.capture(0)
+    hw.cam.capturePhoto(0)
     hw.lights.off()
 
 
@@ -146,7 +148,7 @@ def download(hw, name, download_all=False, keep=False):
     log.info(f"Downloading sequence '{name}' to {FLAGS.output_path}")
     if download_all:
         # Search for files on camera
-        hw.cam.add_files(hw.cam.list_files(), FLAGS.sequence_start)
+        hw.cam.addFiles(hw.cam.listFiles(), FLAGS.sequence_start)
     hw.cam.download(FLAGS.output_path, name, keep=keep)
 
 
@@ -227,6 +229,11 @@ def eval_cal(path_sequence):
     config.save(FLAGS.config_path, FLAGS.config_name)
 
 
+#################### DEBUG MODES ####################
+
+def debug(hw):
+    # Debug code for testing image & video capture, downloading and changing settings of camera
+    pass
 
 if __name__ == '__main__':
     app.run(main)

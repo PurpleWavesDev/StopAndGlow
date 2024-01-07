@@ -22,7 +22,7 @@ class LightWorker(Worker):
         self.hw.lights.write()
 
          # Trigger camera
-        #self.hw.cam.capture(light_id)
+        #self.hw.cam.capturePhoto(light_id)
 
         # Abort condition
         self.i+=1
@@ -44,7 +44,7 @@ class ImageCapture(Worker):
         self.hw.lights.write()
 
          # Trigger camera
-        self.hw.cam.capture(light_id)
+        self.hw.cam.capturePhoto(light_id)
 
         # Abort condition
         self.i+=1
@@ -66,7 +66,7 @@ class VideoCapture(Worker):
             self.blackframe=True
 
             # Trigger camera
-            #self.hw.cam.capture(light_id)
+            #self.hw.cam.triggerVideo()
             return True
 
         else:
