@@ -22,7 +22,8 @@ class Cam:
         self._files = dict()
 
     def __del__(self):
-        self._cam.exit()
+        if self._cam is not None:
+            self._cam.exit()
         
     def getCam(self):
         if self._cam is None:
