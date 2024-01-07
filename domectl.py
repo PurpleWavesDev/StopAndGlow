@@ -207,7 +207,6 @@ def eval_cal(path_sequence):
     eval.findCenter(img_mask)
     
     # Loop for all calibration frames
-    del_list = []
     debug_img = img_mask.asInt().get()
     for id, img in img_seq:
         if not eval.filterBlackframe(img):
@@ -215,13 +214,10 @@ def eval_cal(path_sequence):
             uv = eval.findReflection(img, id, debug_img)
             if uv is not None:
                 config.addLight(id, uv, Eval.SphericalToLatlong(uv))
+            img.unload()
         else:
             log.debug(f"Found blackframe '{id}'")
-            del_list.append(id)
-        img.unload()
-    # Delete blackframes
-    for id in del_list:
-        del img_seq[id]
+            img.unload()
         
     # Save debug image
     ImgBuffer.SaveEval(debug_img, "reflections")

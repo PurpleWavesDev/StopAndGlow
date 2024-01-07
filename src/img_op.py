@@ -9,7 +9,8 @@ class ImgOp:
     def similar(img1, img2, threshold=0.1, mask=None) -> bool:
         if mask is not None:
             img = cv.bitwise_and(img, img, mask=mask)
-        return not np.argmax((img1-img2)>=threshold)
+        argmax = np.argmax((img1-img2)>threshold)
+        return argmax == 0
     
     def blackframe(img, threshold=50, mask=None) -> bool:
         if mask is not None:

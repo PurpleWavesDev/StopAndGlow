@@ -64,8 +64,8 @@ class ImgBuffer:
                 self._format=ImgFormat.PNG
             elif ext.lower() == ".exr":
                 self._format=ImgFormat.EXR
-            else:
-                self._format=ImgFormat.Keep
+            elif self._format != ImgFormat.Keep:
+                self.setFormat(ImgFormat.Keep)
     
     def getFormat(self) -> ImgFormat:
         return _format           
@@ -115,18 +115,21 @@ class ImgBuffer:
             log.error("Can't load image without path")
         #original = original[:,:,:3] # Only use red channel
         
-    def unload(self):
-        if not self._from_file and self._path is not None:
+    def unload(self, save=False):
+        if save and not self._from_file and self._path is not None:
             self.save()
         self._img=None
         
     def save(self, img_format: ImgDomain = ImgFormat.Keep):
         if self._path is not None and self._img is not None:
-            # Check if different format is requested and update path
-            self.setFormat(img_format)
+            if img_format != ImgFormat.Keep:
+                # Update path for different format
+                self.setFormat(img_format)
+                
             # Create folder
             Path(os.path.split(self._path)[0]).mkdir(parents=True, exist_ok=True)
-
+            self._from_file = True
+            
             with logging_disabled():
                 match self._format:
                     case ImgFormat.EXR:
@@ -135,7 +138,7 @@ class ImgBuffer:
                         colour.write_image(self._img, self._path, 'uint8', method='Imageio')
             #log.debug(f"Saved image {self._path}")
             
-        else:
+        elif self._path is None:
             log.error("Can't save image without path")
     
     def domain(self):
@@ -255,6 +258,7 @@ class ImgData():
         
     def loadVideo(self, path, seq_name=None):
         # Define paths and sequence names
+        # TODO: Lazy loading, with list of frame numbers, shuffle mask frame after black frame
         base_dir = os.path.dirname(path)
         if seq_name is None:
             seq_name = os.path.splitext(os.path.basename(path))[0]
@@ -279,6 +283,7 @@ class ImgData():
         previous = None
         previous2 = None
         #black_val = None
+        max_frames=304 #TODO!
         
         while success:
             match state:
@@ -288,8 +293,9 @@ class ImgData():
                         state = VidParseState.Black
                         # Save max value of blackframe and assign mask frame
                         #black_val = np.max(frame)
-                        self._maskFrame = ImgBuffer(path=mask_name_base+f"_{0:03d}", img=previous2, domain=ImgDomain.sRGB)
+                        self._maskFrame = ImgBuffer(path=mask_name_base+f"_{0:03d}.png", img=previous2, domain=ImgDomain.sRGB)
                         previous2 = previous = None # Don't need those anymore
+                        log.debug(f"Found blackframe at frame {frame_count}")
                     else:
                         # Shuffle frames
                         previous2 = previous
@@ -302,16 +308,23 @@ class ImgData():
                         # Skip this frame, next one is valid
                         # TODO: Possible check max values to find the 'real' blackframe. E.g. if last frame was slightly bright already this one is the valid one!
                         state = VidParseState.Valid
+                        log.debug(f"First non-black frame at {frame_count}")
                 case VidParseState.Skip:
                     skip_count = (skip_count+1) % self._video_frames_skip
                     if skip_count == 0:
                         state = VidParseState.Valid
                 case VidParseState.Valid:
                     # Abort condition
-                    if ImgOp.blackframe(frame): # or (previous is not None and ImgOP.similar(frame, previous)):
+                    #if previous is not None and ImgOp.similar(frame, previous):
+                    if frame_number > max_frames:
+                        #log.debug(f"No new frame at frame {frame_count} with {frame_number} valid frames")
                         break
-                    # Use this frame
-                    self._frames[frame_number] = ImgBuffer(path=img_name_base+f"_{frame_number:03d}", img=frame, domain=ImgDomain.sRGB)
+                    if not ImgOp.blackframe(frame):
+                        # Use this frame
+                        self._frames[frame_number] = ImgBuffer(path=img_name_base+f"_{frame_number:03d}.png", img=frame, domain=ImgDomain.sRGB)
+                        log.debug(f"Valid sequence frame {frame_number} found at frame {frame_count} in video")
+                    else:
+                        log.debug(f"Blackframe at frame {frame_number} / {frame_count}")   
                     # Skip every other frame
                     state = VidParseState.Skip
                     frame_number += 1
