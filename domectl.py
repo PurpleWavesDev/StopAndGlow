@@ -178,6 +178,10 @@ def lights_hdri(hw):
     ImgBuffer.SaveEval(img.get(), "hdri_latlong")
     img = dome.generateUV()
     ImgBuffer.SaveEval(img.get(), "hdri_uv")
+    # TODO: Not implemented
+    #rgb = dome.getLights()
+    #l = dome.getLightsGray()
+    #hw.lights.setDict()
 
 def lights_run(hw):
     log.info("Starting lightrun")
