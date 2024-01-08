@@ -82,7 +82,7 @@ class Lightdome:
         # Generate RGB image with aspect ratio 2:1
         res_x, res_y = (self.img_res_base * 2, self.img_res_base)
         if image is None:
-            image = ImgBuffer(img=np.full((res_x, res_y, 3), self.img_background, dtype='uint8'), domain=ImgDomain.sRGB)
+            image = ImgBuffer(img=np.full((res_y, res_x, 3), self.img_background, dtype='uint8'), domain=ImgDomain.sRGB)
         else:
             image = image.asDomain(ImgDomain.sRGB).asInt()
             res_y, res_x = image.get().shape[:2]
