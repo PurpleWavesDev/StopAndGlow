@@ -9,9 +9,11 @@ imageio.plugins.freeimage.download()
 import subprocess
 import signal
 import os
+import io
 import pathlib
 
 from src.imgdata import * 
+from src.utils import logging_disabled
 
 class Cam:
     def __init__(self):
@@ -57,22 +59,25 @@ class Cam:
     def getExposure(self):
         return 1/200
 
+    def setIso(self, iso=200):
+        pass
+    def getIso(self):
+        return 200
+
 
     ### Capture & Trigger methodes ###
     
     def capturePhoto(self, id):
-        # Capture image and safe file path for ID
+        """Captures image and saves camera file path"""
         file = self.getCam().capture(gp.GP_CAPTURE_IMAGE)
         self._files[id] = [file.folder, file.name]
 
     def capturePreview(self):
-        # Capture image/preview
+        """Captures preview image in a quick way but low resolution"""
         capture = self.getCam().capture_preview()
         filedata = capture.get_data_and_size()
-        data = memoryview(filedata)
-        ### Todo
-        image = Image.open(io.BytesIO(filedata))
-        image.save(f"test_{i}.png")
+        image = Image.open(io.BytesIO(filedata)) # TODO: Probably doesn't work
+        return ImgBuffer(img=image, domain=ImgDomain.sRGB)
 
     def triggerPhoto(self):
         self.getCam().trigger_capture()
@@ -86,11 +91,7 @@ class Cam:
     def getImage(self, id, path, name, keep=False) -> ImgBuffer:
         """Downloads a single image by ID from the camera"""
         file = self._files[id]        
-        image = self.getCam().file_get(file[0], file[1], gp.GP_FILE_TYPE_NORMAL)
-        if not keep:
-            self.getCam().file_delete(file[0], file[1])
-            del self._files[id]
-        
+        file_data = self.getCam().file_get(file[0], file[1], gp.GP_FILE_TYPE_NORMAL).get_data_and_size()
         # Check for format and domain
         domain = ImgDomain.sRGB
         ext = os.path.splitext(file[1])[1].lower()
@@ -98,20 +99,33 @@ class Cam:
             # It's most likely raw! Convert to readable formats
             domain = ImgDomain.Lin
             image = self.convertRaw(image)
+        else:
+            # Open normally
+            # TODO: Alignment error, doesn not work like this!!
+            with logging_disabled():
+                image = Image.open(io.BytesIO(file_data))
+        
+        if not keep:
+            self.getCam().file_delete(file[0], file[1])
+            del self._files[id]
 
         # Local full path to image 
         full_path = os.path.join(path, name, f"{name}_{id:03d}{ext}")
         return ImgBuffer(path=full_path, img=image, domain=domain)
         
     def getImages(self, path, name, keep=False, save=False):
+        """Returns all images of the saved paths from the camera as an dictionary with their IDs as key"""
         images = dict()
         for id in self._files.keys():
-            images[id] = self.getImage(id, path, name, keep)
+            images[id] = self.getImage(id, path, name, keep=True)
             if save:
                 images[id].save()
+        if not keep:
+            self.deleteFiles()
         return images
     
     def download(self, path, name, keep=False):
+        """Downloads all images of the saved paths from the camera directly to the file system"""
         for id in self._files.keys():
             self.getImage(id, path, name, keep).unload(save=True)
 
@@ -144,6 +158,12 @@ class Cam:
         """Resets internal file list"""
         self._files = dict()
 
+    def deleteFiles(self):
+        """Deletes all known files on camera"""
+        for id, file in self._files.items():
+            self.getCam().file_delete(file[0], file[1])
+        self._files = dict()
+
 
     ### Helper ###
     
@@ -158,8 +178,8 @@ class Cam:
 
 
 
-#kill gphoto2 process that occurs whenever connect camera
 def killgphoto2():
+    """Helper to kill the gvfsd-gphoto2 process if camera resource is blocked"""
     p = subprocess.Popen(['ps', '-A'], stdout=subprocess.PIPE)
     out,err = p.communicate()
     for line in out.splitlines():

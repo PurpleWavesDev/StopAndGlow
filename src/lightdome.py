@@ -27,7 +27,8 @@ class Lightdome:
         blur_size += 1-blur_size%2 # Make it odd
                         
         # Blur HDRI to reduce errors
-        #hdri = hdri.asDomain(ImgDomain.sRGB) # TODO: Conversion reduces extremes but they are probably necessary for accurate light energy?
+        # TODO: Conversion lin->srgb->blur->lin reduces extremes but they are probably necessary for accurate light energy?
+        #hdri = hdri.asDomain(ImgDomain.sRGB)
         hdri = ImgBuffer(img=cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
         #hdri = hdri.asDomain(ImgDomain.Lin) # Conversion back
         
@@ -36,18 +37,17 @@ class Lightdome:
             latlong = light['latlong']
             x = int(round(res_x * latlong[1]/360.0))
             y = int(round(res_y/2 - res_y * latlong[0]/180.0))
-            sample = hdri[x, y]
-            self._lightVals[light['id']] = sample # np.round(sample*255).astype('uint8') # Linear value as Int (?)
-            
-        
-    def sampleHdriBw(self, hdri: ImgBuffer):
-        return self.sampleHdri(hdri.RGB2Gray())
+            self._lightVals[light['id']] = hdri[x, y]
     
     def sampleUV(self, f):
         pass
     
     def sampleLatLong(self, f):
         pass
+
+    def getLights(self, domain=ImgDomain.Lin, type='uint8'):
+        return self._lightVals
+
     
     def generateUV(self, image=None):
         # Generate RGB image and draw blue circle for sphere
@@ -64,7 +64,7 @@ class Lightdome:
         light_radius = 6 # TODO: Calculate
         
         for light_entry in self._config:
-            value = self._lightVals[light_entry['id']].asDomain(ImgDomain.sRGB).asInt().get().tolist() if not None else (0)
+            value = self._lightVals[light_entry['id']].asDomain(ImgDomain.sRGB).asInt().get()[0][0].tolist() if not None else (0)
             x = int(round(res_2 + res_2*light_entry['uv'][0]))
             y = int(round(res_2 - res_2*light_entry['uv'][1]))
             # Fill
@@ -86,7 +86,7 @@ class Lightdome:
         
         # Draw lights as circles with fill
         for light_entry in self._config:
-            value = self._lightVals[light_entry['id']].asDomain(ImgDomain.sRGB).asInt().get().tolist() if not None else (0)
+            value = self._lightVals[light_entry['id']].asDomain(ImgDomain.sRGB).asInt().get()[0][0].tolist() if not None else (0)
             x = int(round(res_x * light_entry['latlong'][1] / 360))
             y = int(round(res_y/2 - (res_y/2) * light_entry['latlong'][0] / 90))
             # Fill

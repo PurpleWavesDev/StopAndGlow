@@ -94,6 +94,7 @@ def main(argv):
             lights_run(hw)
         elif FLAGS.mode == 'debug':
             debug(hw)
+        hw.lights.off()
 
 
 #################### CAPTURE MODES ####################
@@ -172,16 +173,34 @@ def lights_top(hw):
 
 def lights_hdri(hw):
     dome = Lightdome(hw.config)
-    hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, 'HDRIs', 'blue_photo_studio_1k.exr'), domain=ImgDomain.Lin)
+    hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, 'HDRIs', 'pretville_cinema_1k.exr'), domain=ImgDomain.Lin)
     dome.sampleHdri(hdri)
     img = dome.generateLatLong(hdri)
     ImgBuffer.SaveEval(img.get(), "hdri_latlong")
     img = dome.generateUV()
     ImgBuffer.SaveEval(img.get(), "hdri_uv")
-    # TODO: Not implemented
-    #rgb = dome.getLights()
-    #l = dome.getLightsGray()
-    #hw.lights.setDict()
+
+    # Send samples to dome & take pictures
+    rgb = dome.getLights()
+    # R
+    hw.lights.setLights(rgb, 0)
+    hw.lights.write()
+    hw.cam.capturePhoto(0)
+    # G
+    hw.lights.setLights(rgb, 1)
+    hw.lights.write()
+    hw.cam.capturePhoto(1)
+    # B
+    hw.lights.setLights(rgb, 2)
+    hw.lights.write()
+    hw.cam.capturePhoto(2)
+    hw.cam.getImages(DATA_BASE_PATH, 'HDRI_RGB', save=True)
+
+    hw.lights.setLights(rgb, -1)
+    hw.lights.write()
+    hw.cam.capturePhoto(0)
+    img = hw.cam.getImage(0, DATA_BASE_PATH, 'HDRI_Luma')
+    img.save()
 
 def lights_run(hw):
     log.info("Starting lightrun")

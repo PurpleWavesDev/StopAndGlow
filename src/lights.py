@@ -3,6 +3,8 @@ from dmx import DMXInterface, DMXUniverse
 import dmx.constants
 from typing import List
 
+from src.imgdata import *
+
 DMX_MAX_ADDRESS = dmx.constants.DMX_MAX_ADDRESS
 DMX_MAX_VALUE = 255
 
@@ -26,10 +28,12 @@ class Lights:
         for light in list:
             self.frame[light] = value
 
-    def setDict(self, dict):
-        self.reset()
-        for id, val in dict:
-            self.frame[id] = val
+    def setLights(self, light_dict, channel=-1):
+        for id, light in light_dict.items():
+            if channel == -1:
+                self.frame[id] = light.RGB2Gray().asDomain(ImgDomain.Lin).asInt().get()[0][0]
+            else:
+                self.frame[id] = light.asDomain(ImgDomain.Lin).asInt().get()[0][0][channel]
         
 
     def write(self):

@@ -194,7 +194,7 @@ class ImgBuffer:
     
     # Operators
     def __getitem__(self, coord) -> ImgBuffer:
-        return ImgBuffer(img=self.get()[coord[1]][coord[0]], domain=self._domain)
+        return ImgBuffer(img=np.array([[self.get()[coord[1]][coord[0]]]]), domain=self._domain)
     
     def __setitem__(self, coord, buf: ImgBuffer):
         val = buf.asDomain(self._domain, self.isFloat())
