@@ -40,10 +40,14 @@ class Lightdome:
             self._lightVals[light['id']] = hdri[x, y]
     
     def sampleUV(self, f):
-        pass
+        for light in self._config:
+            sample = f(light['uv'])
+            self._lightVals[light['id']] = sample
     
     def sampleLatLong(self, f):
-        pass
+        for light in self._config:
+            sample = f(light['latlong'])
+            self._lightVals[light['id']] = sample
 
     def getLights(self, domain=ImgDomain.Lin, type='uint8'):
         return self._lightVals

@@ -30,7 +30,9 @@ class Lights:
 
     def setLights(self, light_dict, channel=-1):
         for id, light in light_dict.items():
-            if channel == -1:
+            if len(light.get().shape) == 2: # Single channel buffer
+                self.frame[id] = light.asDomain(ImgDomain.Lin).asInt().get()[0][0]
+            elif channel == -1:
                 self.frame[id] = light.RGB2Gray().asDomain(ImgDomain.Lin).asInt().get()[0][0]
             else:
                 self.frame[id] = light.asDomain(ImgDomain.Lin).asInt().get()[0][0][channel]

@@ -192,7 +192,7 @@ class ImgBuffer:
     def gray2RGB(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=np.dstack((self.get(),self.get(),self.get())), domain=self._domain)
     
-    # Operators
+    ### Operators ###
     def __getitem__(self, coord) -> ImgBuffer:
         return ImgBuffer(img=np.array([[self.get()[coord[1]][coord[0]]]]), domain=self._domain)
     
@@ -200,7 +200,11 @@ class ImgBuffer:
         val = buf.asDomain(self._domain, self.isFloat())
         self.get()[coord[1]][coord[0]] = val.asInt().get() if self.isInt().get() else val.get()
         
-    # Static functions
+    ### Static functions ###
+
+    def FromPix(values, domain: ImgDomain = ImgDomain.sRGB) -> ImgBuffer:
+        return ImgBuffer(img=np.array([[values]]).astype(IMAGE_DTYPE_INT)) # TODO: int/float
+    
     def SaveBase(img, name, img_format=ImgFormat.PNG):
         path = os.path.abspath(os.path.join(DATA_BASE_PATH, name))
         buffer = ImgBuffer(img=img, path=path)

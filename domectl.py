@@ -156,20 +156,18 @@ def download(hw, name, download_all=False, keep=False):
 #################### Light MODES ####################
     
 def lights_top(hw):
-    lights=[]
-    img_latlong = np.zeros((1000,2000,3), dtype='uint8')
-    img_uv = np.zeros((1000,1000,3), dtype='uint8')
-    cv.circle(img_uv, (500,500), 500, (0, 0, 255), 2)
-    for light_entry in hw.config:
-        if light_entry['latlong'][0] > 45:
-            lights.append(light_entry['id'])
-            cv.circle(img_latlong, (int(2000*light_entry['latlong'][1]/360), int(500-500*light_entry['latlong'][0]/90)), 6, (0, 255, 0), 2)
-            cv.circle(img_uv, (int(500+500*light_entry['uv'][0]), int(500-500*light_entry['uv'][1])), 6, (0, 255, 0), 2)
-        else:
-            cv.circle(img_latlong, (int(2000*light_entry['latlong'][1]/360), int(500-500*light_entry['latlong'][0]/90)), 6, (255, 0, 0), 2)
-            cv.circle(img_uv, (int(500+500*light_entry['uv'][0]), int(500-500*light_entry['uv'][1])), 6, (255, 0, 0), 2)
-    ImgBuffer.SaveEval(img_latlong, "lights_top_latlong")
-    ImgBuffer.SaveEval(img_uv, "lights_top_reflection")
+    dome = Lightdome(hw.config)
+    # Sample top lights
+    dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(255) if latlong[0] > 60 else ImgBuffer.FromPix(0))
+    # Save images
+    img = dome.generateLatLong()
+    ImgBuffer.SaveEval(img.get(), "top_latlong")
+    img = dome.generateUV()
+    ImgBuffer.SaveEval(img.get(), "top_uv")
+    # Show on dome
+    hw.lights.setLights(dome.getLights(), 0)
+    hw.lights.write()
+    time.sleep(5)
 
 def lights_hdri(hw):
     dome = Lightdome(hw.config)
@@ -194,13 +192,17 @@ def lights_hdri(hw):
     hw.lights.setLights(rgb, 2)
     hw.lights.write()
     hw.cam.capturePhoto(2)
-    hw.cam.getImages(DATA_BASE_PATH, 'HDRI_RGB', save=True)
+    # Get channels and stack them
+    r = hw.cam.getImage(0, DATA_BASE_PATH, 'HDRI_RGB').r()
+    g = hw.cam.getImage(1, DATA_BASE_PATH, 'HDRI_RGB').g()
+    b = hw.cam.getImage(2, DATA_BASE_PATH, 'HDRI_RGB').b()
+    # TODO: Stacking
 
+    # Take picture of luma values
     hw.lights.setLights(rgb, -1)
     hw.lights.write()
     hw.cam.capturePhoto(0)
-    img = hw.cam.getImage(0, DATA_BASE_PATH, 'HDRI_Luma')
-    img.save()
+    hw.cam.getImage(0, DATA_BASE_PATH, 'HDRI_Luma').save()
 
 def lights_run(hw):
     log.info("Starting lightrun")
