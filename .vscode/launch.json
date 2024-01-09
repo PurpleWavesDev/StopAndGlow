@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Capture",
+            "name": "Capture JPG",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=capture", "--sequence_name=dragon_wide"],
+            "args": ["--loglevel=DEBUG", "--mode=capture_lights", "--capture_mode=jpg", "--sequence_name=new_seq_name"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -18,7 +18,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=capture_quick"],
+            "args": ["--loglevel=DEBUG", "--mode=capture_lights", "--capture_mode=quick"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -27,7 +27,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=calibrate"],
+            "args": ["--loglevel=DEBUG", "--mode=calibrate", "--capture_mode=quick"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -59,11 +59,11 @@
             "justMyCode": true
         },
         {
-            "name": "Lights Top",
+            "name": "Lights Animate",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_top"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_animate"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -77,11 +77,20 @@
             "justMyCode": true
         },
         {
-            "name": "Light Run",
+            "name": "Lights Run",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=lights_run"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Debug",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=debug"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

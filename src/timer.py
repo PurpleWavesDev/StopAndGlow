@@ -1,9 +1,8 @@
 import time
 import threading
 
-class Worker:
-    def work(self) -> bool:
-        return True
+from src.worker import Worker
+
 
 class Timer:
     def __init__(self, worker: Worker):
@@ -25,12 +24,16 @@ class Timer:
 
 
 def timer_fn(timer, worker):
+    # Init
+    worker.init()
+    
+    # Start loop
     next_call = time.time()
     while timer.running:
         # Work
         if not worker.work():
+            # Do not exit loop immediately, image capture is possibly still in progress
             timer.running = False
-            break
         
         if timer.interval != 0:
             # Sleep until next frame
@@ -43,3 +46,6 @@ def timer_fn(timer, worker):
                 next_call = time.time()
             else:
                 time.sleep(time_sleep)
+                
+    # Call exit
+    worker.exit()
