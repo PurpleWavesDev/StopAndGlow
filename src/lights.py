@@ -27,14 +27,14 @@ class Lights:
         for light in list:
             self.frame[light] = value
 
-    def setLights(self, light_dict, channel=-1):
+    def setLights(self, light_dict, channel=-1, exp_corr=0.5):
         for id, light in light_dict.items():
             if len(light.get().shape) == 2: # Single channel buffer
-                self.frame[id] = light.asDomain(ImgDomain.Lin).asInt().get()[0][0]
+                self.frame[id] = int(light.asDomain(ImgDomain.Lin).asInt().get()[0][0]*exp_corr)
             elif channel == -1:
-                self.frame[id] = light.RGB2Gray().asDomain(ImgDomain.Lin).asInt().get()[0][0]
+                self.frame[id] = int(light.RGB2Gray().asDomain(ImgDomain.Lin).asInt().get()[0][0]*exp_corr)
             else:
-                self.frame[id] = light.asDomain(ImgDomain.Lin).asInt().get()[0][0][channel]
+                self.frame[id] = int(light.asDomain(ImgDomain.Lin).asInt().get()[0][0][channel]*exp_corr)
         
 
     def write(self):

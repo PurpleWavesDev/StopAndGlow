@@ -5,6 +5,7 @@ import io
 import time
 from collections import namedtuple
 from importlib import reload
+from typing import Any
 
 # Flags and logging
 from absl import app
@@ -42,7 +43,7 @@ flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 
 # Configuration
 flags.DEFINE_string('config_path', '../HdM_BA/data/config', 'Where the configurations should be stored.')
 flags.DEFINE_string('config_name', 'lightdome.json', 'Name of config file.')
-flags.DEFINE_string('lights_config_name', '', 'Name of config to read available light addresses from. Only used for calibration.') # available_lights.json
+flags.DEFINE_string('config_ids_name', 'available_lights.json', 'Name of config to read available light IDs from. Only used for calibration.') # 
 # Sequence 
 flags.DEFINE_string('output_path', '../HdM_BA/data', 'Where the image data should be written to.')
 flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evaluate.')
@@ -105,7 +106,7 @@ def main(argv):
             debug(hw)
         
         # Light default state
-        lightsTop()
+        lightsTop(hw, brightness=80)
         #hw.lights.off()
 
 
@@ -208,22 +209,18 @@ def lightsHdriRotate(hw):
     img = dome.generateUV()
     ImgBuffer.SaveEval(img.get(), "hdri_uv")
     
-    # Need a class to capture the light dome TODO: Possibly just add an additional field to LightFnWorker
-    class HdriRotate:
-        def __init__(self, dome):
-            self.dome=dome
-        def f(lights: Lights, i: int) -> bool:
-            self.dome.sampleHdri(hdri, i) # 15 degree / second
-            lights.setLights(dome.getLights())
-            return i<360
+    # Function for
+    def fn(lights: Lights, i: int, dome: Any) -> bool:
+        dome.sampleProcessedHdri(i*3) # 10 degree / second
+        lights.setLights(dome.getLights())
+        return i<360
     
-    light_eval = HdriRotate(dome)
-    t = Timer(worker.LightFnWorker(hw, light_eval.f))
-    t.start(1/15)
+    t = Timer(worker.LightFnWorker(hw, fn, parameter=dome))
+    t.start(1/10)
     t.join()
 
 
-def lightsRun(hw):
+def lightsConfigRun(hw):
     log.info(f"Running through {len(hw.config)} lights with IDs {hw.config.getIdBounds()}")
     t = Timer(worker.LightListWorker(hw, hw.config.getIds()))
     t.start(1/15)
@@ -234,11 +231,16 @@ def lightsRun(hw):
 
 def eval_cal(path_sequence):
     # Load data
-    img_seq = ImgData(path_sequence, video_frames_skip=FLAGS.video_frames_skip)
+    img_seq = ImgData()
     img_mask = None
     if os.path.splitext(path_sequence)[1] == '':
+        # Folder
+        img_seq.loadFolder(path_sequence)
         img_mask = ImgData(path_sequence+NAME_MASK_EXT).get(0)
     else:
+        # TODO: video_frames_skip=FLAGS.video_frames_skip
+        frame_list = Config(os.path.join(FLAGS.config_path, FLAGS.config_ids_name)).getIds()
+        img_seq.loadVideo(path_sequence, frame_list)
         img_mask = img_seq.getMaskFrame()
         
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")

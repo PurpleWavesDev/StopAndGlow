@@ -216,24 +216,24 @@ class ImgBuffer:
             
 
 class ImgData():
-    def __init__(self, path=None, domain=ImgDomain.Keep, video_frames_skip=1):
+    def __init__(self, path=None, domain=ImgDomain.Keep, video_frame_list=range(0)):
         self._frames = dict()
         self._maskFrame = None
         self._domain=domain
         self._min=-1
         self._max=-1
-        self._video_frames_skip=video_frames_skip
+        self._video_frames_skip = 3 # 1 #TODO:FLAGS.video_frames_skip
         if path is not None:
-            self.load(os.path.abspath(path))
+            self.load(os.path.abspath(path), video_frame_list)
 
-    def load(self, path):
+    def load(self, path, video_frame_list=range(0)):
         match (os.path.splitext(path)[1]).lower():
             case '':
                 # Path, load folder
                 self.loadFolder(path)
             case '.mov' | '.mp4':
                 # Video
-                self.loadVideo(path)
+                self.loadVideo(path, video_frame_list)
             case _:
                 log.error(f"Can't load file {path}")
                 
@@ -260,7 +260,7 @@ class ImgData():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def loadVideo(self, path, seq_name=None):
+    def loadVideo(self, path, frame_list, seq_name=None):
         # Define paths and sequence names
         # TODO: Lazy loading, with list of frame numbers, shuffle mask frame after black frame
         base_dir = os.path.dirname(path)
@@ -287,7 +287,6 @@ class ImgData():
         previous = None
         previous2 = None
         #black_val = None
-        max_frames=304 #TODO!
         
         while success:
             match state:
@@ -320,13 +319,17 @@ class ImgData():
                 case VidParseState.Valid:
                     # Abort condition
                     #if previous is not None and ImgOp.similar(frame, previous):
-                    if frame_number > max_frames:
+                    if frame_number > len(frame_list):
                         #log.debug(f"No new frame at frame {frame_count} with {frame_number} valid frames")
                         break
                     if not ImgOp.blackframe(frame):
-                        # Use this frame
-                        self._frames[frame_number] = ImgBuffer(path=img_name_base+f"_{frame_number:03d}.png", img=frame, domain=ImgDomain.sRGB)
-                        log.debug(f"Valid sequence frame {frame_number} found at frame {frame_count} in video")
+                        # Use this frame#
+                        id = frame_list[frame_number]
+                        self._frames[id] = ImgBuffer(path=img_name_base+f"_{id:03d}.png", img=frame, domain=ImgDomain.sRGB)
+                        log.debug(f"Valid sequence frame {frame_number}, id {id}, found at frame {frame_count} in video")
+                        # Set min & max values
+                        self._min = id if self._min == -1 else min(self._min, id)
+                        self._max = id if self._max == -1 else max(self._max, id)
                     else:
                         log.debug(f"Blackframe at frame {frame_number} / {frame_count}")   
                     # Skip every other frame

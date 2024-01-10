@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Any
 import logging as log
 import time
 
@@ -31,32 +32,33 @@ class LightListWorker(Worker):
     def work(self) -> bool:
         # Set values
         light_id = self._lightList[self._i]
-        super.lights.setList([light_id])
-        super.lights.write()
+        self.lights.setList([light_id])
+        self.lights.write()
 
         # Trigger camera
         if self._trigger:
-            super.cam.capturePhoto(id)
+            self.cam.capturePhoto(id)
 
         # Abort condition
         self._i += 1
         return self._i < len(self._lightList)
     
 class LightFnWorker(Worker):
-    def __init__(self, hw, lights_fn: Callable[[Lights, int], bool], trigger_capture=False):
+    def __init__(self, hw, lights_fn: Callable[[Lights, int, Any], bool], trigger_capture=False, parameter=None):
         Worker.__init__(self, hw)
         self._lights_fn = lights_fn
+        self._parameter = parameter
         self._i = 0
         self._trigger = trigger_capture
         
     def work(self) -> bool:
         # Update lights
-        ret_val = self._lights_fn(super.lights, i)
-        super.lights.write()
+        ret_val = self._lights_fn(self.lights, self._i, self._parameter)
+        self.lights.write()
         
         # Trigger camera
         if self._trigger:
-            super.cam.capturePhoto(id)
+            self.cam.capturePhoto(self._i)
 
         # Abort condition
         self._i += 1
@@ -82,20 +84,20 @@ class VideoListWorker(Worker):
         # Set light values
         # One blackframe
         if self._i == -2:
-            super.lights.reset()
+            self.lights.reset()
         elif self._i == -1:
             # One frame all on/silhouette
-            super.lights.setList(self._allOnList)
+            self.lights.setList(self._allOnList)
         elif self._i < len(self._lightList):
             # Go through IDs
             light_id = self._lightList[self._i]
-            super.lights.setList([light_id])
+            self.lights.setList([light_id])
         else:
             # Another frame all on/silhouette
-            super.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
+            self.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
             self._running = False
 
-        super.lights.write()
+        self.lights.write()
         
         # Increment and return
         self._i += 1

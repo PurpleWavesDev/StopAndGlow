@@ -21,23 +21,27 @@ class Lightdome:
         self._config = config
         self._lightVals.clear()
     
-    def sampleHdri(self, hdri: ImgBuffer, longitude_offset=0):
+    def sampleHdri(self, hdri: ImgBuffer, exposure_correction=1, longitude_offset=0):
         res_y, res_x = hdri.get().shape[:2]
         blur_size = int(self.blur_size*res_y/100)
         blur_size += 1-blur_size%2 # Make it odd
-                        
+        
         # Blur HDRI to reduce errors
         # TODO: Conversion lin->srgb->blur->lin reduces extremes but they are probably necessary for accurate light energy?
         #hdri = hdri.asDomain(ImgDomain.sRGB)
-        hdri = ImgBuffer(img=cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
+        self._processed_hdri = ImgBuffer(img=cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
         #hdri = hdri.asDomain(ImgDomain.Lin) # Conversion back
+        self.sampleProcessedHdri(longitude_offset)
         
+    
+    def sampleProcessedHdri(self, longitude_offset):
+        res_y, res_x = self._processed_hdri.get().shape[:2]
         for light in self._config:
             # Sample point in HDRI
             latlong = light['latlong']
-            x = int(round(res_x * (latlong[1]+longitude_offset)%360 / 360.0))
+            x = int(res_x * ((latlong[1]+longitude_offset)%360) / 360.0) # TODO: Is round here wrong? Indexing error when rounding up on last value!
             y = int(round(res_y/2 - res_y * latlong[0]/180.0))
-            self._lightVals[light['id']] = hdri[x, y]
+            self._lightVals[light['id']] = self._processed_hdri[x, y]
     
     def sampleUV(self, f):
         for light in self._config:
