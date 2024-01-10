@@ -198,7 +198,25 @@ def lightsTop(hw, latitude=60, brightness: int = 255):
 
 
 def lightsAnimate(hw):
-    pass
+    # Function for
+    dome = Lightdome(hw.config)
+    def fn_lat(lights: Lights, i: int, dome: Any) -> bool:
+        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[0] > 90-(i*2) else ImgBuffer.FromPix(0))
+        lights.setLights(dome.getLights())
+        return i<45
+    def fn_long(lights: Lights, i: int, dome: Any) -> bool:
+        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[1] < i*8 and latlong[1] > i*4-15 else ImgBuffer.FromPix(0))
+        lights.setLights(dome.getLights())
+        return i<45
+
+    for _ in range(3):
+        t = Timer(worker.LightFnWorker(hw, fn_lat, parameter=dome))
+        t.start(1/10)
+        t.join()
+
+        t = Timer(worker.LightFnWorker(hw, fn_long, parameter=dome))
+        t.start(1/10)
+        t.join()
 
 def lightsHdriRotate(hw):
     dome = Lightdome(hw.config)
