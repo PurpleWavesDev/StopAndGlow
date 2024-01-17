@@ -70,27 +70,31 @@ def main(argv):
     
     ### Load image sequence, either bei capturing or loading sequence from disk ###
     if "capture" in mode:
-        name = FLAGS.sequence_name if not '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type # 240116_2333_cal
+        # Init lights
+        hw.lights.getInterface()
+
+        name = FLAGS.sequence_name if FLAGS.sequence_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type # 240116_2333_cal
         
         # Capturing for all modes
         if 'hdri' in mode_type:
             captureHdri(hw)
         else:
-            if False:#silhouette_needed: # TODO
-                captureSilhouette(hw)
-                sequence2 = download(hw, name+NAME_MASK_EXT, keep=FLAGS.sequence_keep)
             capture(hw)            
         
         # Sequence download
         sequence = download(hw, name, keep=FLAGS.sequence_keep)
     
-    else:
+    elif not 'lights' in mode:
         # Load data
         sequence = load(FLAGS.sequence_name, hw.config)
     
     ### Separate lights only modes from evaluation ###
     if 'lights' in mode:
         # Lights only modes
+
+        # Init lights
+        hw.lights.getInterface()
+
         match mode_type:
             case 'hdri':
                 lightsHdriRotate(hw)
@@ -141,17 +145,6 @@ def captureVideo(hw):
     t = Timer(worker.VideoListWorker(hw, hw.config.getIds()))
     t.start(2/FLAGS.video_fps)
     t.join()
-
-# TODO:
-def captureSilhouette(hw):
-    # TODO: Silhouette is all lights rn
-    frame = [127] * Lights.DMX_MAX_ADDRESS
-    hw.lights.setFrame(frame)
-    hw.lights.write()
-
-    # Trigger camera
-    hw.cam.capturePhoto(0)
-    hw.lights.off()
     
 def captureHdri(hw):
     # Load HDRI
@@ -259,6 +252,13 @@ def evalRti(img_seq):
 def evalHdri(img_seq):
     log.info(f"Processing HDRI image sequence")
 
+    # Get channels and stack them
+    r = img_seq[0].r()
+    g = img_seq[1].g()
+    b = img_seq[2].b()
+    
+    # TODO: Stacking
+
 def evalCal(img_seq):
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
 
@@ -286,34 +286,27 @@ def evalCal(img_seq):
     ImgBuffer.SaveEval(debug_img, "reflections")
 
     # Save config
-    name = FLAGS.config_output_name if not '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
-    log.info(f"Saving config as '{name}' with lights from ID {new_config.getIdBounds()}")
-    new_config.save(FLAGS.config_path, FLAGS.config_output_name)
+    name = FLAGS.config_output_name if FLAGS.config_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
+    log.info(f"Saving config as '{name}' with {len(new_config)} lights from ID {new_config.getIdBounds()}")
+    new_config.save(FLAGS.config_path, name)
 
-    # Get channels and stack them
-    r = img_seq[0].r()
-    g = img_seq[1].g()
-    b = img_seq[2].b()
-    
-    # TODO: Stacking
 
 
 #################### CAMERA SETTINGS & DOWNLOAD HELPERS ####################
 
 # TODO!! Works only for images, not video
-def download(hw, name, download_all=False, keep=False):
+def download(hw, name, keep=False):
     """Download from camera"""
     log.debug(f"Downloading sequence '{name}' to {FLAGS.sequence_path}")
-    if download_all:
-        # Search for files on camera
-        hw.cam.resetFiles()
-        hw.cam.addFiles(hw.cam.listFiles(), FLAGS.sequence_start)
-    
     sequence = ImgData()
-    # TODO getImages -> getSequence
-    images = hw.cam.getImages(FLAGS.sequence_path, name, keep=False, save=False)
-    for id, img in images:
-        sequence.append(img, id)
+    if 'quick' in FLAGS.capture_mode:
+        # Video, download and save
+        hw.cam.downloadVideo(FLAGS.sequence_path, name, keep)
+    else:
+        # TODO getImages -> getSequence
+        images = hw.cam.getImages(FLAGS.sequence_path, name, keep=False, save=False)
+        for id, img in images:
+            sequence.append(img, id)
     return sequence
     
 def load(name, config):
@@ -326,10 +319,7 @@ def load(name, config):
         sequence.loadFolder(path)
     else:
         # Load video
-        # TODO: video_frames_skip=FLAGS.video_frames_skip
-        img_seq.loadVideo(path_sequence, config.getIds())
-        #img_mask = img_seq.getMaskFrame()
-        # TODO: Mask frame!!
+        sequence.loadVideo(path, config.getIds(), video_frames_skip=FLAGS.video_frames_skip)
     
     return sequence
 

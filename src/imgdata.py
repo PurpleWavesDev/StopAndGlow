@@ -215,6 +215,11 @@ class ImgBuffer:
         return ImgBuffer.SaveBase(img, os.path.join('eval', name), img_format)
             
 
+class VidParseState(Enum):
+    PreBlack = 0,
+    Black = 1,
+    Skip = 2,
+    Valid = 3
 class ImgData():
     def __init__(self, path=None, domain=ImgDomain.Keep, video_frame_list=range(0)):
         self._frames = dict()
@@ -222,7 +227,6 @@ class ImgData():
         self._domain=domain
         self._min=-1
         self._max=-1
-        self._video_frames_skip = 3 # 1 #TODO:FLAGS.video_frames_skip
         if path is not None:
             self.load(os.path.abspath(path), video_frame_list)
 
@@ -257,12 +261,11 @@ class ImgData():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def loadVideo(self, path, frame_list, seq_name=None):
+    def loadVideo(self, path, frame_list, video_frames_skip=1):
         # Define paths and sequence names
-        # TODO: Lazy loading, with list of frame numbers, shuffle mask frame after black frame
+        # TODO: shuffle mask frame after black frame
         base_dir = os.path.dirname(path)
-        if seq_name is None:
-            seq_name = os.path.splitext(os.path.basename(path))[0]
+        seq_name = os.path.splitext(os.path.basename(path))[0]
                     
         img_name_base = os.path.join(base_dir, seq_name, seq_name)
         mask_name_base = os.path.join(base_dir, seq_name+'_mask', seq_name+'_mask')
@@ -273,11 +276,6 @@ class ImgData():
             log.error("Could not load video file '{}'")
             return False
         
-        class VidParseState(Enum):
-            PreBlack = 0,
-            Black = 1,
-            Skip = 2,
-            Valid = 3
         state = VidParseState.PreBlack
         success, frame = vidcap.read()
         frame_number = frame_count = skip_count = 0
@@ -310,13 +308,13 @@ class ImgData():
                         state = VidParseState.Valid
                         log.debug(f"First non-black frame at {frame_count}")
                 case VidParseState.Skip:
-                    skip_count = (skip_count+1) % self._video_frames_skip
+                    skip_count = (skip_count+1) % video_frames_skip
                     if skip_count == 0:
                         state = VidParseState.Valid
                 case VidParseState.Valid:
                     # Abort condition
                     #if previous is not None and ImgOp.similar(frame, previous):
-                    if frame_number > len(frame_list):
+                    if frame_number >= len(frame_list):
                         #log.debug(f"No new frame at frame {frame_count} with {frame_number} valid frames")
                         break
                     if not ImgOp.blackframe(frame):

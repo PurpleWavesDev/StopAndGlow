@@ -63,7 +63,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=sequence_cal.mp4"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=calibration_front.mp4", "--video_frames_skip=3"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -72,7 +72,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr", "--config_name=lightdome.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -81,7 +81,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_animate"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=lightdome.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

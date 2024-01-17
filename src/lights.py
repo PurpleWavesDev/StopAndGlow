@@ -10,8 +10,13 @@ DMX_MAX_VALUE = 255
 
 class Lights:
     def __init__(self):
-        self._interface = DMXInterface("FT232R")
+        self._interface = None
         self.frame = [0] * DMX_MAX_ADDRESS
+
+    def getInterface(self):
+        if self._interface is None:
+            self._interface = DMXInterface("FT232R")
+        return self._interface
     
     def reset(self):
         self.frame = [0] * DMX_MAX_ADDRESS
@@ -39,10 +44,10 @@ class Lights:
 
     def write(self):
         # Set frame and send update
-        self._interface.set_frame(self.frame)
-        self._interface.send_update()
+        self.getInterface().set_frame(self.frame)
+        self.getInterface().send_update()
 
     def off(self):
         frame = [0] * DMX_MAX_ADDRESS
-        self._interface.set_frame(frame)
-        self._interface.send_update()
+        self.getInterface().set_frame(frame)
+        self.getInterface().send_update()

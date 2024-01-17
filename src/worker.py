@@ -87,7 +87,7 @@ class VideoListWorker(Worker):
             self.lights.reset()
         elif self._i == -1:
             # One frame all on/silhouette
-            self.lights.setList(self._allOnList)
+            self.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
         elif self._i < len(self._lightList):
             # Go through IDs
             light_id = self._lightList[self._i]

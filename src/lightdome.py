@@ -98,7 +98,7 @@ class Lightdome:
             x = int(round(res_x * light_entry['latlong'][1] / 360))
             y = int(round(res_y/2 - (res_y/2) * light_entry['latlong'][0] / 90))
             # Fill
-            cv.circle(image.get(), (x, y), light_radius, value, cv.FILLED)
+            cv.circle(image.get(), (x, y), light_radius, value, cv.FILLED) # TODO value is gray or RGB sometimes
             # Outline
             cv.circle(image.get(), (x, y), light_radius, (255, 255, 255), 1)
 

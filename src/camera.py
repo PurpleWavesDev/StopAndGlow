@@ -129,6 +129,14 @@ class Cam:
         for id in self._files.keys():
             self.getImage(id, path, name, keep).unload(save=True)
 
+    def downloadVideo(self, path, name, keep=False):
+        """Downloads last video file"""
+        for filename in self._files.values():
+            ext = os.path.splitext(filename)[1]
+            if ext.lower() == '.mov' or ext.lower() == '.mp4':
+                # Found a video!
+                pass
+
     def listFiles(self, path='/'):
         """Returns list of all files found on the camera"""
         result = []
