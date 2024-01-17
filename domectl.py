@@ -3,6 +3,7 @@ import sys
 import os
 import io
 import time
+import datetime
 from collections import namedtuple
 from importlib import reload
 from typing import Any
@@ -37,23 +38,23 @@ NAME_MASK_EXT='_mask'
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_hdri', 'calibrate', 'download', 'eval_cal', 'lights_animate', 'lights_hdri', 'lights_run', 'debug'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'quick', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
 flags.DEFINE_string('config_path', '../HdM_BA/data/config', 'Where the configurations should be stored.')
-flags.DEFINE_string('config_name', 'lightdome.json', 'Name of config file.')
-flags.DEFINE_string('config_ids_name', 'available_lights.json', 'Name of config to read available light IDs from. Only used for calibration.') # 
+flags.DEFINE_string('config_name', 'lightdome.json', 'Name of input config file.')
+flags.DEFINE_string('config_output_name', '', "Name of config to write calibration data to. Default is 'lightdome' and current date & time.")
 # Sequence 
-flags.DEFINE_string('output_path', '../HdM_BA/data', 'Where the image data should be written to.')
-flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evaluate.')
-flags.DEFINE_integer('sequence_start', 0, 'Frame count starting from this number for downloads', lower_bound=0)
-flags.DEFINE_boolean('keep_sequence', False, 'Keep images on camera after downloading.')
+flags.DEFINE_string('sequence_path', '../HdM_BA/data', 'Where the image data should be written to.')
+flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evaluate. Default is type of capture current date & time.')
+flags.DEFINE_boolean('sequence_keep', False, 'Keep images on camera after downloading.')
+# Capture settings
+# TODO: Should be hard-coded
+flags.DEFINE_integer('video_frames_skip', 1, 'Frames to skip between valid frames in video sequence', lower_bound=0)
+flags.DEFINE_float('video_fps', 29.97, 'Frame rate for the video capture')
 # Additional resources
 flags.DEFINE_string('input_hdri', 'HDRIs/pretville_cinema_1k.exr', 'Name/Path of HDRI that is used for sky dome sampling.')
-# Capture settings
-flags.DEFINE_integer('video_frames_skip', 1, 'Frames to skip between valid frames in video sequence', lower_bound=0) # TODO: Could be hard-coded
-flags.DEFINE_float('video_fps', 29.97, 'Frame rate for the video capture')
 
 
 def main(argv):
@@ -61,64 +62,79 @@ def main(argv):
     reload(log)
     log.basicConfig(level=log._nameToLevel[FLAGS.loglevel], format='[%(levelname)s] %(message)s')
 
-    ### Eval Modes without hardware requirements ###
-    if FLAGS.mode == 'eval_cal':
-        name = "calibration" if FLAGS.sequence_name == "" else FLAGS.sequence_name
-        eval_cal(os.path.join(FLAGS.output_path, name))
-
-    else:
-        # Prepare hardware for tasks
-        hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
-
-        # Execute task for requested mode
-        ### Capture Modes ###
-        if FLAGS.mode == 'capture_lights':
-            capture(hw) # TODO: capture method
-            name = "capture" if FLAGS.sequence_name == "" else FLAGS.sequence_name
-            download(hw, name, keep=FLAGS.keep_sequence)
-        elif FLAGS.mode == 'capture_hdri':
-            # Capture sequence of color channels from HDRI
-            hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, FLAGS.input_hdri), domain=ImgDomain.Lin)
-            captureHdri(hw, hdri)
-        elif FLAGS.mode == 'calibrate':
-            name = "calibration" if FLAGS.sequence_name == "" else FLAGS.sequence_name
-            # Capture with all lights on for masking frame
-            captureSilhouette(hw)
-            download(hw, name+NAME_MASK_EXT, keep=False)
-            capture(hw)
-            download(hw, name, keep=FLAGS.keep_sequence)
-            
-        ### Download only ###
-        elif FLAGS.mode == 'download':
-            name = "download" if FLAGS.sequence_name == "" else FLAGS.sequence_name
-            download(hw, name, download_all=True, keep=FLAGS.keep_sequence)
-            
-        ### Light Modes ###
-        elif FLAGS.mode == 'lights_animate':
-            lightsAnimate(hw)
-        elif FLAGS.mode == 'lights_hdri':
-            lightsHdriRotate(hw)
-        elif FLAGS.mode == 'lights_run':
-            lightsConfigRun(hw)
-            
-        ### Debug Mode ###
-        elif FLAGS.mode == 'debug':
-            debug(hw)
+    # Prepare hardware for tasks
+    hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
+    mode, mode_type = FLAGS.mode.split("_", 1)
+    sequence = None
+    sequence2 = None
+    
+    ### Load image sequence, either bei capturing or loading sequence from disk ###
+    if "capture" in mode:
+        name = FLAGS.sequence_name if not '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type # 240116_2333_cal
         
-        # Light default state
-        lightsTop(hw, brightness=80)
-        #hw.lights.off()
+        # Capturing for all modes
+        if 'hdri' in mode_type:
+            captureHdri(hw)
+        else:
+            if False:#silhouette_needed: # TODO
+                captureSilhouette(hw)
+                sequence2 = download(hw, name+NAME_MASK_EXT, keep=FLAGS.sequence_keep)
+            capture(hw)            
+        
+        # Sequence download
+        sequence = download(hw, name, keep=FLAGS.sequence_keep)
+    
+    else:
+        # Load data
+        sequence = load(FLAGS.sequence_name, hw.config)
+    
+    ### Separate lights only modes from evaluation ###
+    if 'lights' in mode:
+        # Lights only modes
+        match mode_type:
+            case 'hdri':
+                lightsHdriRotate(hw)
+            case 'animate':
+                lightsAnimate(hw)
+            case 'run':
+                lightsConfigRun(hw)
+            case 'ambient':
+                # Ambient light will be turned on anyway, just pass
+                pass
+    
+    else:
+        match mode_type:
+            case 'rti':
+                evalRti(sequence)
+            case 'hdri':
+                evalHdri(sequence)
+            case 'cal':
+                evalCal(sequence)
 
+    
+    # Light default state, only if lights have been used
+    if 'lights_off' in FLAGS.mode:
+        hw.lights.off()
+    elif not 'eval' in mode:
+        lightsTop(hw, brightness=80)
+
+                    
 
 #################### CAPTURE MODES ####################
 
 def capture(hw):
+    if 'quick' in FLAGS.capture_mode:
+        captureVideo(hw)
+    else:
+        captureImg(hw)
+    
+def captureImg(hw):
     log.info("Starting image capture")
     t = Timer(worker.LightListWorker(hw, hw.config.getIds(), trigger_capture=True))
     t.start(0)
     t.join()
 
-def captureQuick(hw):
+def captureVideo(hw):
     log.info("Starting quick capture (video)")
     # Worker & Timer
     # TODO: Silhouette
@@ -126,6 +142,7 @@ def captureQuick(hw):
     t.start(2/FLAGS.video_fps)
     t.join()
 
+# TODO:
 def captureSilhouette(hw):
     # TODO: Silhouette is all lights rn
     frame = [127] * Lights.DMX_MAX_ADDRESS
@@ -136,7 +153,10 @@ def captureSilhouette(hw):
     hw.cam.capturePhoto(0)
     hw.lights.off()
     
-def captureHdri(hw, hdri):
+def captureHdri(hw):
+    # Load HDRI
+    hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    
     dome = Lightdome(hw.config)
     dome.sampleHdri(hdri)
 
@@ -154,11 +174,6 @@ def captureHdri(hw, hdri):
     hw.lights.setLights(rgb, 2)
     hw.lights.write()
     hw.cam.capturePhoto(2)
-    # Get channels and stack them
-    r = hw.cam.getImage(0, DATA_BASE_PATH, 'HDRI_RGB').r()
-    g = hw.cam.getImage(1, DATA_BASE_PATH, 'HDRI_RGB').g()
-    b = hw.cam.getImage(2, DATA_BASE_PATH, 'HDRI_RGB').b()
-    # TODO: Stacking
 
 
 #################### CALIBRATE MODES ####################
@@ -170,15 +185,6 @@ def calibrate(hw):
     t.start(0)
     t.join()
 
-
-#################### CAMERA SETTINGS & DOWNLOAD MODES ####################
-
-def download(hw, name, download_all=False, keep=False):
-    log.info(f"Downloading sequence '{name}' to {FLAGS.output_path}")
-    if download_all:
-        # Search for files on camera
-        hw.cam.addFiles(hw.cam.listFiles(), FLAGS.sequence_start)
-    hw.cam.download(FLAGS.output_path, name, keep=keep)
 
 
 #################### Light MODES ####################
@@ -247,24 +253,18 @@ def lightsConfigRun(hw):
 
 #################### EVAL MODES ####################
 
-def eval_cal(path_sequence):
-    # Load data
-    img_seq = ImgData()
-    img_mask = None
-    if os.path.splitext(path_sequence)[1] == '':
-        # Folder
-        img_seq.loadFolder(path_sequence)
-        img_mask = ImgData(path_sequence+NAME_MASK_EXT).get(0)
-    else:
-        # TODO: video_frames_skip=FLAGS.video_frames_skip
-        frame_list = Config(os.path.join(FLAGS.config_path, FLAGS.config_ids_name)).getIds()
-        img_seq.loadVideo(path_sequence, frame_list)
-        img_mask = img_seq.getMaskFrame()
-        
+def evalRti(img_seq):
+    pass
+
+def evalHdri(img_seq):
+    log.info(f"Processing HDRI image sequence")
+
+def evalCal(img_seq):
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
 
-    config=Config()
+    new_config=Config()
     eval=Eval()
+    img_mask = img_seq.getMaskFrame()
 
     # Find center of chrome ball with mask frame
     eval.findCenter(img_mask)
@@ -276,7 +276,7 @@ def eval_cal(path_sequence):
             # Process frame
             uv = eval.findReflection(img, id, debug_img)
             if uv is not None:
-                config.addLight(id, uv, Eval.SphericalToLatlong(uv))
+                new_config.addLight(id, uv, Eval.SphericalToLatlong(uv))
             img.unload()
         else:
             log.debug(f"Found blackframe '{id}'")
@@ -286,15 +286,55 @@ def eval_cal(path_sequence):
     ImgBuffer.SaveEval(debug_img, "reflections")
 
     # Save config
-    log.info(f"Saving config to '{FLAGS.config_path}' with lights from ID {config.getIdBounds()}")
-    config.save(FLAGS.config_path, FLAGS.config_name)
+    name = FLAGS.config_output_name if not '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
+    log.info(f"Saving config as '{name}' with lights from ID {new_config.getIdBounds()}")
+    new_config.save(FLAGS.config_path, FLAGS.config_output_name)
+
+    # Get channels and stack them
+    r = img_seq[0].r()
+    g = img_seq[1].g()
+    b = img_seq[2].b()
+    
+    # TODO: Stacking
 
 
-#################### DEBUG MODES ####################
+#################### CAMERA SETTINGS & DOWNLOAD HELPERS ####################
 
-def debug(hw):
-    # Debug code for testing image & video capture, downloading and changing settings of camera
-    pass
+# TODO!! Works only for images, not video
+def download(hw, name, download_all=False, keep=False):
+    """Download from camera"""
+    log.debug(f"Downloading sequence '{name}' to {FLAGS.sequence_path}")
+    if download_all:
+        # Search for files on camera
+        hw.cam.resetFiles()
+        hw.cam.addFiles(hw.cam.listFiles(), FLAGS.sequence_start)
+    
+    sequence = ImgData()
+    # TODO getImages -> getSequence
+    images = hw.cam.getImages(FLAGS.sequence_path, name, keep=False, save=False)
+    for id, img in images:
+        sequence.append(img, id)
+    return sequence
+    
+def load(name, config):
+    """Load from disk"""
+    sequence = ImgData()
+    
+    path = os.path.join(FLAGS.sequence_path, name)
+    if os.path.splitext(name)[1] == '':
+        # Load folder
+        sequence.loadFolder(path)
+    else:
+        # Load video
+        # TODO: video_frames_skip=FLAGS.video_frames_skip
+        img_seq.loadVideo(path_sequence, config.getIds())
+        #img_mask = img_seq.getMaskFrame()
+        # TODO: Mask frame!!
+    
+    return sequence
+
+
+#################### MODES END ####################
 
 if __name__ == '__main__':
     app.run(main)

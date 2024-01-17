@@ -227,6 +227,7 @@ class ImgData():
             self.load(os.path.abspath(path), video_frame_list)
 
     def load(self, path, video_frame_list=range(0)):
+        # TODO
         match (os.path.splitext(path)[1]).lower():
             case '':
                 # Path, load folder
@@ -245,12 +246,8 @@ class ImgData():
                 # Extract frame number, add buffer to dict
                 match = re.search("[\.|_](\d+)\.[a-zA-Z]+$", f)
                 if match is not None:
-                    n = int(match.group(1))
-                    self._frames[n] = ImgBuffer(p, domain=self._domain)
-                    
-                    # Set lowest and highest frame number
-                    self._min = n if self._min == -1 else min(self._min, n)
-                    self._max = n if self._max == -1 else max(self._max, n)
+                    id = int(match.group(1))
+                    self.append(ImgBuffer(p, domain=self._domain), id)
                 else:
                     log.warn("Found file without sequence numbering: {f}")
         
@@ -325,11 +322,9 @@ class ImgData():
                     if not ImgOp.blackframe(frame):
                         # Use this frame#
                         id = frame_list[frame_number]
-                        self._frames[id] = ImgBuffer(path=img_name_base+f"_{id:03d}.png", img=frame, domain=ImgDomain.sRGB)
                         log.debug(f"Valid sequence frame {frame_number}, id {id}, found at frame {frame_count} in video")
-                        # Set min & max values
-                        self._min = id if self._min == -1 else min(self._min, id)
-                        self._max = id if self._max == -1 else max(self._max, id)
+                        # Append
+                        self.append(ImgBuffer(path=img_name_base+f"_{id:03d}.png", img=frame, domain=ImgDomain.sRGB), id)
                     else:
                         log.debug(f"Blackframe at frame {frame_number} / {frame_count}")   
                     # Skip every other frame
@@ -340,6 +335,12 @@ class ImgData():
             # Next iteration
             success, frame = vidcap.read()
             frame_count +=1
+            
+    def append(self, img: ImgBuffer, id):
+        self._frames[id] = img
+        # Set min & max values
+        self._min = id if self._min == -1 else min(self._min, id)
+        self._max = id if self._max == -1 else max(self._max, id)
             
     def getMaskFrame(self):
         return self._maskFrame

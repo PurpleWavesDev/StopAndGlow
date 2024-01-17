@@ -113,7 +113,7 @@ class Cam:
         full_path = os.path.join(path, name, f"{name}_{id:03d}{ext}")
         return ImgBuffer(path=full_path, img=image, domain=domain)
         
-    def getImages(self, path, name, keep=False, save=False):
+    def getImages(self, path, name, keep=False, save=False) -> dict:
         """Returns all images of the saved paths from the camera as an dictionary with their IDs as key"""
         images = dict()
         for id in self._files.keys():
