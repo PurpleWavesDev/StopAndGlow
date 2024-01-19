@@ -55,6 +55,8 @@ def main():
     timeout = 3000  # milliseconds
     while True:
         event_type, event_data = camera.wait_for_event(timeout)
+        print(event_type, event_data)
+        
         if event_type == gp.GP_EVENT_FILE_ADDED:
             cam_file = camera.file_get(
                 event_data.folder, event_data.name, gp.GP_FILE_TYPE_NORMAL)

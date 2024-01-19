@@ -82,9 +82,24 @@ class Cam:
     def triggerPhoto(self):
         self.getCam().trigger_capture()
         
-    def triggerVideo(self):
-        pass
+    def triggerVideoStart(self):
+        self.getCam().set_config(viewfinder=1)
+        self.getCam().set_config(movierecordtarget=Card)
+        #self.getCam().set_config(gp.GP_CAPTURE_MOVIE)
+    def triggerVideoEnd(self):
+        self.getCam().set_config(movierecordtarget=None)
 
+        # Wait for event, timeout 2 sec
+        timeout = 3000
+        time_start = time_now() # TODO
+        while time_start - time_now() < timeout:
+            event_type, event_data = camera.wait_for_event(timeout)        
+            if event_type == gp.GP_EVENT_FILE_ADDED:
+                cam_file = camera.file_get(
+                    event_data.folder, event_data.name, gp.GP_FILE_TYPE_NORMAL)
+                target_path = os.path.join(os.getcwd(), event_data.name)
+                print("Image is being saved to {}".format(target_path))
+                cam_file.save(target_path)
 
     ### Image & Download methodes ###
     
@@ -132,7 +147,7 @@ class Cam:
     def downloadVideo(self, path, name, keep=False):
         """Downloads last video file"""
         for filename in self._files.values():
-            ext = os.path.splitext(filename)[1]
+            ext = os.path.splitext(filename[1])
             if ext.lower() == '.mov' or ext.lower() == '.mp4':
                 # Found a video!
                 pass
