@@ -244,6 +244,14 @@ class Cam:
             self.getCam().file_delete(file[0], file[1])
         self._files = dict()
 
+    def deleteAll(self, path='/'):
+        for name, _ in self.getCam().folder_list_files(path):
+            self.getCam().file_delete(path, name)
+        # Call function recursively for subfolders
+        for subfolder, _ in self.getCam().folder_list_folders(path):
+            self.deleteAll(os.path.join(path, subfolder))
+        
+
 
     ### Helper ###
     

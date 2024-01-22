@@ -68,6 +68,8 @@ def main(argv):
     sequence = None
     sequence2 = None
 
+    # Delete all files on camera
+    #hw.cam.deleteAll()
     # TODO: Test code for image capture settings
     hw.cam.setIso('100')
     hw.cam.setAperture('8')
