@@ -10,6 +10,7 @@ import enum
 # Camera & image imports
 import gphoto2 as gp
 from PIL import Image
+import cv2 as cv
 import rawpy
 import imageio
 imageio.plugins.freeimage.download()
@@ -142,7 +143,10 @@ class Cam:
     def getImage(self, id, path, name, keep=False) -> ImgBuffer:
         """Downloads a single image by ID from the camera"""
         file = self._files[id]        
-        file_data = self.getCam().file_get(file[0], file[1], gp.GP_FILE_TYPE_NORMAL).get_data_and_size()
+        #file_data = self.getCam().file_get(file[0], file[1], gp.GP_FILE_TYPE_NORMAL).get_data_and_size() # TODO! This fails sometimes
+        # Workaround, save image in temp folder
+        tmp_path = os.path.join('/tmp', f"{name}_{id:03d}{os.path.splitext(file[1])[1]}")
+        self.getCam().file_get(file[0], file[1], gp.GP_FILE_TYPE_NORMAL).save(tmp_path)
         
         # Check for format and domain
         domain = ImgDomain.sRGB
@@ -151,13 +155,16 @@ class Cam:
         if ext == '.jpg' or ext == '.jpeg':
             # Open normally
             with logging_disabled():
-                image = Image.open(io.BytesIO(file_data))
+                io_bytes = open(tmp_path, "rb") # io.BytesIO(file_data) # TODO: Read from file instead from memory bc of bug
+                #image = cv.imdecode(np.frombuffer(io_bytes.read(), np.uint8), 1)
+                image = np.array(Image.open(io_bytes))
         elif  ext == '.heif' or ext == '.heic':
             log.warn("HEIF full bit depth not implemented yet!")
             with logging_disabled():
-                image = Image.open(io.BytesIO(file_data))
+                image = np.array(Image.open(io.BytesIO(file_data)))
         else:
             # It's most likely raw! Convert to readable formats
+            # TODO!!
             domain = ImgDomain.Lin
             image = self.convertRaw(image)
         

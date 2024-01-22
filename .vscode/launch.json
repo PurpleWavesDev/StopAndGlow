@@ -27,7 +27,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=capture_hdri", "--capture_mode=quick", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
+            "args": ["--loglevel=DEBUG", "--mode=capture_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

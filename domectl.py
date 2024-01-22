@@ -39,7 +39,7 @@ NAME_MASK_EXT='_mask'
 # Global flag defines
 # Mode and logging
 flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off'], 'What the script should do.')
-flags.DEFINE_enum('capture_mode', 'quick', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
+flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
 flags.DEFINE_string('config_path', '../HdM_BA/data/config', 'Where the configurations should be stored.')
@@ -186,6 +186,9 @@ def captureHdri(hw):
     hw.cam.capturePhoto(2)
 
 
+    hw.cam.capturePhoto(99)
+
+
 
 #################### Light MODES ####################
     
@@ -301,14 +304,14 @@ def evalCal(img_seq):
 
 #################### CAMERA SETTINGS & DOWNLOAD HELPERS ####################
 
-def download(hw, name, keep=False):
+def download(hw, name, keep=False, save=False):
     """Download from camera"""
     log.debug(f"Downloading sequence '{name}' to {FLAGS.sequence_path}")
     sequence = ImgData()
     if 'quick' in FLAGS.capture_mode:
         sequence = hw.cam.getVideoSequence(FLAGS.sequence_path, name, hw.config.getIds(), keep)
     else:
-        sequence = hw.cam.getSequence(FLAGS.sequence_path, name, keep=keep, save=False)
+        sequence = hw.cam.getSequence(FLAGS.sequence_path, name, keep=keep, save=save)
     return sequence
     
 def load(name, config):
