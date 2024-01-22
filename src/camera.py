@@ -1,19 +1,29 @@
-# Camera imports
+# Process imports
+import subprocess
+import signal
+import io
+import os
+import time
+import pathlib
+import enum
+
+# Camera & image imports
 import gphoto2 as gp
 from PIL import Image
 import rawpy
 import imageio
 imageio.plugins.freeimage.download()
 
-# Process imports
-import subprocess
-import signal
-import os
-import io
-import pathlib
-
 from src.imgdata import * 
 from src.utils import logging_disabled
+
+class CamImgFormat(Enum):
+    JpgLarge = 0
+    JpgMedium = 2
+    JpgSmall = 4
+    Raw = 21
+    cRaw = 22
+
 
 class Cam:
     def __init__(self):
@@ -22,6 +32,8 @@ class Cam:
         # Lazy loading for camera
         self._cam = None
         self._files = dict()
+        self._videoFile = None
+        self._videoCameraPath = ('', '')
 
     def __del__(self):
         if self._cam is not None:
@@ -34,35 +46,55 @@ class Cam:
         return self._cam
 
     ### Config methodes ###
-    # File format (raw/jpg/heif?), file size/type, aperture, exposure time, ???
+    # File format (raw/jpg/heif?), file size/type, ???
     
-    def setRaw(self, raw=True):
-        if raw:
-            pass
-        else:
-            pass
-    def isRaw(self) -> bool:
-        return False
-    
-    def setImgType(self, imgType):
-        pass
-    def getImgType(self):
-        return None
-    
-    def setAperture(self, aperture=5.6):
-        pass
-    def getAperture(self):
-        return 5.6
-        
-    def setExposure(self, exposure=1/200):
-        pass
-    def getExposure(self):
-        return 1/200
+    def isVideoMode(self) -> bool:
+        widget = self.getCam().get_single_config('eosmovieswitch')
+        return widget.get_value() == '1'
 
-    def setIso(self, iso=200):
-        pass
+    def isRaw(self) -> bool:
+        img_format = self.getImgFormat()
+        return img_format == CamImgFormat.Raw or img_format == CamImgFormat.cRaw
+
+    def setImgFormat(self, imgFormat: CamImgFormat):
+        widget = self.getCam().get_single_config('imageformat')
+        widget.set_value(widget.get_choice(imgFormat.value))
+        self.getCam().set_single_config('imageformat', widget)
+
+    def getImgFormat(self) -> CamImgFormat:
+        widget = self.getCam().get_single_config('imageformat')
+        # Find current choice ID
+        value = widget.get_value()
+        choice_id = -1
+        for i in range(widget.count_choices()):
+            if value == widget.get_choice(i):
+                choice_id = i
+                break   
+        return CamImgFormat(choice_id)
+    
+    def setAperture(self, aperture='5.6'):
+        widget = self.getCam().get_single_config('aperture')
+        widget.set_value(aperture)
+        self.getCam().set_single_config('aperture', widget)
+    def getAperture(self):
+        widget = self.getCam().get_single_config('aperture') # String, e.g. '5.6', type Radio
+        return widget.get_value()
+        
+    def setExposure(self, shutter='1/200'):
+        widget = self.getCam().get_single_config('shutterspeed')
+        widget.set_value(shutter)
+        self.getCam().set_single_config('shutterspeed', widget)
+    def getExposure(self):
+        widget = self.getCam().get_single_config('shutterspeed') # String, e.g. '1/50', type Radio
+        return widget.get_value()
+
+    def setIso(self, iso='200'):
+        widget = self.getCam().get_single_config('iso')
+        widget.set_value(iso)
+        self.getCam().set_single_config('iso', widget)
     def getIso(self):
-        return 200
+        widget = self.getCam().get_single_config('iso') # String, e.g. '1000', type Radio
+        return widget.get_value()
 
 
     ### Capture & Trigger methodes ###
@@ -83,23 +115,27 @@ class Cam:
         self.getCam().trigger_capture()
         
     def triggerVideoStart(self):
-        self.getCam().set_config(viewfinder=1)
-        self.getCam().set_config(movierecordtarget=Card)
-        #self.getCam().set_config(gp.GP_CAPTURE_MOVIE)
-    def triggerVideoEnd(self):
-        self.getCam().set_config(movierecordtarget=None)
+        widget = self.getCam().get_single_config('viewfinder')
+        widget.set_value(1)
+        self.getCam().set_single_config('viewfinder', widget)
+        widget = self.getCam().get_single_config('movierecordtarget')
+        widget.set_value("Card")
+        self.getCam().set_single_config('movierecordtarget', widget)
 
+    def triggerVideoEnd(self):
+        # Stop recording
+        widget = self.getCam().get_single_config('movierecordtarget')
+        widget.set_value("None")
+        self.getCam().set_single_config('movierecordtarget', widget)
         # Wait for event, timeout 2 sec
-        timeout = 3000
-        time_start = time_now() # TODO
-        while time_start - time_now() < timeout:
-            event_type, event_data = camera.wait_for_event(timeout)        
+        timeout = 3.0
+        time_start = time.time()
+        while time.time() - time_start < timeout:
+            event_type, event_data = self.getCam().wait_for_event(int(timeout*1000))        
             if event_type == gp.GP_EVENT_FILE_ADDED:
-                cam_file = camera.file_get(
-                    event_data.folder, event_data.name, gp.GP_FILE_TYPE_NORMAL)
-                target_path = os.path.join(os.getcwd(), event_data.name)
-                print("Image is being saved to {}".format(target_path))
-                cam_file.save(target_path)
+                self._videoFile = self.getCam().file_get(event_data.folder, event_data.name, gp.GP_FILE_TYPE_NORMAL)
+                self._videoCameraPath = (event_data.folder, event_data.name)
+                break
 
     ### Image & Download methodes ###
     
@@ -107,18 +143,23 @@ class Cam:
         """Downloads a single image by ID from the camera"""
         file = self._files[id]        
         file_data = self.getCam().file_get(file[0], file[1], gp.GP_FILE_TYPE_NORMAL).get_data_and_size()
+        
         # Check for format and domain
         domain = ImgDomain.sRGB
         ext = os.path.splitext(file[1])[1].lower()
-        if ext != '.jpg' and ext != '.jpeg' and ext != '.heif' and ext != '.heic':
+        # TODO: Alignment error, doesn not work like this!!
+        if ext == '.jpg' or ext == '.jpeg':
+            # Open normally
+            with logging_disabled():
+                image = Image.open(io.BytesIO(file_data))
+        elif  ext == '.heif' or ext == '.heic':
+            log.warn("HEIF full bit depth not implemented yet!")
+            with logging_disabled():
+                image = Image.open(io.BytesIO(file_data))
+        else:
             # It's most likely raw! Convert to readable formats
             domain = ImgDomain.Lin
             image = self.convertRaw(image)
-        else:
-            # Open normally
-            # TODO: Alignment error, doesn not work like this!!
-            with logging_disabled():
-                image = Image.open(io.BytesIO(file_data))
         
         if not keep:
             self.getCam().file_delete(file[0], file[1])
@@ -128,43 +169,52 @@ class Cam:
         full_path = os.path.join(path, name, f"{name}_{id:03d}{ext}")
         return ImgBuffer(path=full_path, img=image, domain=domain)
         
-    def getImages(self, path, name, keep=False, save=False) -> dict:
-        """Returns all images of the saved paths from the camera as an dictionary with their IDs as key"""
-        images = dict()
+    def getSequence(self, path, name, keep=False, save=False) -> ImgData:
+        """Returns all images of the saved paths from the camera as an ImgData sequence"""
+        seq = ImgData()
         for id in self._files.keys():
-            images[id] = self.getImage(id, path, name, keep=True)
+            img = self.getImage(id, path, name, keep=True)
             if save:
-                images[id].save()
+                img.save()
+            seq.append(img, id)
         if not keep:
             self.deleteFiles()
-        return images
+        return seq
     
-    def download(self, path, name, keep=False):
+    def downloadImages(self, path, name, keep=False):
         """Downloads all images of the saved paths from the camera directly to the file system"""
         for id in self._files.keys():
             self.getImage(id, path, name, keep).unload(save=True)
 
-    def downloadVideo(self, path, name, keep=False):
-        """Downloads last video file"""
-        for filename in self._files.values():
-            ext = os.path.splitext(filename[1])
-            if ext.lower() == '.mov' or ext.lower() == '.mp4':
-                # Found a video!
-                pass
+
+    def getVideoSequence(self, path, name, frame_list, keep=False) -> ImgData:
+        seq = ImgData()
+        if self._videoFile is not None:
+            file_path = os.path.join(path, name+os.path.splitext(self._videoCameraPath[1])[1])
+            log.debug("Video is being saved to {}".format(file_path))
+            self._videoFile.save(file_path)
+            seq = ImgData(file_path, ImgDomain.sRGB, frame_list)
+
+            if not keep:
+                self.getCam().file_delete(self._videoCameraPath[0], self._videoCameraPath[1])
+        
+        return seq
+
 
     def listFiles(self, path='/'):
         """Returns list of all files found on the camera"""
         result = []
         # get files
         for name, _ in self.getCam().folder_list_files(path):
-            result.append(os.path.join(path, name))
-        # read folders
-        folders = []
-        for name, _ in self.getCam().folder_list_folders(path):
-            folders.append(name)
-        # recurse over subfolders
-        for name in folders:
-            result.extend(self.list_files(os.path.join(path, name)))
+            ext = os.path.splitext(filename[1])
+            # Only add if file is no video
+            if ext.lower() != '.mov' and ext.lower() != '.mp4':
+                result.append(os.path.join(path, name))
+        
+        # Call function recursively for subfolders
+        for subfolder, _ in self.getCam().folder_list_folders(path):
+            result.extend(self.listFiles(os.path.join(path, subfolder)))
+
         return result
 
     def addFiles(self, file_list, start_number=0, id_list=None):

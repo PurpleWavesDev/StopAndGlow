@@ -14,7 +14,7 @@ from absl import flags
 import logging as log
 
 # DMX, Config and Camera interfaces
-from src.camera import Cam
+from src.camera import *
 from src.lights import Lights
 from src.config import Config
 # Timer and worker
@@ -67,6 +67,13 @@ def main(argv):
     mode, mode_type = FLAGS.mode.split("_", 1)
     sequence = None
     sequence2 = None
+
+    # TODO: Test code for image capture settings
+    hw.cam.setIso('100')
+    hw.cam.setAperture('8')
+    if not hw.cam.isVideoMode():
+        hw.cam.setImgFormat(CamImgFormat.JpgSmall)
+        hw.cam.setExposure('1/100')
     
     ### Load image sequence, either bei capturing or loading sequence from disk ###
     if "capture" in mode:
@@ -139,12 +146,22 @@ def captureImg(hw):
     t.join()
 
 def captureVideo(hw):
+    # TODO: Silhouette
+
     log.info("Starting quick capture (video)")
     # Worker & Timer
-    # TODO: Silhouette
     t = Timer(worker.VideoListWorker(hw, hw.config.getIds()))
+
+    # Capture
+    hw.cam.triggerVideoStart()
+    time.sleep(1)
     t.start(2/FLAGS.video_fps)
     t.join()
+    time.sleep(1)
+    hw.cam.triggerVideoEnd()
+
+    # Default light
+    lightsTop(hw)
     
 def captureHdri(hw):
     # Load HDRI
@@ -167,16 +184,6 @@ def captureHdri(hw):
     hw.lights.setLights(rgb, 2)
     hw.lights.write()
     hw.cam.capturePhoto(2)
-
-
-#################### CALIBRATE MODES ####################
-
-def calibrate(hw):
-    log.info("Starting image capture")
-    t = Timer(worker.ImageCapture(hw, range_start=0, range_end=Lights.DMX_MAX_ADDRESS))
-
-    t.start(0)
-    t.join()
 
 
 
@@ -294,19 +301,14 @@ def evalCal(img_seq):
 
 #################### CAMERA SETTINGS & DOWNLOAD HELPERS ####################
 
-# TODO!! Works only for images, not video
 def download(hw, name, keep=False):
     """Download from camera"""
     log.debug(f"Downloading sequence '{name}' to {FLAGS.sequence_path}")
     sequence = ImgData()
     if 'quick' in FLAGS.capture_mode:
-        # Video, download and save
-        hw.cam.downloadVideo(FLAGS.sequence_path, name, keep)
+        sequence = hw.cam.getVideoSequence(FLAGS.sequence_path, name, hw.config.getIds(), keep)
     else:
-        # TODO getImages -> getSequence
-        images = hw.cam.getImages(FLAGS.sequence_path, name, keep=False, save=False)
-        for id, img in images:
-            sequence.append(img, id)
+        sequence = hw.cam.getSequence(FLAGS.sequence_path, name, keep=keep, save=False)
     return sequence
     
 def load(name, config):

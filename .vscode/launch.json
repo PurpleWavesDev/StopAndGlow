@@ -32,7 +32,7 @@
             "justMyCode": true
         },
         {
-            "name": "Capture & Calibrate",
+            "name": "Capture & Calibrate Video",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
