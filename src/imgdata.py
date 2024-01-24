@@ -278,9 +278,8 @@ class ImgData():
         
         state = VidParseState.PreBlack
         success, frame = vidcap.read()
-        frame_number = frame_count = skip_count = 0
-        previous = None
-        previous2 = None
+        frame_number = -1
+        frame_count = skip_count = 0
         #black_val = None
         
         while success:
@@ -288,47 +287,44 @@ class ImgData():
                 case VidParseState.PreBlack:
                     # Wait for black frame
                     if ImgOp.blackframe(frame):
-                        state = VidParseState.Black
-                        # Save max value of blackframe and assign mask frame
-                        #black_val = np.max(frame)
-                        self._maskFrame = ImgBuffer(path=mask_name_base+f"_{0:03d}.png", img=previous2, domain=ImgDomain.sRGB)
-                        previous2 = previous = None # Don't need those anymore
                         log.debug(f"Found blackframe at frame {frame_count}")
-                    else:
-                        # Shuffle frames
-                        previous2 = previous
-                        previous = frame
-                        
+                        state = VidParseState.Black
+
+                        # Save max value of blackframe
+                        black_val = np.max(frame)
+
                 case VidParseState.Black:
-                    # Wait for first non-black frame
-                    #max_val = np.max(frame)
-                    if not ImgOp.blackframe(frame):
-                        # Skip this frame, next one is valid
-                        # TODO: Possible check max values to find the 'real' blackframe. E.g. if last frame was slightly bright already this one is the valid one!
+                    # TODO: Skip first black frame if second one is also black
+
+                    skip_count = (skip_count+1) % video_frames_skip
+                    if skip_count == 0:
                         state = VidParseState.Valid
-                        log.debug(f"First non-black frame at {frame_count}")
+                                        
                 case VidParseState.Skip:
                     skip_count = (skip_count+1) % video_frames_skip
                     if skip_count == 0:
                         state = VidParseState.Valid
+
                 case VidParseState.Valid:
-                    # Abort condition
-                    #if previous is not None and ImgOp.similar(frame, previous):
-                    if frame_number >= len(frame_list):
-                        #log.debug(f"No new frame at frame {frame_count} with {frame_number} valid frames")
-                        break
-                    if not ImgOp.blackframe(frame):
-                        # Use this frame#
-                        id = frame_list[frame_number]
-                        log.debug(f"Valid sequence frame {frame_number}, id {id}, found at frame {frame_count} in video")
-                        # Append
-                        self.append(ImgBuffer(path=img_name_base+f"_{id:03d}.png", img=frame, domain=ImgDomain.sRGB), id)
+                    if frame_number == -1:
+                        # Sillhouette frame
+                        self._maskFrame = ImgBuffer(path=mask_name_base+f"_{0:03d}.png", img=frame, domain=ImgDomain.sRGB)
                     else:
-                        log.debug(f"Blackframe at frame {frame_number} / {frame_count}")   
+                        # Abort condition
+                        if frame_number >= len(frame_list):
+                            #log.debug(f"No new frame at frame {frame_count} with {frame_number} valid frames")
+                            break
+                        if not ImgOp.blackframe(frame):
+                            # Use this frame#
+                            id = frame_list[frame_number]
+                            log.debug(f"Valid sequence frame {frame_number}, id {id}, found at frame {frame_count} in video")
+                            # Append
+                            self.append(ImgBuffer(path=img_name_base+f"_{id:03d}.png", img=frame, domain=ImgDomain.sRGB), id)
+                        else:
+                            log.debug(f"Blackframe at frame {frame_number} / {frame_count}")   
                     # Skip every other frame
                     state = VidParseState.Skip
                     frame_number += 1
-                    #previous = frame
                     
             # Next iteration
             success, frame = vidcap.read()

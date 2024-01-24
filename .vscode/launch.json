@@ -63,7 +63,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=calibration_front.mp4", "--video_frames_skip=3"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=20240124_1400_cal.MP4", "--video_frames_skip=2"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -81,7 +81,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=lightdome.json"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=20240124_1451_calibration.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

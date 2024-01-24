@@ -128,7 +128,7 @@ class Cam:
         widget = self.getCam().get_single_config('movierecordtarget')
         widget.set_value("None")
         self.getCam().set_single_config('movierecordtarget', widget)
-        # Wait for event, timeout 2 sec
+        # Wait for event, timeout 3 sec TODO: Function takes really long in total, blocks lights in bright state
         timeout = 3.0
         time_start = time.time()
         while time.time() - time_start < timeout:

@@ -51,8 +51,8 @@ flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evalu
 flags.DEFINE_boolean('sequence_keep', False, 'Keep images on camera after downloading.')
 # Capture settings
 # TODO: Should be hard-coded
-flags.DEFINE_integer('video_frames_skip', 1, 'Frames to skip between valid frames in video sequence', lower_bound=0)
-flags.DEFINE_float('video_fps', 29.97, 'Frame rate for the video capture')
+flags.DEFINE_integer('video_frames_skip', 2, 'Frames to skip between valid frames in video sequence', lower_bound=0)
+flags.DEFINE_float('video_fps', 25, 'Frame rate for the video capture')
 # Additional resources
 flags.DEFINE_string('input_hdri', 'HDRIs/pretville_cinema_1k.exr', 'Name/Path of HDRI that is used for sky dome sampling.')
 
@@ -71,17 +71,16 @@ def main(argv):
     # Delete all files on camera
     #hw.cam.deleteAll()
     # TODO: Test code for image capture settings
-    hw.cam.setIso('100')
-    hw.cam.setAperture('8')
-    if not hw.cam.isVideoMode():
-        hw.cam.setImgFormat(CamImgFormat.JpgSmall)
-        hw.cam.setExposure('1/100')
+    #hw.cam.setIso('100')
+    #hw.cam.setAperture('8')
+    #if not hw.cam.isVideoMode():
+    #    hw.cam.setImgFormat(CamImgFormat.JpgSmall)
+    #    hw.cam.setExposure('1/100')
     
     ### Load image sequence, either bei capturing or loading sequence from disk ###
     if "capture" in mode:
         # Init lights
         hw.lights.getInterface()
-
         name = FLAGS.sequence_name if FLAGS.sequence_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type # 240116_2333_cal
         
         # Capturing for all modes
@@ -90,9 +89,13 @@ def main(argv):
         else:
             capture(hw)            
         
+        # Default light
+        lightsTop(hw, brightness=80)
+        
         # Sequence download
-        sequence = download(hw, name, keep=FLAGS.sequence_keep)
+        sequence = download(hw, name, keep=FLAGS.sequence_keep, save=True)
     
+
     elif not 'lights' in mode:
         # Load data
         sequence = load(FLAGS.sequence_name, hw.config)
@@ -111,9 +114,15 @@ def main(argv):
                 lightsAnimate(hw)
             case 'run':
                 lightsConfigRun(hw)
+            case 'off':
+                hw.lights.off()
             case 'ambient':
                 # Ambient light will be turned on anyway, just pass
                 pass
+
+        # Default light
+        if not 'off' in mode_type:
+            lightsTop(hw, brightness=80)
     
     else:
         match mode_type:
@@ -124,12 +133,6 @@ def main(argv):
             case 'cal':
                 evalCal(sequence)
 
-    
-    # Light default state, only if lights have been used
-    if 'lights_off' in FLAGS.mode:
-        hw.lights.off()
-    elif not 'eval' in mode:
-        lightsTop(hw, brightness=80)
 
                     
 
@@ -152,18 +155,16 @@ def captureVideo(hw):
 
     log.info("Starting quick capture (video)")
     # Worker & Timer
-    t = Timer(worker.VideoListWorker(hw, hw.config.getIds()))
+    t = Timer(worker.VideoListWorker(hw, hw.config.getIds(), subframe_count=1))
 
     # Capture
     hw.cam.triggerVideoStart()
     time.sleep(1)
-    t.start(2/FLAGS.video_fps)
+    t.start((1+FLAGS.video_frames_skip) / FLAGS.video_fps)
     t.join()
     time.sleep(1)
     hw.cam.triggerVideoEnd()
 
-    # Default light
-    lightsTop(hw)
     
 def captureHdri(hw):
     # Load HDRI
@@ -311,9 +312,12 @@ def download(hw, name, keep=False, save=False):
     log.debug(f"Downloading sequence '{name}' to {FLAGS.sequence_path}")
     sequence = ImgData()
     if 'quick' in FLAGS.capture_mode:
-        sequence = hw.cam.getVideoSequence(FLAGS.sequence_path, name, hw.config.getIds(), keep)
+        sequence = hw.cam.getVideoSequence(FLAGS.sequence_path, name, hw.config.getIds(), keep=keep)
     else:
-        sequence = hw.cam.getSequence(FLAGS.sequence_path, name, keep=keep, save=save)
+        sequence = hw.cam.getSequence(FLAGS.sequence_path, name, keep=keep)
+        if save:
+            for img in sequence:
+                img.save(format=ImgFormat.PNG)
     return sequence
     
 def load(name, config):

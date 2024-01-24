@@ -66,14 +66,16 @@ class LightFnWorker(Worker):
 
     
 class VideoListWorker(Worker):
-    def __init__(self, hw, lights: list[int], silhouette: list[int]=None):
+    def __init__(self, hw, lights: list[int], silhouette: list[int]=None, subframe_count=3):
         Worker.__init__(self, hw)
         self._lightList = lights
         self._allOnList = silhouette if silhouette is not None else lights
+        self._subframe_count=subframe_count
         
     def init(self):
         # Setup video capture
-        self._i=-2
+        self._frame=-2
+        self._subframe=0
         self._running = True
     
     def exit(self):
@@ -81,24 +83,28 @@ class VideoListWorker(Worker):
         pass
 
     def work(self) -> bool:
-        # Set light values
-        # One blackframe
-        if self._i == -2:
-            self.lights.reset()
-        elif self._i == -1:
-            # One frame all on/silhouette
-            self.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
-        elif self._i < len(self._lightList):
-            # Go through IDs
-            light_id = self._lightList[self._i]
-            self.lights.setList([light_id])
-        else:
-            # Another frame all on/silhouette
-            self.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
-            self._running = False
+        if self._subframe == 0:
+            # Set light values
+            # One blackframe
+            if self._frame == -2:
+                self.lights.reset()
+            elif self._frame == -1:
+                # One frame all on/silhouette
+                self.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
+            elif self._frame < len(self._lightList):
+                # Go through IDs
+                light_id = self._lightList[self._frame]
+                self.lights.setList([light_id])
+            else:
+                # Another frame all on/silhouette
+                self.lights.setList(self._allOnList, int(SILHOUETTE_LIMITER/4))
+                self._running = False
+            
+            # Increment frame count
+            # Write DMX value
+            self._frame += 1
+            self.lights.write()
 
-        self.lights.write()
-        
-        # Increment and return
-        self._i += 1
+        self._subframe = (self._subframe+1) % self._subframe_count
+
         return self._running

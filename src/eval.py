@@ -58,6 +58,7 @@ class Eval:
         cb_mask = cv.blendLinear(cb_mask, grey, beta, alpha)
         # Binary Filter
         thresh = cv.threshold(cb_mask, 100, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
+        ImgBuffer.SaveEval(thresh, 'chromeball_filtered')
         
         # Find circle contours
         cnts = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
