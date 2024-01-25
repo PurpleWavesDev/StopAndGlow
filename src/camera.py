@@ -15,7 +15,8 @@ import rawpy
 import imageio
 imageio.plugins.freeimage.download()
 
-from src.imgdata import * 
+from src.imgdata import *
+from src.sequence import Sequence
 from src.utils import logging_disabled
 
 class CamImgFormat(Enum):
@@ -176,9 +177,9 @@ class Cam:
         full_path = os.path.join(path, name, f"{name}_{id:03d}{ext}")
         return ImgBuffer(path=full_path, img=image, domain=domain)
         
-    def getSequence(self, path, name, keep=False, save=False) -> ImgData:
-        """Returns all images of the saved paths from the camera as an ImgData sequence"""
-        seq = ImgData()
+    def getSequence(self, path, name, keep=False, save=False) -> Sequence:
+        """Returns all images of the saved paths from the camera as an Sequence sequence"""
+        seq = Sequence()
         for id in self._files.keys():
             img = self.getImage(id, path, name, keep=True)
             if save:
@@ -194,13 +195,13 @@ class Cam:
             self.getImage(id, path, name, keep).unload(save=True)
 
 
-    def getVideoSequence(self, path, name, frame_list, keep=False) -> ImgData:
-        seq = ImgData()
+    def getVideoSequence(self, path, name, frame_list, keep=False) -> Sequence:
+        seq = Sequence()
         if self._videoFile is not None:
             file_path = os.path.join(path, name+os.path.splitext(self._videoCameraPath[1])[1])
             log.debug("Video is being saved to {}".format(file_path))
             self._videoFile.save(file_path)
-            seq = ImgData(file_path, ImgDomain.sRGB, frame_list)
+            seq = Sequence(file_path, ImgDomain.sRGB, frame_list)
 
             if not keep:
                 self.getCam().file_delete(self._videoCameraPath[0], self._videoCameraPath[1])

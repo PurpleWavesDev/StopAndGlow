@@ -27,7 +27,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=capture_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
+            "args": ["--loglevel=DEBUG", "--mode=capture_hdri", "--capture_mode=raw", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -54,7 +54,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_hdri", "--sequence_name=sequence_hdri.mp4"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_hdri", "--sequence_name=20240122_1405_hdri"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -63,7 +63,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=20240124_1400_cal.MP4", "--video_frames_skip=2"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=20240124_1450_cal.MP4", "--video_frames_skip=2"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -72,7 +72,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr", "--config_name=lightdome.json"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr", "--config_name=20240125_1430_calibration.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -81,7 +81,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=20240124_1451_calibration.json"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=20240125_1430_calibration.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

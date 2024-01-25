@@ -5,6 +5,7 @@ import math
 import cv2 as cv
 
 from src.imgdata import *
+from src.sequence import Sequence
 from src.img_op import *
 from src.config import Config
 from src.utils import logging_disabled
@@ -15,7 +16,7 @@ class Eval:
         # Settings
         self.reflection_threshold=245
         #self.reflection_min_size=20
-        self.reflection_min_ratio=0.013
+        self.reflection_min_ratio=0.011
 
     # Find center and radius of chromeball
     # TODO: cv.bilateralFilter respects edges, could be used here

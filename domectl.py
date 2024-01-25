@@ -22,6 +22,7 @@ from src.timer import Timer, Worker
 import src.worker as worker
 # Image and dome data, evaluation
 from src.imgdata import *
+from src.sequence import Sequence
 from src.lightdome import Lightdome
 from src.eval import Eval
 from src.rti import Rti
@@ -49,6 +50,7 @@ flags.DEFINE_string('config_output_name', '', "Name of config to write calibrati
 flags.DEFINE_string('sequence_path', '../HdM_BA/data', 'Where the image data should be written to.')
 flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evaluate. Default is type of capture current date & time.')
 flags.DEFINE_boolean('sequence_keep', False, 'Keep images on camera after downloading.')
+flags.DEFINE_boolean('sequence_save', True, 'If captured sequences should be saved or discarded after evaluation.')
 # Capture settings
 # TODO: Should be hard-coded
 flags.DEFINE_integer('video_frames_skip', 2, 'Frames to skip between valid frames in video sequence', lower_bound=0)
@@ -93,7 +95,7 @@ def main(argv):
         lightsTop(hw, brightness=80)
         
         # Sequence download
-        sequence = download(hw, name, keep=FLAGS.sequence_keep, save=True)
+        sequence = download(hw, name, keep=FLAGS.sequence_keep, save=FLAGS.sequence_save)
     
 
     elif not 'lights' in mode:
@@ -189,9 +191,6 @@ def captureHdri(hw):
     hw.cam.capturePhoto(2)
 
 
-    hw.cam.capturePhoto(99)
-
-
 
 #################### Light MODES ####################
     
@@ -270,7 +269,11 @@ def evalHdri(img_seq):
     g = img_seq[1].g()
     b = img_seq[2].b()
     
-    # TODO: Stacking
+    # Stacking
+    path = os.path.join(os.path.split(img_seq[0].getPath())[0], 'HDRI_stacked')
+    rgb = ImgBuffer(path=path, img=np.dstack((r.get(), g.get(), b.get())), domain=r.domain())
+    rgb.setFormat(ImgFormat.JPG)
+    rgb.save()
 
 def evalCal(img_seq):
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
@@ -310,19 +313,19 @@ def evalCal(img_seq):
 def download(hw, name, keep=False, save=False):
     """Download from camera"""
     log.debug(f"Downloading sequence '{name}' to {FLAGS.sequence_path}")
-    sequence = ImgData()
+    sequence = Sequence()
     if 'quick' in FLAGS.capture_mode:
         sequence = hw.cam.getVideoSequence(FLAGS.sequence_path, name, hw.config.getIds(), keep=keep)
     else:
         sequence = hw.cam.getSequence(FLAGS.sequence_path, name, keep=keep)
         if save:
             for img in sequence:
-                img.save(format=ImgFormat.PNG)
+                img.save(format=ImgFormat.Keep)
     return sequence
     
 def load(name, config):
     """Load from disk"""
-    sequence = ImgData()
+    sequence = Sequence()
     
     path = os.path.join(FLAGS.sequence_path, name)
     if os.path.splitext(name)[1] == '':

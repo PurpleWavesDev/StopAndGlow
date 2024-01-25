@@ -5,6 +5,7 @@ import math
 import cv2 as cv
 
 from src.imgdata import *
+from src.sequence import Sequence
 from src.config import *
 
 
