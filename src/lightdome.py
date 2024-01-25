@@ -40,7 +40,7 @@ class Lightdome:
         for light in self._config:
             # Sample point in HDRI
             latlong = light['latlong']
-            x = int(res_x * ((latlong[1]+longitude_offset)%360) / 360.0) # TODO: Is round here wrong? Indexing error when rounding up on last value!
+            x = int(res_x * (360 - (latlong[1]+longitude_offset) % 360) / 360.0) # TODO: Is round here wrong? Indexing error when rounding up on last value!
             y = int(round(res_y/2 - res_y * latlong[0]/180.0))
             self._lightVals[light['id']] = self._processed_hdri[x, y]
     

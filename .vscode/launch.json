@@ -27,7 +27,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=capture_hdri", "--capture_mode=raw", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
+            "args": ["--loglevel=DEBUG", "--mode=capture_hdri", "--capture_mode=raw", "--input_hdri=HDRIs/pretville_cinema_1k.exr", "--hdri_rotation=180"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -72,7 +72,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr", "--config_name=20240125_1430_calibration.json"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -81,7 +81,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=20240125_1430_calibration.json"],
+            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=20240125_1627_calibration.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -109,6 +109,24 @@
             "request": "launch",
             "program": "domectl.py",
             "args": ["--mode=lights_off"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Camera Stop Video",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--mode=cam_stopvideo"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Camera delete all",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--mode=cam_deleteall"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

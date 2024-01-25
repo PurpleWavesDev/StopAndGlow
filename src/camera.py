@@ -110,7 +110,7 @@ class Cam:
         """Captures preview image in a quick way but low resolution"""
         capture = self.getCam().capture_preview()
         filedata = capture.get_data_and_size()
-        image = Image.open(io.BytesIO(filedata)) # TODO: Probably doesn't work
+        image = np.array(Image.open(io.BytesIO(filedata)))
         return ImgBuffer(img=image, domain=ImgDomain.sRGB)
 
     def triggerPhoto(self):

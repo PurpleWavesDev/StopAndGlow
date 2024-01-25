@@ -190,14 +190,13 @@ class Eval:
         
         # Calculate Latitude and Longitude
         latitude = math.asin(vec[1])
-        longitude = math.degrees(math.acos(vec[0]/math.cos(latitude)))
+        longitude = 90-math.degrees(math.acos(vec[0]/math.cos(latitude))) # -90 to 90 degree front side
         latitude = math.degrees(latitude)
         # Offsets for longitude
-        if vec[2] < 0: # Back face
-            longitude = (450-longitude)%360
-        else: # Front face
-            longitude = 90+longitude
-        return (latitude, longitude)
+        if vec[2] < 0: # Back side
+            longitude = (180-longitude) # 90 to 270 degree, correct value
+
+        return (latitude, (longitude+360) % 360) # make longitude all positive
 
 
 def rotationMatrix(axis, theta):

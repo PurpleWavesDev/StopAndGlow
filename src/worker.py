@@ -108,3 +108,46 @@ class VideoListWorker(Worker):
         self._subframe = (self._subframe+1) % self._subframe_count
 
         return self._running
+
+class VideoSampleWorker(Worker):
+    def __init__(self, hw, light_dict: dict, silhouette: list[int]=None, subframe_count=3):
+        Worker.__init__(self, hw)
+        self._samples = light_dict
+        self._allOnList = silhouette if silhouette is not None else hw.config.getIds()
+        self._subframe_count=subframe_count
+        
+    def init(self):
+        # Setup video capture
+        self._frame=-2
+        self._subframe=0
+        self._running = True
+    
+    def exit(self):
+        # Stop video capture
+        pass
+
+    def work(self) -> bool:
+        if True:#self._subframe == 0:
+            # Set light values
+            # One blackframe
+            if self._frame == -2:
+                self.lights.reset()
+            elif self._frame == -1:
+                # One frame all on/silhouette
+                self.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
+            elif self._frame < 3:
+                # Go through IDs
+                self.lights.setLights(self._samples, self._frame)
+            else:
+                # Another frame all on/silhouette
+                self.lights.setList(self._allOnList, int(SILHOUETTE_LIMITER/4))
+                self._running = False
+            
+            # Increment frame count
+            # Write DMX value
+            self._frame += 1
+            self.lights.write()
+
+        #self._subframe = (self._subframe+1) % self._subframe_count
+
+        return self._running

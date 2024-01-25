@@ -152,7 +152,7 @@ class Sequence():
         del self._frames[key]
     
     def __iter__(self):
-        return iter(self._frames.values())
+        return iter(self._frames.items())
 
     def __len__(self):
         return len(self._frames)

@@ -33,13 +33,10 @@ HW = namedtuple("HW", ["cam", "lights", "config"])
 
 # Globals
 FLAGS = flags.FLAGS
-# TODO: Unify, input variable?
-DATA_BASE_PATH='../HdM_BA/data'
-NAME_MASK_EXT='_mask'
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
@@ -54,9 +51,10 @@ flags.DEFINE_boolean('sequence_save', True, 'If captured sequences should be sav
 # Capture settings
 # TODO: Should be hard-coded
 flags.DEFINE_integer('video_frames_skip', 2, 'Frames to skip between valid frames in video sequence', lower_bound=0)
-flags.DEFINE_float('video_fps', 25, 'Frame rate for the video capture')
+flags.DEFINE_float('video_fps', 25, 'Frame rate for the video capture.')
 # Additional resources
 flags.DEFINE_string('input_hdri', 'HDRIs/pretville_cinema_1k.exr', 'Name/Path of HDRI that is used for sky dome sampling.')
+flags.DEFINE_float('hdri_rotation', 0, 'Rotation of HDRI in degrees.', lower_bound=0, upper_bound=360)
 
 
 def main(argv):
@@ -70,14 +68,21 @@ def main(argv):
     sequence = None
     sequence2 = None
 
-    # Delete all files on camera
-    #hw.cam.deleteAll()
-    # TODO: Test code for image capture settings
-    #hw.cam.setIso('100')
-    #hw.cam.setAperture('8')
-    #if not hw.cam.isVideoMode():
-    #    hw.cam.setImgFormat(CamImgFormat.JpgSmall)
-    #    hw.cam.setExposure('1/100')
+    ### Camera quick controlls ###
+    if 'cam' in mode:
+        if 'stopvideo' in mode_type:
+            triggerVideoEnd()
+        elif 'deleteall' in mode_type:
+            # Delete all files on camera
+            hw.cam.deleteAll()
+
+        #hw.cam.setIso('100')
+        #hw.cam.setAperture('8')
+        #if not hw.cam.isVideoMode():
+        #    hw.cam.setImgFormat(CamImgFormat.JpgSmall)
+        #    hw.cam.setExposure('1/100')
+        # All done, return
+        return
     
     ### Load image sequence, either bei capturing or loading sequence from disk ###
     if "capture" in mode:
@@ -157,7 +162,7 @@ def captureVideo(hw):
 
     log.info("Starting quick capture (video)")
     # Worker & Timer
-    t = Timer(worker.VideoListWorker(hw, hw.config.getIds(), subframe_count=1))
+    t = Timer(worker.VideoListWorker(hw, hw.config.getIds(), subframe_count=1)) # TODO: Subframe count right? Should be FLAGS.video_frames_skip probably?
 
     # Capture
     hw.cam.triggerVideoStart()
@@ -170,13 +175,35 @@ def captureVideo(hw):
     
 def captureHdri(hw):
     # Load HDRI
-    hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
     
+    # Sample domelights
     dome = Lightdome(hw.config)
-    dome.sampleHdri(hdri)
-
-    # Send samples to dome & take pictures
+    dome.sampleHdri(hdri, longitude_offset=FLAGS.hdri_rotation)
     rgb = dome.getLights()
+
+    if 'quick' in FLAGS.capture_mode:
+        captureHdriVideo(hw, rgb)
+    else:
+        captureHdriImg(hw, rgb)
+
+
+def captureHdriVideo(hw, rgb):
+    log.info("Starting quick HDRI capture (video)")
+    # Worker & Timer
+    t = Timer(worker.VideoSampleWorker(hw, rgb))
+
+    # Capture
+    hw.cam.triggerVideoStart()
+    time.sleep(1)
+    t.start((1+FLAGS.video_frames_skip) / FLAGS.video_fps)
+    t.join()
+    time.sleep(1)
+    hw.cam.triggerVideoEnd()
+
+
+def captureHdriImg(hw, rgb):
+    log.info("Starting HDRI capture")
     # R
     hw.lights.setLights(rgb, 0)
     hw.lights.write()
@@ -214,11 +241,11 @@ def lightsAnimate(hw):
     def fn_lat(lights: Lights, i: int, dome: Any) -> bool:
         dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[0] > 90-(i*2) else ImgBuffer.FromPix(0))
         lights.setLights(dome.getLights())
-        return i<45
+        return i<60 # i<45
     def fn_long(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[1] < i*8 and latlong[1] > i*4-15 else ImgBuffer.FromPix(0))
+        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(80 * max(0, 1 - (i*8-latlong[1])/90)) if latlong[1] < i*8 else ImgBuffer.FromPix(0))
         lights.setLights(dome.getLights())
-        return i<45
+        return i<60 # i<45
 
     for _ in range(3):
         t = Timer(worker.LightFnWorker(hw, fn_lat, parameter=dome))
@@ -231,7 +258,7 @@ def lightsAnimate(hw):
 
 def lightsHdriRotate(hw):
     dome = Lightdome(hw.config)
-    hdri = ImgBuffer(os.path.join(DATA_BASE_PATH, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
     dome.sampleHdri(hdri)
     img = dome.generateLatLong(hdri)
     ImgBuffer.SaveEval(img.get(), "hdri_latlong")
@@ -285,7 +312,7 @@ def evalCal(img_seq):
     # Find center of chrome ball with mask frame
     eval.findCenter(img_mask)
     
-    # Loop for all calibration frames
+    # Loop through all calibration frames
     debug_img = img_mask.asInt().get()
     for id, img in img_seq:
         if not eval.filterBlackframe(img):
@@ -319,8 +346,8 @@ def download(hw, name, keep=False, save=False):
     else:
         sequence = hw.cam.getSequence(FLAGS.sequence_path, name, keep=keep)
         if save:
-            for img in sequence:
-                img.save(format=ImgFormat.Keep)
+            for _, img in sequence:
+                img.save(format = ImgFormat.EXR if FLAGS.capture_mode == 'raw' else ImgFormat.JPG)
     return sequence
     
 def load(name, config):
