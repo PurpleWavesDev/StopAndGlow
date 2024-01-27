@@ -146,9 +146,10 @@ class ImgBuffer:
             with logging_disabled():
                 match self._format:
                     case ImgFormat.EXR:
-                        colour.write_image(self._img, self._path, 'float32', method='Imageio')
+                        colour.write_image(self.asFloat().get(), self._path, 'float32', method='Imageio')
                     case _: # PNG and JPG
-                        colour.write_image(self._img, self._path, 'uint8', method='Imageio')
+                        colour.write_image(self.asInt().get(), self._path, 'uint8', method='Imageio')
+                        #colour.write_image(self.asDomain(ImgDomain.sRGB).asInt().get(), self._path, 'uint8', method='Imageio') # Seems wrong with domain, why?!
             #log.debug(f"Saved image {self._path}")
             
         elif self._path is None:

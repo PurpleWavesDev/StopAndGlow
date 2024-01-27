@@ -27,6 +27,7 @@ from src.lightdome import Lightdome
 from src.eval import Eval
 from src.rti import Rti
 from src.img_op import *
+from src.cam_op import *
 
 
 # Types
@@ -37,7 +38,7 @@ FLAGS = flags.FLAGS
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lighting', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
@@ -77,6 +78,7 @@ def main(argv):
             # Delete all files on camera
             hw.cam.deleteAll()
 
+        #CamOp.FindMaxExposure(hw.cam)
         #hw.cam.setIso('100')
         #hw.cam.setAperture('8')
         #if not hw.cam.isVideoMode():
@@ -138,6 +140,8 @@ def main(argv):
                 evalRti(sequence)
             case 'hdri':
                 evalHdri(sequence)
+            case 'lighting':
+                evalLighting(hw.config, sequence)
             case 'cal':
                 evalCal(sequence)
 
@@ -180,7 +184,8 @@ def captureHdri(hw):
     
     # Sample domelights
     dome = Lightdome(hw.config)
-    dome.sampleHdri(hdri, longitude_offset=FLAGS.hdri_rotation)
+    dome.processHdri(hdri)
+    dome.sampleLightsForHdri(longitude_offset=FLAGS.hdri_rotation)
     rgb = dome.getLights()
 
     if 'quick' in FLAGS.capture_mode:
@@ -225,7 +230,7 @@ def captureHdriImg(hw, rgb):
 def lightsTop(hw, latitude=60, brightness: int = 255):
     dome = Lightdome(hw.config)
     # Sample top lights
-    dome.sampleLatLong(lambda latlong: ImgOp.FromPix(brightness) if latlong[0] > latitude else ImgOp.FromPix(0))
+    dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > latitude else ImgBuffer.FromPix(0))
     # Save images
     img = dome.generateLatLong()
     ImgOp.SaveEval(img.get(), "top_latlong")
@@ -240,11 +245,11 @@ def lightsAnimate(hw):
     # Function for
     dome = Lightdome(hw.config)
     def fn_lat(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleLatLong(lambda latlong: ImgOp.FromPix(50) if latlong[0] > 90-(i*2) else ImgOp.FromPix(0))
+        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[0] > 90-(i*2) else ImgBuffer.FromPix(0))
         lights.setLights(dome.getLights())
         return i<60 # i<45
     def fn_long(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleLatLong(lambda latlong: ImgOp.FromPix(80 * max(0, 1 - (i*8-latlong[1])/90)) if latlong[1] < i*8 else ImgOp.FromPix(0))
+        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(80 * max(0, 1 - (i*8-latlong[1])/90)) if latlong[1] < i*8 else ImgBuffer.FromPix(0))
         lights.setLights(dome.getLights())
         return i<60 # i<45
 
@@ -260,7 +265,8 @@ def lightsAnimate(hw):
 def lightsHdriRotate(hw):
     dome = Lightdome(hw.config)
     hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
-    dome.sampleHdri(hdri)
+    dome.processHdri(hdri)
+    dome.sampleHdri(0)
     img = dome.generateLatLong(hdri)
     ImgOp.SaveEval(img.get(), "hdri_latlong")
     img = dome.generateUV()
@@ -268,7 +274,7 @@ def lightsHdriRotate(hw):
     
     # Function for
     def fn(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleProcessedHdri(i*3) # 10 degree / second
+        dome.sampleHdri(i*3) # 10 degree / second
         lights.setLights(dome.getLights())
         return i<360
     
@@ -290,7 +296,7 @@ def evalRti(img_seq):
     pass
 
 def evalHdri(img_seq):
-    log.info(f"Processing HDRI image sequence")
+    log.info(f"Processing HDRI RGB sequence")
 
     # Get channels and stack them
     r = img_seq[0].r()
@@ -298,10 +304,25 @@ def evalHdri(img_seq):
     b = img_seq[2].b()
     
     # Stacking
-    path = os.path.join(os.path.split(img_seq[0].getPath())[0], 'HDRI_stacked.jpg')
+    path = os.path.join(os.path.split(img_seq[0].getPath())[0], 'HDRI_stacked')
     rgb = ImgOp.StackChannels([r, g, b], path)
     rgb.setFormat(ImgFormat.JPG)
     rgb.save()
+
+def evalLighting(config, img_seq):
+    # Deine Funktion, Iris :)
+    log.info(f"Generate HDRI Lighting from Sequence")
+
+    dome = Lightdome(config)
+    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    dome.processHdri(hdri)
+
+    # Generate scene with HDRI lighting 
+    lighting = dome.generateLightingFromSequence(img_seq, longitude_offset=FLAGS.hdri_rotation)
+
+    lighting.setPath(os.path.join(FLAGS.sequence_path, 'lighting_generated'))
+    rgb.setFormat(ImgFormat.JPG)
+    lighting.save()
 
 def evalCal(img_seq):
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")

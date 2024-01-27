@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Capture Image",
+            "name": "Capture Sequence",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
@@ -55,6 +55,15 @@
             "request": "launch",
             "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=eval_hdri", "--sequence_name=20240125_1752_hdri"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Eval HDRI Lighting for Sequence",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=eval_lighting", "--sequence_name=dragon", "--hdri_rotation=0"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

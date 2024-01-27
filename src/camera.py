@@ -5,7 +5,6 @@ import io
 import os
 import time
 import pathlib
-import enum
 
 # Camera & image imports
 import gphoto2 as gp
@@ -18,13 +17,7 @@ imageio.plugins.freeimage.download()
 from src.imgdata import *
 from src.sequence import Sequence
 from src.utils import logging_disabled
-
-class CamImgFormat(Enum):
-    JpgLarge = 0
-    JpgMedium = 2
-    JpgSmall = 4
-    Raw = 21
-    cRaw = 22
+from src.config_canon90d import *
 
 
 class Cam:

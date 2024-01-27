@@ -25,8 +25,11 @@ class ImgOp:
         calibrate = cv.createCalibrateDebevec()
         return calibrate.process([img.get() for img in exposure_stack], [img.meta().exposure for img in exposure_stack])
 
-    def ExposureStacking(exposure_stack: list[ImgBuffer], camera_response: ArrayLike = CameraResponse(exposure_stack), path=None) -> ImgBuffer:
+    def ExposureStacking(exposure_stack: list[ImgBuffer], camera_response: ArrayLike = None, path=None) -> ImgBuffer:
         """Generate an HDR image out of a stack of SDR images"""
+        # Get Camera response if not provided
+        camera_response = ImgOp.CameraResponse(exposure_stack) if camera_response is None else camera_response
+        
         # Make HDR image
         merge_debevec = cv.createMergeDebevec()
         hdr = merge_debevec.process([img.get() for img in exposure_stack], [img.meta().exposure for img in exposure_stack], times, camera_response)
@@ -40,7 +43,7 @@ class ImgOp:
         return buffer
     
     def SaveEval(img: ArrayLike, name, img_format=ImgFormat.PNG):
-        return ImgBuffer.SaveBase(img, os.path.join('eval', name), img_format)
+        return ImgOp.SaveBase(img, os.path.join('eval', name), img_format)
     
 
     ### Image properties ###

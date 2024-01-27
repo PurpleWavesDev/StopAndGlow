@@ -22,7 +22,7 @@ class Lightdome:
         self._config = config
         self._lightVals.clear()
     
-    def sampleHdri(self, hdri: ImgBuffer, exposure_correction=1, longitude_offset=0):
+    def processHdri(self, hdri: ImgBuffer, exposure_correction=1):
         res_y, res_x = hdri.get().shape[:2]
         blur_size = int(self.blur_size*res_y/100)
         blur_size += 1-blur_size%2 # Make it odd
@@ -32,10 +32,9 @@ class Lightdome:
         #hdri = hdri.asDomain(ImgDomain.sRGB)
         self._processed_hdri = ImgBuffer(img=cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
         #hdri = hdri.asDomain(ImgDomain.Lin) # Conversion back
-        self.sampleProcessedHdri(longitude_offset)
         
     
-    def sampleProcessedHdri(self, longitude_offset):
+    def sampleLightsForHdri(self, longitude_offset=0):
         res_y, res_x = self._processed_hdri.get().shape[:2]
         for light in self._config:
             # Sample point in HDRI
@@ -56,6 +55,29 @@ class Lightdome:
 
     def getLights(self, domain=ImgDomain.Lin, type='uint8'):
         return self._lightVals
+
+
+    def generateLightingFromSequence(self, img_seq: Sequence, longitude_offset=0) -> ImgBuffer:
+        # Hier kannst du einsteigen, Iris :)
+        # img_seq: Alle Bilder der einzelnen Lampen
+        # self._processed_hdri: geblurtes HDRI
+
+        generated = ImgBuffer(domain=ImgDomain.Lin)
+
+        for id, img in img_seq:
+            # Test if config entry is valid -> configuration might be incomplete!
+
+            if self._config[id] is not None:
+                # ID ist Lampen ID, entspricht der ID der config
+                self._config[id]['latlong'] # -> Koordinaten der Lampe
+                img = img.asDomain(ImgDomain.Lin, as_float=True) # -> Bild als Linear
+                img.get() # Damit bekommst du das Numpy Array vom Bild
+                img.r().get() # Selbes nur mit Rot Kanal
+
+                # Hier kommt mehr code!
+
+        return generated # Frame wird returned und in domectl.py gespeichert
+
 
     
     def generateUV(self, image=None):
