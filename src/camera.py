@@ -252,9 +252,9 @@ class Cam:
     def convertRaw(self, raw_img):
         """Converts raw images to image arrays and returns an image buffer"""
         raw = rawpy.imread(raw_img)
-        # Params for post process
-        params = rawpy.Params(output_color=rawpy.ColorSpace.raw, noise_thr=20)
-        rgb = raw.postprocess(params)
+        # Params for post process TODO: Check additional settings https://letmaik.github.io/rawpy/api/rawpy.Params.html
+        params = rawpy.Params(output_color=rawpy.ColorSpace.raw, half_size=False, noise_thr=20, gamma=(1,1), no_auto_bright=True, output_bps=16)
+        rgb = raw.postprocess(params).astype('float32') / 65536
         
         return rgb
 

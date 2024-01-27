@@ -18,28 +18,25 @@ class VidParseState(Enum):
     Valid = 3
 
 class Sequence():
-    def __init__(self, path=None, domain=ImgDomain.Keep, video_frame_list=range(0)):
+    def __init__(self):
         self._frames = dict()
         self._maskFrame = None
-        self._domain=domain
         self._min=-1
         self._max=-1
-        if path is not None:
-            self.load(os.path.abspath(path), video_frame_list)
 
-    def load(self, path, video_frame_list=range(0)):
+    def load(self, path, domain=ImgDomain.Keep, video_frame_list=range(0)):
         # TODO
         match (os.path.splitext(path)[1]).lower():
             case '':
                 # Path, load folder
-                self.loadFolder(path)
+                self.loadFolder(path, domain)
             case '.mov' | '.mp4':
                 # Video
                 self.loadVideo(path, video_frame_list)
             case _:
                 log.error(f"Can't load file {path}")
                 
-    def loadFolder(self, path):
+    def loadFolder(self, path, domain=ImgDomain.Keep):
         # Search for frames in folder
         for f in os.listdir(path):
             p = os.path.join(path, f)
@@ -48,7 +45,7 @@ class Sequence():
                 match = re.search("[\.|_](\d+)\.[a-zA-Z]+$", f)
                 if match is not None:
                     id = int(match.group(1))
-                    self.append(ImgBuffer(p, domain=self._domain), id)
+                    self.append(ImgBuffer(p, domain=domain), id)
                 else:
                     log.warn("Found file without sequence numbering: {f}")
         

@@ -9,6 +9,7 @@ from absl import flags
 
 from numpy.typing import ArrayLike
 import numpy as np
+os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import cv2 as cv
 import imageio
 import colour
@@ -48,8 +49,11 @@ class ImgBuffer:
         self._domain=domain
         self._format=ImgFormat.Keep
         self._from_file=False
-        self._meta = meta 
-        self.setPath(path)
+        self._meta = meta
+        if self._format == ImgFormat.Keep:
+            self.setPath(path)
+        else:
+            self._path = path
         
     def __del__(self):
         self.unload()
@@ -67,8 +71,6 @@ class ImgBuffer:
                 self._format=ImgFormat.PNG
             elif ext.lower() == ".exr":
                 self._format=ImgFormat.EXR
-            elif self._format != ImgFormat.Keep:
-                self.setFormat(ImgFormat.Keep)
     
     def getFormat(self) -> ImgFormat:
         return _format           
@@ -118,7 +120,12 @@ class ImgBuffer:
                     if self._domain == ImgDomain.Keep:
                         self._domain=ImgDomain.sRGB
                 else:
-                    self._img = colour.read_image(self._path, bit_depth=IMAGE_DTYPE_FLOAT, method='Imageio')
+                    # TODO: Bug in Imageio? Broken pixel!
+                    #self._img = colour.read_image(self._path, bit_depth=IMAGE_DTYPE_FLOAT, method='Imageio')
+                    #self._img = np.maximum(self._img, 0)
+                    self._img = cv.cvtColor(
+                        cv.imread(self._path,  cv.IMREAD_ANYCOLOR | cv.IMREAD_ANYDEPTH),
+                        cv.COLOR_BGR2RGB).astype(IMAGE_DTYPE_FLOAT)
                     if self._domain == ImgDomain.Keep:
                         self._domain=ImgDomain.Lin
                         
@@ -134,7 +141,7 @@ class ImgBuffer:
         self._img=None
         
     def save(self, format: ImgFormat = ImgFormat.Keep):
-        if self._path is not None and self._img is not None:
+        if self._path is not None and self.get() is not None:
             if format != ImgFormat.Keep:
                 # Update path for different format
                 self.setFormat(format)
@@ -146,10 +153,9 @@ class ImgBuffer:
             with logging_disabled():
                 match self._format:
                     case ImgFormat.EXR:
-                        colour.write_image(self.asFloat().get(), self._path, 'float32', method='Imageio')
+                        colour.write_image(self.asFloat().get(), self._path, bit_depth=IMAGE_DTYPE_FLOAT, method='Imageio')
                     case _: # PNG and JPG
-                        colour.write_image(self.asInt().get(), self._path, 'uint8', method='Imageio')
-                        #colour.write_image(self.asDomain(ImgDomain.sRGB).asInt().get(), self._path, 'uint8', method='Imageio') # Seems wrong with domain, why?!
+                        colour.write_image(self.asDomain(ImgDomain.sRGB).asInt().get(), self._path, bit_depth=IMAGE_DTYPE_INT, method='Imageio')
             #log.debug(f"Saved image {self._path}")
             
         elif self._path is None:
@@ -178,6 +184,7 @@ class ImgBuffer:
                     pass
 
             return ImgBuffer(path=self._path, img=img, domain=domain)
+        return ImgBuffer(path=self._path, img=self._img, domain=self._domain)
     
     def isFloat(self) -> bool:
         return self.get().dtype == IMAGE_DTYPE_FLOAT

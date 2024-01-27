@@ -48,6 +48,7 @@ flags.DEFINE_string('config_output_name', '', "Name of config to write calibrati
 # Sequence 
 flags.DEFINE_string('sequence_path', '../HdM_BA/data', 'Where the image data should be written to.')
 flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evaluate. Default is type of capture current date & time.')
+flags.DEFINE_enum  ('sequence_domain', 'guess', ['guess', 'lin', 'sRGB'], 'Domain of sequence. Default for EXR is linear, sRGB for PNGs and JPGs.')
 flags.DEFINE_boolean('sequence_keep', False, 'Keep images on camera after downloading.')
 flags.DEFINE_boolean('sequence_save', True, 'If captured sequences should be saved or discarded after evaluation.')
 # Capture settings
@@ -68,7 +69,6 @@ def main(argv):
     hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
     mode, mode_type = FLAGS.mode.split("_", 1)
     sequence = None
-    sequence2 = None
 
     ### Camera quick controlls ###
     if 'cam' in mode:
@@ -380,7 +380,13 @@ def load(name, config):
     path = os.path.join(FLAGS.sequence_path, name)
     if os.path.splitext(name)[1] == '':
         # Load folder
-        sequence.loadFolder(path)
+        domain = ImgDomain.Lin
+        match FLAGS.sequence_domain:
+            case 'guess':
+                domain = ImgDomain.Keep
+            case 'sRGB':
+                domain = ImgDomain.sRGB
+        sequence.loadFolder(path, domain)
     else:
         # Load video
         sequence.loadVideo(path, config.getIds(), video_frames_skip=FLAGS.video_frames_skip)
