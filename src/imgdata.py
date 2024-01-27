@@ -16,19 +16,21 @@ import colour.models as models
 imageio.plugins.freeimage.download()
 
 from src.utils import logging_disabled
-from src.img_op import *
 
 
 IMAGE_DTYPE_FLOAT='float32'
 IMAGE_DTYPE_INT='uint8'
-# TODO: Unify, input variable?
-DATA_BASE_PATH='../HdM_BA/data/'
 
 class ImgFormat(Enum):
     PNG = 0
     JPG = 1
     EXR = 2
     Keep = -1
+
+class ImgMetadata():
+    iso = None
+    aperture = None
+    exposure = None
     
 class ImgDomain(Enum):
     sRGB = 0
@@ -41,11 +43,12 @@ class ImgDomain(Enum):
     #def __init__(self, pix):
     
 class ImgBuffer:
-    def __init__(self, path=None, img: ArrayLike = None, domain: ImgDomain = ImgDomain.Keep):
+    def __init__(self, path=None, img: ArrayLike = None, domain: ImgDomain = ImgDomain.Keep, meta: ImgMetadata = ImgMetadata()):
         self._img=img
         self._domain=domain
         self._format=ImgFormat.Keep
         self._from_file=False
+        self._meta = meta 
         self.setPath(path)
         
     def __del__(self):
@@ -92,10 +95,19 @@ class ImgBuffer:
             self.load()
         return self._img
 
-    def set(self, img: ArrayLike, overwrite_file=False):
+    def set(self, img: ArrayLike, domain: ImgDomain = ImgDomain.Keep, meta: ImgMetadata = ImgMetadata(), overwrite_file=False):
         self._img=img
+        self._meta = meta
+        if domain != ImgDomain.Keep:
+            self._domain = domain
         if overwrite_file:
             self._from_file=False
+
+    def getMeta(self) -> ImgMetadata:
+        return self._meta
+
+    def setMeta(self, meta: ImgMetadata):
+        self._meta = meta
 
     def load(self):
         if self._path is not None:
@@ -200,18 +212,7 @@ class ImgBuffer:
     def __setitem__(self, coord, buf: ImgBuffer):
         val = buf.asDomain(self._domain, self.isFloat())
         self.get()[coord[1]][coord[0]] = val.asInt().get() if self.isInt().get() else val.get()
-        
-    ### Static functions ###
-
+    
+    # Factory for single pixel value
     def FromPix(values, domain: ImgDomain = ImgDomain.sRGB) -> ImgBuffer:
         return ImgBuffer(img=np.array([[values]]).astype(IMAGE_DTYPE_INT)) # TODO: int/float
-    
-    def SaveBase(img, name, img_format=ImgFormat.PNG):
-        path = os.path.abspath(os.path.join(DATA_BASE_PATH, name))
-        buffer = ImgBuffer(img=img, path=path)
-        buffer.save(img_format)
-        return buffer
-    
-    def SaveEval(img, name, img_format=ImgFormat.PNG):
-        return ImgBuffer.SaveBase(img, os.path.join('eval', name), img_format)
-            

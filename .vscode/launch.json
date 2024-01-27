@@ -54,7 +54,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_hdri", "--sequence_name=20240122_1405_hdri"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_hdri", "--sequence_name=20240125_1752_hdri"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

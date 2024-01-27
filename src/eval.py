@@ -9,6 +9,7 @@ from src.sequence import Sequence
 from src.img_op import *
 from src.config import Config
 from src.utils import logging_disabled
+from src.mathutils import *
 
 
 class Eval:
@@ -59,7 +60,7 @@ class Eval:
         cb_mask = cv.blendLinear(cb_mask, grey, beta, alpha)
         # Binary Filter
         thresh = cv.threshold(cb_mask, 100, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
-        ImgBuffer.SaveEval(thresh, 'chromeball_filtered')
+        ImgOp.SaveEval(thresh, 'chromeball_filtered')
         
         # Find circle contours
         cnts = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
@@ -79,7 +80,7 @@ class Eval:
             cv.circle(self.cb_mask, (int(x+0.5),int(y+0.5)), int(r), 255, -1)
             if True:
                 cv.circle(mask_rgb.get(), (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
-                ImgBuffer.SaveEval(mask_rgb.get(), 'chromeball_center')
+                ImgOp.SaveEval(mask_rgb.get(), 'chromeball_center')
                 
             log.info(f"Found chrome ball at ({self.cb_center[0]:5.2f}, {self.cb_center[1]:5.2f}), radius {self.cb_radius:5.2f}")
         else:
@@ -198,18 +199,3 @@ class Eval:
 
         return (latitude, (longitude+360) % 360) # make longitude all positive
 
-
-def rotationMatrix(axis, theta):
-    """
-    Return the rotation matrix associated with counterclockwise rotation about
-    the given axis by theta radians.
-    """
-    axis = np.asarray(axis)
-    axis = axis / math.sqrt(np.dot(axis, axis))
-    a = math.cos(theta / 2.0)
-    b, c, d = -axis * math.sin(theta / 2.0)
-    aa, bb, cc, dd = a * a, b * b, c * c, d * d
-    bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
-    return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
-                     [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
-                     [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])

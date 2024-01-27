@@ -26,6 +26,7 @@ from src.sequence import Sequence
 from src.lightdome import Lightdome
 from src.eval import Eval
 from src.rti import Rti
+from src.img_op import *
 
 
 # Types
@@ -224,12 +225,12 @@ def captureHdriImg(hw, rgb):
 def lightsTop(hw, latitude=60, brightness: int = 255):
     dome = Lightdome(hw.config)
     # Sample top lights
-    dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > latitude else ImgBuffer.FromPix(0))
+    dome.sampleLatLong(lambda latlong: ImgOp.FromPix(brightness) if latlong[0] > latitude else ImgOp.FromPix(0))
     # Save images
     img = dome.generateLatLong()
-    ImgBuffer.SaveEval(img.get(), "top_latlong")
+    ImgOp.SaveEval(img.get(), "top_latlong")
     img = dome.generateUV()
-    ImgBuffer.SaveEval(img.get(), "top_uv")
+    ImgOp.SaveEval(img.get(), "top_uv")
     # Show on dome
     hw.lights.setLights(dome.getLights(), 0)
     hw.lights.write()
@@ -239,11 +240,11 @@ def lightsAnimate(hw):
     # Function for
     dome = Lightdome(hw.config)
     def fn_lat(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[0] > 90-(i*2) else ImgBuffer.FromPix(0))
+        dome.sampleLatLong(lambda latlong: ImgOp.FromPix(50) if latlong[0] > 90-(i*2) else ImgOp.FromPix(0))
         lights.setLights(dome.getLights())
         return i<60 # i<45
     def fn_long(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(80 * max(0, 1 - (i*8-latlong[1])/90)) if latlong[1] < i*8 else ImgBuffer.FromPix(0))
+        dome.sampleLatLong(lambda latlong: ImgOp.FromPix(80 * max(0, 1 - (i*8-latlong[1])/90)) if latlong[1] < i*8 else ImgOp.FromPix(0))
         lights.setLights(dome.getLights())
         return i<60 # i<45
 
@@ -261,9 +262,9 @@ def lightsHdriRotate(hw):
     hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
     dome.sampleHdri(hdri)
     img = dome.generateLatLong(hdri)
-    ImgBuffer.SaveEval(img.get(), "hdri_latlong")
+    ImgOp.SaveEval(img.get(), "hdri_latlong")
     img = dome.generateUV()
-    ImgBuffer.SaveEval(img.get(), "hdri_uv")
+    ImgOp.SaveEval(img.get(), "hdri_uv")
     
     # Function for
     def fn(lights: Lights, i: int, dome: Any) -> bool:
@@ -297,8 +298,8 @@ def evalHdri(img_seq):
     b = img_seq[2].b()
     
     # Stacking
-    path = os.path.join(os.path.split(img_seq[0].getPath())[0], 'HDRI_stacked')
-    rgb = ImgBuffer(path=path, img=np.dstack((r.get(), g.get(), b.get())), domain=r.domain())
+    path = os.path.join(os.path.split(img_seq[0].getPath())[0], 'HDRI_stacked.jpg')
+    rgb = ImgOp.StackChannels([r, g, b], path)
     rgb.setFormat(ImgFormat.JPG)
     rgb.save()
 
@@ -326,7 +327,7 @@ def evalCal(img_seq):
             img.unload()
         
     # Save debug image
-    ImgBuffer.SaveEval(debug_img, "reflections")
+    ImgOp.SaveEval(debug_img, "reflections")
 
     # Save config
     name = FLAGS.config_output_name if FLAGS.config_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
