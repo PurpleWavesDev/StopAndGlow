@@ -103,6 +103,7 @@ def main(argv):
         lightsTop(hw, brightness=80)
         
         # Sequence download
+        # TODO: Evaluation of videos not necessary for capture only
         sequence = download(hw, name, keep=FLAGS.sequence_keep, save=FLAGS.sequence_save)
     
 
