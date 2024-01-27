@@ -81,9 +81,6 @@ def main(argv):
         #CamOp.FindMaxExposure(hw.cam)
         #hw.cam.setIso('100')
         #hw.cam.setAperture('8')
-        #if not hw.cam.isVideoMode():
-        #    hw.cam.setImgFormat(CamImgFormat.JpgSmall)
-        #    hw.cam.setExposure('1/100')
         # All done, return
         return
     
@@ -93,6 +90,15 @@ def main(argv):
         hw.lights.getInterface()
         name = FLAGS.sequence_name if FLAGS.sequence_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type # 240116_2333_cal
         
+        # Set configuration for camera
+        # TODO! Organize better
+        if not hw.cam.isVideoMode():
+            if FLAGS.capture_mode == 'raw':
+                hw.cam.setImgFormat(CamImgFormat.Raw)
+            else:
+                hw.cam.setImgFormat(CamImgFormat.JpgMedium)
+            #hw.cam.setExposure('1/100')
+            
         # Capturing for all modes
         if 'hdri' in mode_type:
             captureHdri(hw)
@@ -152,7 +158,7 @@ def main(argv):
 #################### CAPTURE MODES ####################
 
 def capture(hw):
-    if 'quick' in FLAGS.capture_mode:
+    if FLAGS.capture_mode == 'quick':
         captureVideo(hw)
     else:
         captureImg(hw)
