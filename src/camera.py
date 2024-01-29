@@ -11,8 +11,7 @@ import gphoto2 as gp
 from PIL import Image
 import cv2 as cv
 import rawpy
-import imageio
-imageio.plugins.freeimage.download()
+import exiv2
 
 from src.imgdata import *
 from src.sequence import Sequence
@@ -145,6 +144,7 @@ class Cam:
         # Check for format and domain
         domain = ImgDomain.sRGB
         ext = os.path.splitext(file[1])[1].lower()
+        io_bytes = None
         # TODO: Alignment error, doesn not work like this!!
         if ext == '.jpg' or ext == '.jpeg':
             # Open normally
@@ -158,10 +158,18 @@ class Cam:
                 image = np.array(Image.open(io.BytesIO(file_data)))
         else:
             # It's most likely raw! Convert to readable formats
-            # TODO!!
+            io_bytes = open(tmp_path, "rb") # io.BytesIO(file_data) # TODO: Read from file instead from memory bc of bug
+            #image = cv.imdecode(np.frombuffer(io_bytes.read(), np.uint8), 1)
             domain = ImgDomain.Lin
-            image = self.convertRaw(image)
+            image = self.convertRaw(io_bytes)
         
+        # Metadata TODO!
+        #exiv_image = exiv2.ImageFactory.open(io_bytes)
+        #exiv_image.readMetadata()
+        #exif_data = exiv_image.exifData()
+        #print(exif_data)
+
+
         if not keep:
             self.getCam().file_delete(file[0], file[1])
             del self._files[id]
@@ -194,7 +202,9 @@ class Cam:
             file_path = os.path.join(path, name+os.path.splitext(self._videoCameraPath[1])[1])
             log.debug("Video is being saved to {}".format(file_path))
             self._videoFile.save(file_path)
-            seq = Sequence(file_path, ImgDomain.sRGB, frame_list)
+            # TODO: Evaluation not always necessary
+            seq = Sequence()
+            seq.load(file_path, ImgDomain.sRGB, frame_list)
 
             if not keep:
                 self.getCam().file_delete(self._videoCameraPath[0], self._videoCameraPath[1])

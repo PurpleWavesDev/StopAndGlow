@@ -108,17 +108,16 @@ def main(argv):
         # Default light
         lightsTop(hw, brightness=80)
         
-        # Sequence download
-        # TODO: Evaluation of videos not necessary for capture only
+        # Sequence download, evaluation of video not necessary for capture only
         sequence = download(hw, name, keep=FLAGS.sequence_keep, save=FLAGS.sequence_save)
     
 
-    elif not 'lights' in mode:
+    elif mode != 'lights':
         # Load data
         sequence = load(FLAGS.sequence_name, hw.config)
     
     ### Separate lights only modes from evaluation ###
-    if 'lights' in mode:
+    if mode == 'lights':
         # Lights only modes
 
         # Init lights
@@ -211,7 +210,7 @@ def captureHdriVideo(hw, rgb):
     time.sleep(1)
     t.start((1+FLAGS.video_frames_skip) / FLAGS.video_fps)
     t.join()
-    time.sleep(1)
+    time.sleep(0.5)
     hw.cam.triggerVideoEnd()
 
 
