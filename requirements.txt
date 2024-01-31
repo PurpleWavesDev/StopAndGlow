@@ -8,7 +8,6 @@ dmx==1.0
 executing==2.0.1
 exiv2==0.16.1
 future==0.18.3
-gphoto2==2.5.0
 imageio==2.33.1
 ipykernel==6.27.1
 ipython==8.18.1

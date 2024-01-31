@@ -63,7 +63,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_lighting", "--sequence_name=dragon", "--hdri_rotation=0"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_lighting", "--sequence_name=20240127_1511_lights.MP4", "--hdri_rotation=0", "--sequence_domain=guess"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

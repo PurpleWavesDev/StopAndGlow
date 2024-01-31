@@ -7,7 +7,7 @@ import time
 import pathlib
 
 # Camera & image imports
-import gphoto2 as gp
+# import gphoto2 as gp
 from PIL import Image
 import cv2 as cv
 import rawpy
@@ -22,7 +22,7 @@ from src.config_canon90d import *
 class Cam:
     def __init__(self):
         # Lets kill any gphoto process that blocks the ressource
-        killgphoto2()
+        # conda killgphoto2()
         # Lazy loading for camera
         self._cam = None
         self._files = dict()
