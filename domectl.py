@@ -327,8 +327,8 @@ def evalLighting(config, img_seq):
     # Generate scene with HDRI lighting 
     lighting = dome.generateLightingFromSequence(img_seq, longitude_offset=FLAGS.hdri_rotation)
 
-    lighting.setPath(os.path.join(FLAGS.sequence_path, 'lighting_generated'))
-    rgb.setFormat(ImgFormat.JPG)
+    lighting.setPath(os.path.join(FLAGS.sequence_path, os.path.splitext(FLAGS.sequence_name)[0], 'lighting_generated'))
+    lighting.setFormat(ImgFormat.EXR)
     lighting.save()
 
 def evalCal(img_seq):

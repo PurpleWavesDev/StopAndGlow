@@ -90,7 +90,10 @@ class ImgBuffer:
             log.warn("No valid format specified, defaulting to PNG")
             self._format = ImgFormat.PNG
             self._path = root+".png"
-        
+
+    def hasImg(self) -> bool:
+        return self._img is not None
+
     def get(self) -> ArrayLike:
         # Lazy loading
         if self._img is None:

@@ -63,18 +63,25 @@ class Lightdome:
         # self._processed_hdri: geblurtes HDRI
 
         generated = ImgBuffer(domain=ImgDomain.Lin)
+        res_y, res_x = self._processed_hdri.get().shape[:2]
 
         for id, img in img_seq:
             # Test if config entry is valid -> configuration might be incomplete!
 
             if self._config[id] is not None:
                 # ID ist Lampen ID, entspricht der ID der config
-                self._config[id]['latlong'] # -> Koordinaten der Lampe
+                latlong = self._config[id]['latlong'] # -> Koordinaten der Lampe
                 img = img.asDomain(ImgDomain.Lin, as_float=True) # -> Bild als Linear
-                img.get() # Damit bekommst du das Numpy Array vom Bild
-                img.r().get() # Selbes nur mit Rot Kanal
 
-                # Hier kommt mehr code!
+                # HDRI sampling
+                x = int(res_x * (360 - (latlong[1]+longitude_offset) % 360) / 360.0) # TODO: Is round here wrong? Indexing error when rounding up on last value!
+                y = int(round(res_y/2 - res_y * latlong[0]/180.0))
+                rgb_factor = self._processed_hdri[x, y]
+
+                if not generated.hasImg():
+                    generated.set(img.get() * rgb_factor.get())
+                else:
+                    generated.set(generated.get() + img.get() * rgb_factor.get())
 
         return generated # Frame wird returned und in domectl.py gespeichert
 
