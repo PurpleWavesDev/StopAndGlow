@@ -51,6 +51,7 @@ flags.DEFINE_string('config_output_name', '', "Name of config to write calibrati
 # Sequence 
 flags.DEFINE_string('sequence_path', '../HdM_BA/data', 'Where the image data should be written to.')
 flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evaluate. Default is type of capture current date & time.')
+flags.DEFINE_string('sequence_output_name', '', 'Sequence name for processed sequences e.g. stacking.')
 flags.DEFINE_enum  ('sequence_domain', 'guess', ['guess', 'lin', 'sRGB'], 'Domain of sequence. Default for EXR is linear, sRGB for PNGs and JPGs.')
 flags.DEFINE_boolean('sequence_keep', False, 'Keep images on camera after downloading.')
 flags.DEFINE_boolean('sequence_save', True, 'If captured sequences should be saved or discarded after evaluation.')
@@ -116,14 +117,13 @@ def main(argv):
     
 
     elif mode != 'lights':
-        # Load data
+        # Split sequence
         names = FLAGS.sequence_name.split(',')
+        # Load data
         if len(names) == 1:
             sequence = load(FLAGS.sequence_name, hw.config)
         else:
             sequence = []
-            # Remove whitespaces
-            names.replace(" ", "")
             # Load sequence for every comma separated name
             for seq in names:
                 sequence.append(load(seq, hw.config))
@@ -161,7 +161,8 @@ def main(argv):
             case 'lighting':
                 evalLighting(hw.config, sequence)
             case 'stack':
-                evalStack(hw.config, sequence)
+                output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type
+                evalStack(hw.config, sequence, output_name)
             case 'cal':
                 evalCal(sequence)
 
@@ -344,16 +345,33 @@ def evalLighting(config, img_seq):
     lighting.setFormat(ImgFormat.EXR)
     lighting.save()
     
-def evalStack(config, sequences):
+def evalStack(config, sequences, output_name, cam_response=None):
     stacked_seq = Sequence()
-    
     sequence_count = len(sequences)
+            
+    if cam_response is None:
+        # List of current frames
+        frames = [seq.getMaskFrame() for seq in sequences]
+        #TODO
+        for i in enumerate(frames):
+            i[1].setMeta(ImgMetadata(exposure=(1/100)*i[0]))
+        cam_response = ImgOp.CameraResponse(frames) # TODO Stuck
+    
     # Iterate over frames
-    for i in enumerate(sequences[0]):
-        # Iterate through sequences
-        for s in range(sequence_count):
-            # The image
-            sequences[s][i]
+    for i in range(len(sequences[0])):
+        # List of current frames
+        frames = [seq.get(i) for seq in sequences]
+        id = sequences[0].getKeys()[i]
+        
+        #TODO
+        for i in enumerate(frames):
+            i[1].setMeta(ImgMetadata(exposure=(1/100)*i[0]))
+        
+        #if cam_response is None:
+        #    cam_response = ImgOp.CameraResponse(frames)
+        
+        path = os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{id:03d}")
+        stacked_seq.append(ImgOp.ExposureStacking(frames, cam_response, path=path), id)
     
     # Return sequence with stacked images       
     return stacked_seq

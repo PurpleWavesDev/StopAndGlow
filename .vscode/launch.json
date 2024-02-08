@@ -68,6 +68,15 @@
             "justMyCode": true
         },
         {
+            "name": "Eval Exposure Stack",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=eval_stack", "--sequence_name=20240129_0954_lights.MP4,20240127_1511_lights.MP4,20240129_0935_lights.MP4", "--video_frames_skip=2", "--sequence_output_name=stack_output"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Eval Cal",
             "type": "python",
             "request": "launch",

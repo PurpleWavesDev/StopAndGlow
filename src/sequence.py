@@ -17,6 +17,7 @@ class VidParseState(Enum):
     Skip = 2,
     Valid = 3
 
+
 class Sequence():
     def __init__(self):
         self._frames = dict()

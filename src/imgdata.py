@@ -28,6 +28,10 @@ class ImgFormat(Enum):
     Keep = -1
 
 class ImgMetadata():
+    def __init__(self, iso=100, aperture=8, exposure=1/100):
+        iso=iso
+        aperture=aperture
+        exposure=exposure
     iso = None
     aperture = None
     exposure = None
