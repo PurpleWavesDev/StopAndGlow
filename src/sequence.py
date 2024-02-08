@@ -56,11 +56,11 @@ class Sequence():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def loadVideo(self, path, frame_list, video_frames_skip=1, lazy=False):
+    def loadVideo(self, path, frame_list, video_frames_skip=1, lazy=True):
         # Setup variables
         self._is_video = True
-        self._vid_frame_list = frame_list
         self._vid_frames_skip = video_frames_skip
+        self._frames = {key: None for key in frame_list}        
         
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
@@ -122,15 +122,15 @@ class Sequence():
                         self._maskFrame = ImgBuffer(path=self._mask_name_base+f"_{0:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB)
                     else:
                         # Abort condition
-                        if self._vid_frame_number >= len(self._vid_frame_list):
+                        if self._vid_frame_number >= len(self._frames):
                             #log.debug(f"No new frame at frame {self._vid_frame_count} with {self._vid_frame_number} valid frames")
                             break
                         if not ImgOp.blackframe(self._vid_frame):
                             # Use this frame#
-                            id = self._vid_frame_list[self._vid_frame_number]
+                            id = self.getKeys()[self._vid_frame_number]
                             log.debug(f"Valid sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                             # Append
-                            self.append(ImgBuffer(path=self._img_name_base+f"_{id:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB), id)
+                            self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB)
                         else:
                             log.debug(f"Blackframe at frame {self._vid_frame_number} / {self._vid_frame_count}")   
                     # Skip every other frame
@@ -154,23 +154,27 @@ class Sequence():
         return [self._min, self._max]
     
     def getKeys(self):
-        return self._frames.keys()
+        return list(self._frames.keys())
 
     def get(self, index):
+        if self._is_video:
+            self.loadFrames(index)
         return list(self._frames.values())[index]
         
     def __getitem__(self, key):
+        if self._is_video:
+            self.loadFrames(self.getKeys().index(key))
         return self._frames[key]
     
     def __delitem__(self, key):
         del self._frames[key]
     
     def __iter__(self):
+        # TODO: Lazy loading not working with this
+        self.loadFrames(-1)
         return iter(self._frames.items())
 
     def __len__(self):
-        if self._is_video:
-            return len(self._vid_frame_list)
         return len(self._frames)
     
     
