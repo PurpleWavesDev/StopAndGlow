@@ -128,7 +128,6 @@ class ImgBuffer:
                 else:
                     # TODO: Bug in Imageio? Broken pixel!
                     #self._img = colour.read_image(self._path, bit_depth=IMAGE_DTYPE_FLOAT, method='Imageio')
-                    #self._img = np.maximum(self._img, 0)
                     self._img = cv.cvtColor(
                         cv.imread(self._path,  cv.IMREAD_ANYCOLOR | cv.IMREAD_ANYDEPTH),
                         cv.COLOR_BGR2RGB).astype(IMAGE_DTYPE_FLOAT)
@@ -172,7 +171,7 @@ class ImgBuffer:
     def asDomain(self, domain: ImgDomain, as_float=False) -> ImgBuffer:
         if domain != ImgDomain.Keep and domain != self._domain:
             # Convert to optical/neutral
-            img = self.get() if as_float is False else self.get().astype(IMAGE_DTYPE_FLOAT)
+            img = self.get() if as_float is False else self.asFloat().get()
             match self._domain:
                 case ImgDomain.sRGB:
                     img = colour.cctf_decoding(img, 'sRGB')
@@ -229,4 +228,4 @@ class ImgBuffer:
     
     # Factory for single pixel value
     def FromPix(values, domain: ImgDomain = ImgDomain.sRGB) -> ImgBuffer:
-        return ImgBuffer(img=np.array([[values]]).astype(IMAGE_DTYPE_INT)) # TODO: int/float
+        return ImgBuffer(img=np.array([[values]]))#.astype(IMAGE_DTYPE_INT)) # TODO: int/float

@@ -68,6 +68,15 @@
             "justMyCode": true
         },
         {
+            "name": "Eval Sequence to EXR",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=eval_linearize", "--sequence_name=20240127_1511_lights.MP4", "--video_frames_skip=2"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Eval Exposure Stack",
             "type": "python",
             "request": "launch",

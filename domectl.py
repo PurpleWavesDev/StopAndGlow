@@ -41,7 +41,7 @@ FLAGS = flags.FLAGS
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lighting', 'eval_stack', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lighting', 'eval_stack', 'eval_linearize', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
@@ -162,7 +162,10 @@ def main(argv):
                 evalLighting(hw.config, sequence)
             case 'stack':
                 output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type
-                evalStack(hw.config, sequence, output_name)
+                evalStack(sequence, output_name)
+            case 'linearize':
+                output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else f"{os.path.splitext(FLAGS.sequence_name)[0]}_linear"
+                evalLinearize(sequence, output_name)
             case 'cal':
                 evalCal(sequence)
 
@@ -345,7 +348,7 @@ def evalLighting(config, img_seq):
     lighting.setFormat(ImgFormat.EXR)
     lighting.save()
     
-def evalStack(config, sequences, output_name, cam_response=None):
+def evalStack(sequences, output_name, cam_response=None):
     stacked_seq = Sequence()
     sequence_count = len(sequences)
             
@@ -377,6 +380,14 @@ def evalStack(config, sequences, output_name, cam_response=None):
     
     # Return sequence with stacked images       
     return stacked_seq
+
+def evalLinearize(img_seq, output_name):
+    for i in range(len(img_seq)):
+        img = img_seq.get(i).asDomain(ImgDomain.Lin, as_float=True)
+        id = img_seq.getKeys()[i]
+        img.setPath(os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{id:03d}"))
+        img.setFormat(ImgFormat.EXR)
+        img.unload(save=True)
 
 def evalCal(img_seq):
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")

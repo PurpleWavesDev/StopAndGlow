@@ -83,6 +83,7 @@ class Lightdome:
                 else:
                     generated.set(generated.get() + img.get() * rgb_factor.get())
 
+        generated.set(generated.get() / len(img_seq)) # Normalize brightness
         return generated # Frame wird returned und in domectl.py gespeichert
 
 
