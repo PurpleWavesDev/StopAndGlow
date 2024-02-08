@@ -23,7 +23,8 @@ class ImgOp:
         """Calculate the camera response curve from a sequence of images with different exposures"""
         # Estimate camera response
         calibrate = cv.createCalibrateDebevec()
-        return calibrate.process([img.get() for img in exposure_stack], [img.getMeta().exposure for img in exposure_stack])
+        times = np.array([1/100, 1/50, 1/25], dtype='float32') # [img.getMeta().exposure for img in exposure_stack]
+        return calibrate.process([img.get() for img in exposure_stack], times)
 
     def ExposureStacking(exposure_stack: list[ImgBuffer], camera_response: ArrayLike = None, path=None) -> ImgBuffer:
         """Generate an HDR image out of a stack of SDR images"""
@@ -32,8 +33,11 @@ class ImgOp:
         
         # Make HDR image
         merge_debevec = cv.createMergeDebevec()
-        hdr = merge_debevec.process([img.get() for img in exposure_stack], [img.meta().exposure for img in exposure_stack], camera_response)
-        return ImgBuffer(path, hdr, exposure_stack[0].domain())
+        times = np.array([1/100, 1/50, 1/25], dtype='float32')
+        hdr = merge_debevec.process([img.get() for img in exposure_stack], times, camera_response)
+        buffer = ImgBuffer(path, hdr, domain=ImgDomain.Lin)
+        buffer.setFormat(ImgFormat.EXR)
+        return buffer
     
     ### Numpy Image quick save functions ###
     def SaveBase(img: ArrayLike, name, img_format=ImgFormat.PNG):

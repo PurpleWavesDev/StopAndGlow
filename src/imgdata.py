@@ -162,7 +162,7 @@ class ImgBuffer:
                         colour.write_image(self.asFloat().get(), self._path, bit_depth=IMAGE_DTYPE_FLOAT, method='Imageio')
                     case _: # PNG and JPG
                         colour.write_image(self.asDomain(ImgDomain.sRGB).asInt().get(), self._path, bit_depth=IMAGE_DTYPE_INT, method='Imageio')
-            #log.debug(f"Saved image {self._path}")
+            log.debug(f"Saved image {self._path}")
             
         elif self._path is None:
             log.error("Can't save image without path")

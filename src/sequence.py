@@ -76,7 +76,7 @@ class Sequence():
             log.error("Could not load video file '{}'")
             return False
         
-        self._vid_success, self._vid_frame = self._vidcap.read()
+        self._vid_success, self._vid_frame = self._readVideoFrame()
         if not self._vid_success:
             log.error("Could not load video file '{}'")
             return False
@@ -139,7 +139,7 @@ class Sequence():
                     self._vid_frame_number += 1
                     
             # Next iteration
-            self._vid_success, self._vid_frame = self._vidcap.read()
+            self._vid_success, self._vid_frame = self._readVideoFrame()
             self._vid_frame_count +=1
             
     def append(self, img: ImgBuffer, id):
@@ -178,4 +178,8 @@ class Sequence():
     def __len__(self):
         return len(self._frames)
     
+    
+    def _readVideoFrame(self):
+        suc, frame = self._vidcap.read()
+        return (suc, cv.cvtColor(frame, cv.COLOR_BGR2RGB))
     

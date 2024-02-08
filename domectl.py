@@ -349,29 +349,31 @@ def evalStack(config, sequences, output_name, cam_response=None):
     stacked_seq = Sequence()
     sequence_count = len(sequences)
             
-    if cam_response is None:
+    if False: #cam_response is None:
         # List of current frames
         frames = [seq.getMaskFrame() for seq in sequences]
-        #TODO
-        for i in enumerate(frames):
-            i[1].setMeta(ImgMetadata(exposure=(1/100)*i[0]))
         cam_response = ImgOp.CameraResponse(frames) # TODO Stuck
+        for i in range(len(frames)):
+            frames[i].setPath(os.path.join(FLAGS.sequence_path, output_name, f"mask_{i:03d}"))
+            frames[i].save(ImgFormat.JPG)
     
     # Iterate over frames
     for i in range(len(sequences[0])):
         # List of current frames
         frames = [seq.get(i) for seq in sequences]
         id = sequences[0].getKeys()[i]
-        
-        #TODO
-        for i in enumerate(frames):
-            i[1].setMeta(ImgMetadata(exposure=(1/100)*i[0]))
-        
-        #if cam_response is None:
-        #    cam_response = ImgOp.CameraResponse(frames)
+                
+        if cam_response is None:
+            cam_response = ImgOp.CameraResponse(frames) # TODO Stuck
+            for i in range(len(frames)):
+                frames[i].setPath(os.path.join(FLAGS.sequence_path, output_name, f"first_{i:03d}"))
+                frames[i].save(ImgFormat.JPG)
         
         path = os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{id:03d}")
         stacked_seq.append(ImgOp.ExposureStacking(frames, cam_response, path=path), id)
+        
+        # Save & unload frame
+        stacked_seq[id].unload(save=True)
     
     # Return sequence with stacked images       
     return stacked_seq
