@@ -9,7 +9,6 @@ from absl import flags
 
 from numpy.typing import ArrayLike
 import numpy as np
-os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import cv2 as cv
 import imageio
 import colour

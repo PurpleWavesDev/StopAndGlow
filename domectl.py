@@ -1,7 +1,9 @@
-# Imports
-import sys
+# Enable OpenCV EXR support
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
+
+# Imports
+import sys
 import io
 import time
 import datetime
@@ -39,7 +41,7 @@ FLAGS = flags.FLAGS
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lighting', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lighting', 'eval_stack', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
@@ -86,7 +88,7 @@ def main(argv):
         return
     
     ### Load image sequence, either bei capturing or loading sequence from disk ###
-    if "capture" in mode:
+    if mode == "capture":
         # Init lights
         hw.lights.getInterface()
         name = FLAGS.sequence_name if FLAGS.sequence_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type # 240116_2333_cal
@@ -115,7 +117,16 @@ def main(argv):
 
     elif mode != 'lights':
         # Load data
-        sequence = load(FLAGS.sequence_name, hw.config)
+        names = FLAGS.sequence_name.split(',')
+        if len(names) == 1:
+            sequence = load(FLAGS.sequence_name, hw.config)
+        else:
+            sequence = []
+            # Remove whitespaces
+            names.replace(" ", "")
+            # Load sequence for every comma separated name
+            for seq in names:
+                sequence.append(load(seq, hw.config))
     
     ### Separate lights only modes from evaluation ###
     if mode == 'lights':
@@ -149,6 +160,8 @@ def main(argv):
                 evalHdri(sequence)
             case 'lighting':
                 evalLighting(hw.config, sequence)
+            case 'stack':
+                evalStack(hw.config, sequence)
             case 'cal':
                 evalCal(sequence)
 
@@ -330,6 +343,20 @@ def evalLighting(config, img_seq):
     lighting.setPath(os.path.join(FLAGS.sequence_path, os.path.splitext(FLAGS.sequence_name)[0], 'lighting_generated'))
     lighting.setFormat(ImgFormat.EXR)
     lighting.save()
+    
+def evalStack(config, sequences):
+    stacked_seq = Sequence()
+    
+    sequence_count = len(sequences)
+    # Iterate over frames
+    for i in enumerate(sequences[0]):
+        # Iterate through sequences
+        for s in range(sequence_count):
+            # The image
+            sequences[s][i]
+    
+    # Return sequence with stacked images       
+    return stacked_seq
 
 def evalCal(img_seq):
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")

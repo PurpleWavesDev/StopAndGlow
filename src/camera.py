@@ -7,11 +7,10 @@ import time
 import pathlib
 
 # Camera & image imports
-# import gphoto2 as gp
 from PIL import Image
 import cv2 as cv
 import rawpy
-import exiv2
+#import exiv2
 
 from src.imgdata import *
 from src.sequence import Sequence
@@ -34,6 +33,7 @@ class Cam:
             self._cam.exit()
         
     def getCam(self):
+        import gphoto2 as gp
         if self._cam is None:
             self._cam = gp.Camera()
             self._cam.init()

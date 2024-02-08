@@ -23,6 +23,7 @@ class Sequence():
         self._maskFrame = None
         self._min=-1
         self._max=-1
+        self._is_video = False
 
     def load(self, path, domain=ImgDomain.Keep, video_frame_list=range(0)):
         # TODO
@@ -55,74 +56,90 @@ class Sequence():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def loadVideo(self, path, frame_list, video_frames_skip=1):
+    def loadVideo(self, path, frame_list, video_frames_skip=1, lazy=False):
+        # Setup variables
+        self._is_video = True
+        self._vid_frame_list = frame_list
+        self._vid_frames_skip = video_frames_skip
+        
         # Define paths and sequence names
-        # TODO: shuffle mask frame after black frame
         base_dir = os.path.dirname(path)
         seq_name = os.path.splitext(os.path.basename(path))[0]
                     
-        img_name_base = os.path.join(base_dir, seq_name, seq_name)
-        mask_name_base = os.path.join(base_dir, seq_name+'_mask', seq_name+'_mask')
+        self._img_name_base = os.path.join(base_dir, seq_name, seq_name)
+        self._mask_name_base = os.path.join(base_dir, seq_name+'_mask', seq_name+'_mask')
             
-        # Load video & iterate through frames
-        vidcap = cv.VideoCapture(path)
-        if vidcap is None:
+        # Load video
+        self._vidcap = cv.VideoCapture(path)
+        if self._vidcap is None:
             log.error("Could not load video file '{}'")
             return False
         
-        state = VidParseState.PreBlack
-        success, frame = vidcap.read()
-        frame_number = -1
-        frame_count = skip_count = 0
-        #black_val = None
+        self._vid_success, self._vid_frame = self._vidcap.read()
+        if not self._vid_success:
+            log.error("Could not load video file '{}'")
+            return False
+            
+        self._vid_state = VidParseState.PreBlack
+        self._vid_frame_number = -1
+        self._vid_frame_count = self._skip_count = 0
         
-        while success:
-            match state:
+        # Lazy loading
+        if not lazy:
+            self.loadFrames()
+        else:
+            self.loadFrames(0)
+        return True
+        
+    def loadFrames(self, until_frame=-1):
+        # Iterate through frames until max
+        while self._vid_success and (until_frame == -1 or self._vid_frame_number <= until_frame):
+            match self._vid_state:
                 case VidParseState.PreBlack:
                     # Wait for black frame
-                    if ImgOp.blackframe(frame):
-                        log.debug(f"Found blackframe at frame {frame_count}")
-                        state = VidParseState.Black
+                    if ImgOp.blackframe(self._vid_frame):
+                        log.debug(f"Found blackframe at frame {self._vid_frame_count}")
+                        self._vid_state = VidParseState.Black
 
                         # Save max value of blackframe
-                        black_val = np.max(frame)
+                        black_val = np.max(self._vid_frame)
 
                 case VidParseState.Black:
                     # TODO: Skip first black frame if second one is also black
 
-                    skip_count = (skip_count+1) % video_frames_skip
-                    if skip_count == 0:
-                        state = VidParseState.Valid
+                    self._skip_count = (self._skip_count+1) % self._vid_frames_skip
+                    if self._skip_count == 0:
+                        self._vid_state = VidParseState.Valid
                                         
                 case VidParseState.Skip:
-                    skip_count = (skip_count+1) % video_frames_skip
-                    if skip_count == 0:
-                        state = VidParseState.Valid
+                    self._skip_count = (self._skip_count+1) % self._vid_frames_skip
+                    if self._skip_count == 0:
+                        self._vid_state = VidParseState.Valid
 
                 case VidParseState.Valid:
-                    if frame_number == -1:
+                    if self._vid_frame_number == -1:
                         # Sillhouette frame
-                        self._maskFrame = ImgBuffer(path=mask_name_base+f"_{0:03d}.png", img=frame, domain=ImgDomain.sRGB)
+                        self._maskFrame = ImgBuffer(path=self._mask_name_base+f"_{0:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB)
                     else:
                         # Abort condition
-                        if frame_number >= len(frame_list):
-                            #log.debug(f"No new frame at frame {frame_count} with {frame_number} valid frames")
+                        if self._vid_frame_number >= len(self._vid_frame_list):
+                            #log.debug(f"No new frame at frame {self._vid_frame_count} with {self._vid_frame_number} valid frames")
                             break
-                        if not ImgOp.blackframe(frame):
+                        if not ImgOp.blackframe(self._vid_frame):
                             # Use this frame#
-                            id = frame_list[frame_number]
-                            log.debug(f"Valid sequence frame {frame_number:3d}, id {id:3d}, found at frame {frame_count} in video")
+                            id = self._vid_frame_list[self._vid_frame_number]
+                            log.debug(f"Valid sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                             # Append
-                            self.append(ImgBuffer(path=img_name_base+f"_{id:03d}.png", img=frame, domain=ImgDomain.sRGB), id)
+                            self.append(ImgBuffer(path=self._img_name_base+f"_{id:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB), id)
                         else:
-                            log.debug(f"Blackframe at frame {frame_number} / {frame_count}")   
+                            log.debug(f"Blackframe at frame {self._vid_frame_number} / {self._vid_frame_count}")   
                     # Skip every other frame
-                    state = VidParseState.Skip
-                    frame_number += 1
+                    self._vid_state = VidParseState.Skip
+                    self._vid_frame_number += 1
                     
             # Next iteration
-            success, frame = vidcap.read()
-            frame_count +=1
+            self._vid_success, self._vid_frame = self._vidcap.read()
+            self._vid_frame_count +=1
             
     def append(self, img: ImgBuffer, id):
         self._frames[id] = img
@@ -152,6 +169,8 @@ class Sequence():
         return iter(self._frames.items())
 
     def __len__(self):
+        if self._is_video:
+            return len(self._vid_frame_list)
         return len(self._frames)
     
     
