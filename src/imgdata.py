@@ -202,9 +202,13 @@ class ImgBuffer:
         img = self._img if self.isInt() else colour.io.convert_bit_depth(np.clip(self._img, 0, 1), IMAGE_DTYPE_INT)
         return ImgBuffer(path=self._path, img=img, domain=self._domain)
     def channels(self) -> int:
-        if self._img is None:
-            return 0
-        return self._img.shape[:2]
+        if self.get() is not None:
+            return self._img.shape[2]
+        return 0
+    def resolution(self) -> [int, int]:
+        if self.get() is not None:
+            return (self._img.shape[0], self._img.shape[1])
+        return (0, 0)
     def r(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,0], domain=self._domain)
     def g(self) -> ImgBuffer:

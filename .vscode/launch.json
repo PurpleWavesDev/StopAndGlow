@@ -45,7 +45,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_rti", "--sequence_name=sequence.mp4", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_rti", "--sequence_name=20240127_1511_lights_linear"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -55,15 +55,6 @@
             "request": "launch",
             "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=eval_hdri", "--sequence_name=20240125_1752_hdri"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Eval HDRI Lighting for Sequence",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_lighting", "--sequence_name=20240127_1511_lights.MP4", "--hdri_rotation=0", "--sequence_domain=guess"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -91,6 +82,33 @@
             "request": "launch",
             "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--mode=eval_cal", "--sequence_name=20240124_1450_cal.MP4", "--video_frames_skip=2"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Relight simplified",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=relight_simple", "--sequence_name=20240127_1511_lights_linear", "--hdri_rotation=180", "--sequence_domain=guess"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Relight RTI",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=relight_rti", "--sequence_name=2024_rti", "--hdri_rotation=0", "--sequence_domain=guess"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Relight ML",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=relight_ml", "--sequence_name=2024_ml", "--hdri_rotation=0", "--sequence_domain=guess"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

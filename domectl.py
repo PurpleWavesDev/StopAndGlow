@@ -41,7 +41,7 @@ FLAGS = flags.FLAGS
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lighting', 'eval_stack', 'eval_linearize', 'eval_cal', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_stack', 'eval_linearize', 'eval_cal','relight_simple', 'relight_rti', 'relight_ml', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
@@ -115,18 +115,6 @@ def main(argv):
         # Sequence download, evaluation of video not necessary for capture only
         sequence = download(hw, name, keep=FLAGS.sequence_keep, save=FLAGS.sequence_save)
     
-
-    elif mode != 'lights':
-        # Split sequence
-        names = FLAGS.sequence_name.split(',')
-        # Load data
-        if len(names) == 1:
-            sequence = load(FLAGS.sequence_name, hw.config)
-        else:
-            sequence = []
-            # Load sequence for every comma separated name
-            for seq in names:
-                sequence.append(load(seq, hw.config))
     
     ### Separate lights only modes from evaluation ###
     if mode == 'lights':
@@ -153,21 +141,43 @@ def main(argv):
             lightsTop(hw, brightness=80)
     
     else:
-        match mode_type:
-            case 'rti':
-                evalRti(sequence)
-            case 'hdri':
-                evalHdri(sequence)
-            case 'lighting':
-                evalLighting(hw.config, sequence)
-            case 'stack':
-                output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type
-                evalStack(sequence, output_name)
-            case 'linearize':
-                output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else f"{os.path.splitext(FLAGS.sequence_name)[0]}_linear"
-                evalLinearize(sequence, output_name)
-            case 'cal':
-                evalCal(sequence)
+        # Split sequence
+        names = FLAGS.sequence_name.split(',')
+        # Load data
+        if len(names) == 1:
+            sequence = load(FLAGS.sequence_name, hw.config)
+            if len(sequence) == 0:
+                log.error("Empty sequence, aborting")
+                return
+        else:
+            sequence = []
+            # Load sequence for every comma separated name
+            for seq in names:
+                sequence.append(load(seq, hw.config))
+    
+        if mode == 'eval':
+            match mode_type:
+                case 'rti':
+                    evalRti(sequence, hw.config)
+                case 'hdri':
+                    evalHdri(sequence)
+                case 'stack':
+                    output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type
+                    evalStack(sequence, output_name)
+                case 'linearize':
+                    output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else f"{os.path.splitext(FLAGS.sequence_name)[0]}_linear"
+                    evalLinearize(sequence, output_name)
+                case 'cal':
+                    evalCal(sequence)
+        elif mode == 'relight':
+            match mode_type:
+                case 'simple':
+                    relightSimple(sequence, hw.config)
+                case 'rti':
+                    rti_path = "" # TODO
+                    relightRti(sequence, "")
+                case 'ml':
+                    relightMl(sequence, hw.config)
 
 
                     
@@ -316,8 +326,12 @@ def lightsConfigRun(hw):
 
 #################### EVAL MODES ####################
 
-def evalRti(img_seq):
-    pass
+def evalRti(img_seq, config):
+    log.info(f"Generate HDRI Lighting from RTI data")
+
+    rti = Rti(img_seq.get(0).resolution())
+    rti.calculate(img_seq, config)
+    rti.save("path")
 
 def evalHdri(img_seq):
     log.info(f"Processing HDRI RGB sequence")
@@ -333,21 +347,6 @@ def evalHdri(img_seq):
     rgb.setFormat(ImgFormat.JPG)
     rgb.save()
 
-def evalLighting(config, img_seq):
-    # Deine Funktion, Iris :)
-    log.info(f"Generate HDRI Lighting from Sequence")
-
-    dome = Lightdome(config)
-    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
-    dome.processHdri(hdri)
-
-    # Generate scene with HDRI lighting 
-    lighting = dome.generateLightingFromSequence(img_seq, longitude_offset=FLAGS.hdri_rotation)
-
-    lighting.setPath(os.path.join(FLAGS.sequence_path, os.path.splitext(FLAGS.sequence_name)[0], 'lighting_generated'))
-    lighting.setFormat(ImgFormat.EXR)
-    lighting.save()
-    
 def evalStack(sequences, output_name, cam_response=None):
     stacked_seq = Sequence()
     sequence_count = len(sequences)
@@ -420,6 +419,44 @@ def evalCal(img_seq):
     log.info(f"Saving config as '{name}' with {len(new_config)} lights from ID {new_config.getIdBounds()}")
     new_config.save(FLAGS.config_path, name)
 
+
+
+#################### RELIGHT MODES ####################
+
+def relightSimple(img_seq, config):
+    # Deine Funktion, Iris :)
+    log.info(f"Generate HDRI Lighting from Sequence")
+
+    dome = Lightdome(config)
+    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    dome.processHdri(hdri)
+
+    # Generate scene with HDRI lighting 
+    lighting = dome.generateLightingFromSequence(img_seq, longitude_offset=FLAGS.hdri_rotation)
+
+    lighting.setPath(os.path.join(FLAGS.sequence_path, os.path.splitext(FLAGS.sequence_name)[0], 'relight_simple'))
+    lighting.setFormat(ImgFormat.EXR)
+    lighting.save()
+
+
+def relightRti(img_seq):
+    log.info(f"Generate HDRI Lighting from RTI data")
+
+    rti = Rti()
+    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    
+    # Generate scene with HDRI lighting
+    rti.load(img_seq)
+    lighting = rti.sampleHdri(hdri)
+    
+    lighting.setPath(os.path.join(FLAGS.sequence_path, os.path.splitext(FLAGS.sequence_name)[0], 'relight_rti'))
+    lighting.setFormat(ImgFormat.EXR)
+    lighting.save()
+    
+    
+def relightMl(img_seq, config):
+    pass
+    
 
 
 #################### CAMERA SETTINGS & DOWNLOAD HELPERS ####################

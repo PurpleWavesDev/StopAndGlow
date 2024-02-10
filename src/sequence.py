@@ -5,6 +5,7 @@ import logging as log
 from absl import flags
 
 import numpy as np
+from numpy.typing import ArrayLike
 import cv2 as cv
 
 from src.imgdata import *
@@ -61,7 +62,6 @@ class Sequence():
         # Setup variables
         self._is_video = True
         self._vid_frames_skip = video_frames_skip
-        self._frames = {key: None for key in frame_list}        
         
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
@@ -72,15 +72,12 @@ class Sequence():
             
         # Load video
         self._vidcap = cv.VideoCapture(path)
-        if self._vidcap is None:
-            log.error("Could not load video file '{}'")
-            return False
-        
-        self._vid_success, self._vid_frame = self._readVideoFrame()
-        if not self._vid_success:
-            log.error("Could not load video file '{}'")
+        self._vid_frame = self._readVideoFrame()
+        if self._vid_frame is None:
+            log.error(f"Could not load video file '{path}'")
             return False
             
+        self._frames = {key: None for key in frame_list}        
         self._vid_state = VidParseState.PreBlack
         self._vid_frame_number = -1
         self._vid_frame_count = self._skip_count = 0
@@ -94,7 +91,7 @@ class Sequence():
         
     def loadFrames(self, until_frame=-1):
         # Iterate through frames until max
-        while self._vid_success and (until_frame == -1 or self._vid_frame_number <= until_frame):
+        while self._vid_frame is not None and (until_frame == -1 or self._vid_frame_number <= until_frame):
             match self._vid_state:
                 case VidParseState.PreBlack:
                     # Wait for black frame
@@ -139,7 +136,7 @@ class Sequence():
                     self._vid_frame_number += 1
                     
             # Next iteration
-            self._vid_success, self._vid_frame = self._readVideoFrame()
+            self._vid_frame = self._readVideoFrame()
             self._vid_frame_count +=1
             
     def append(self, img: ImgBuffer, id):
@@ -171,15 +168,22 @@ class Sequence():
         del self._frames[key]
     
     def __iter__(self):
-        # TODO: Lazy loading not working with this
-        self.loadFrames(-1)
+        # TODO: Lazy loading not working with __iter__
+        if self._is_video:
+            self.loadFrames(-1)
         return iter(self._frames.items())
 
     def __len__(self):
         return len(self._frames)
     
     
-    def _readVideoFrame(self):
+    def _readVideoFrame(self) -> ArrayLike:
+        if self._vidcap is None:
+            return None
+        
         suc, frame = self._vidcap.read()
-        return (suc, cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+        if not suc:
+            return None
+        
+        return cv.cvtColor(frame, cv.COLOR_BGR2RGB)
     
