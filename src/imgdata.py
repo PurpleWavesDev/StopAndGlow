@@ -207,7 +207,7 @@ class ImgBuffer:
         return 0
     def resolution(self) -> [int, int]:
         if self.get() is not None:
-            return (self._img.shape[0], self._img.shape[1])
+            return (self._img.shape[1], self._img.shape[0])
         return (0, 0)
     def r(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,0], domain=self._domain)
@@ -221,6 +221,16 @@ class ImgBuffer:
         return ImgBuffer(path=self._path, img=cv.cvtColor(self.get(), cv.COLOR_RGB2GRAY), domain=self._domain)
     def gray2RGB(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=np.dstack((self.get(),self.get(),self.get())), domain=self._domain)
+    
+    def getPix(self, coord) -> ArrayLike:
+        return self.get()[coord[1]][coord[0]]
+    def setPix(self, coord, val):
+        self.get()[coord[1]][coord[0]] = val
+        
+    def scale(self, factor) -> ArrayLike:
+        interpol = cv.INTER_AREA if factor < 1 else cv.INTER_LINEAR
+        img = cv.resize(self.get(), dsize=None, fx=factor, fy=factor, interpolation=interpol)
+        return ImgBuffer(path=self._path, img=img, domain=self._domain)
     
     ### Operators ###
     def __getitem__(self, coord) -> ImgBuffer:

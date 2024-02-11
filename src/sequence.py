@@ -145,7 +145,7 @@ class Sequence():
         self._min = id if self._min == -1 else min(self._min, id)
         self._max = id if self._max == -1 else max(self._max, id)
             
-    def getMaskFrame(self):
+    def getMaskFrame(self) -> ImgBuffer:
         return self._maskFrame
         
     def getKeyBounds(self):
@@ -154,15 +154,23 @@ class Sequence():
     def getKeys(self):
         return list(self._frames.keys())
 
-    def get(self, index):
+    def get(self, index) -> ImgBuffer:
         if self._is_video:
             self.loadFrames(index)
         return list(self._frames.values())[index]
+    
+    def set(self, index, img: ImgBuffer):
+        # TODO: Gets overwritten when using a video that is not loaded yet
+        self[self.getKeys()[index]] = img
         
     def __getitem__(self, key):
         if self._is_video:
             self.loadFrames(self.getKeys().index(key))
         return self._frames[key]
+    
+    def __setitem__(self, key, item):
+        # TODO: Gets overwritten when using a video that is not loaded yet
+        self._frames[key] = item
     
     def __delitem__(self, key):
         del self._frames[key]

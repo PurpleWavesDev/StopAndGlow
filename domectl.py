@@ -174,8 +174,7 @@ def main(argv):
                 case 'simple':
                     relightSimple(sequence, hw.config)
                 case 'rti':
-                    rti_path = "" # TODO
-                    relightRti(sequence, "")
+                    relightRti(sequence)
                 case 'ml':
                     relightMl(sequence, hw.config)
 
@@ -328,10 +327,30 @@ def lightsConfigRun(hw):
 
 def evalRti(img_seq, config):
     log.info(f"Generate HDRI Lighting from RTI data")
-
+    
+    # Scale down
+    for id, img in img_seq:
+        img = img.scale(0.5)
+        img_seq[id] = img
+    
+    # Calculate RTI
     rti = Rti(img_seq.get(0).resolution())
     rti.calculate(img_seq, config)
-    rti.save("path")
+    
+    # Save RTI sequence
+    rti_seq = rti.get()
+    path = FLAGS.sequence_output_name if FLAGS.sequence_output_name != "" else FLAGS.sequence_name + "_rti"
+    path = os.path.join(FLAGS.sequence_path, path, path)
+    for id, rti_img in rti_seq:
+        rti_img.setPath(f"{path}_{id:03d}")
+        rti_img.save(format=ImgFormat.EXR)
+    
+    # Debug outputs
+    ImgOp.SaveEval(rti.sampleLight((45,0)).get(), "RTI1", ImgFormat.EXR)
+    ImgOp.SaveEval(rti.sampleLight((45,180)).get(), "RTI2", ImgFormat.EXR)
+    ImgOp.SaveEval(rti.sampleLight((45,360)).get(), "RTI3", ImgFormat.EXR)
+    ImgOp.SaveEval(rti.sampleLight((0, 0)).get(), "RTI4", ImgFormat.EXR)
+    ImgOp.SaveEval(rti.sampleLight((90, 0)).get(), "RTI5", ImgFormat.EXR)
 
 def evalHdri(img_seq):
     log.info(f"Processing HDRI RGB sequence")
@@ -441,12 +460,19 @@ def relightSimple(img_seq, config):
 
 def relightRti(img_seq):
     log.info(f"Generate HDRI Lighting from RTI data")
-
-    rti = Rti()
+    
+    rti = Rti(img_seq.get(0).resolution())
+    rti.load(img_seq)
+    ImgOp.SaveEval(rti.sampleLight((45,0)).get(), "RTI1", ImgFormat.EXR)
+    ImgOp.SaveEval(rti.sampleLight((45,180)).get(), "RTI2", ImgFormat.EXR)
+    ImgOp.SaveEval(rti.sampleLight((45,360)).get(), "RTI3", ImgFormat.EXR)
+    ImgOp.SaveEval(rti.sampleLight((0, 0)).get(), "RTI4", ImgFormat.EXR)
+    ImgOp.SaveEval(rti.sampleLight((90, 0)).get(), "RTI5", ImgFormat.EXR)
+    
+    
     hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
     
     # Generate scene with HDRI lighting
-    rti.load(img_seq)
     lighting = rti.sampleHdri(hdri)
     
     lighting.setPath(os.path.join(FLAGS.sequence_path, os.path.splitext(FLAGS.sequence_name)[0], 'relight_rti'))

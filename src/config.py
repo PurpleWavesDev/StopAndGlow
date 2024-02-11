@@ -35,6 +35,8 @@ class Config:
         with open(full_path, "w") as file:
             json.dump(self._data, file, indent=4)
 
+    def getLights(self):
+        return self._data['lights']
 
     def getByIndex(self, index):
         return self._data['lights'][index]

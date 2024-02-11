@@ -99,7 +99,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=relight_rti", "--sequence_name=2024_rti", "--hdri_rotation=0", "--sequence_domain=guess"],
+            "args": ["--loglevel=DEBUG", "--mode=relight_rti", "--sequence_name=20240127_1511_rti", "--hdri_rotation=0", "--sequence_domain=guess"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
