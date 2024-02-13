@@ -170,13 +170,14 @@ def main(argv):
                 case 'cal':
                     evalCal(sequence)
         elif mode == 'relight':
+            name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else os.path.splitext(FLAGS.sequence_name)[0]
             match mode_type:
                 case 'simple':
-                    relightSimple(sequence, hw.config)
+                    relightSimple(sequence, hw.config, name+'_lit_simp')
                 case 'rti':
-                    relightRti(sequence)
+                    relightRti(sequence, name+'_lit_rti')
                 case 'ml':
-                    relightMl(sequence, hw.config)
+                    relightMl(sequence, hw.config, name+'_lit_ml')
 
 
                     
@@ -442,7 +443,7 @@ def evalCal(img_seq):
 
 #################### RELIGHT MODES ####################
 
-def relightSimple(img_seq, config):
+def relightSimple(img_seq, config, output_name):
     # Deine Funktion, Iris :)
     log.info(f"Generate HDRI Lighting from Sequence")
 
@@ -450,19 +451,40 @@ def relightSimple(img_seq, config):
     hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
     dome.processHdri(hdri)
 
+    # Sequence generator
+    for i in range(72):
+        lighting = dome.generateLightingFromSequence(img_seq, longitude_offset=i*5)
+        lighting.setPath(os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{i:03d}"))
+        lighting.set(lighting.get()*40)
+        lighting = lighting.asDomain(ImgDomain.sRGB)
+        lighting.setFormat(ImgFormat.JPG)
+        lighting.save()
+        
+    return
     # Generate scene with HDRI lighting 
     lighting = dome.generateLightingFromSequence(img_seq, longitude_offset=FLAGS.hdri_rotation)
 
-    lighting.setPath(os.path.join(FLAGS.sequence_path, os.path.splitext(FLAGS.sequence_name)[0], 'relight_simple'))
+    lighting.setPath(os.path.join(FLAGS.sequence_path, output_name, output_name))
     lighting.setFormat(ImgFormat.EXR)
     lighting.save()
 
 
-def relightRti(img_seq):
+def relightRti(img_seq, output_name):
     log.info(f"Generate HDRI Lighting from RTI data")
     
     rti = Rti(img_seq.get(0).resolution())
     rti.load(img_seq)
+    
+    # Sequence generator
+    for i in range(36):
+        lighting = rti.sampleLight((45, i*10))
+        lighting.setPath(os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{i:03d}"))
+        lighting.set(lighting.get()*20)
+        lighting = lighting.asDomain(ImgDomain.sRGB)
+        lighting.setFormat(ImgFormat.JPG)
+        lighting.save()
+    return    
+    
     ImgOp.SaveEval(rti.sampleLight((45,0)).get(), "RTI1", ImgFormat.EXR)
     ImgOp.SaveEval(rti.sampleLight((45,180)).get(), "RTI2", ImgFormat.EXR)
     ImgOp.SaveEval(rti.sampleLight((45,360)).get(), "RTI3", ImgFormat.EXR)
@@ -475,12 +497,12 @@ def relightRti(img_seq):
     # Generate scene with HDRI lighting
     lighting = rti.sampleHdri(hdri)
     
-    lighting.setPath(os.path.join(FLAGS.sequence_path, os.path.splitext(FLAGS.sequence_name)[0], 'relight_rti'))
+    lighting.setPath(os.path.join(FLAGS.sequence_path, output_name, output_name))
     lighting.setFormat(ImgFormat.EXR)
     lighting.save()
     
     
-def relightMl(img_seq, config):
+def relightMl(img_seq, config, output_name):
     pass
     
 
