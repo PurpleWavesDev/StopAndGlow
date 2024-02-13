@@ -5,8 +5,9 @@ import math
 
 import cv2 as cv
 
-from numba import njit, prange, types
-from numba.typed import Dict
+import taichi as ti
+#from numba import njit, prange, types
+#from numba.typed import Dict
 
 from src.imgdata import *
 from src.sequence import *
@@ -34,7 +35,14 @@ class Rti:
             #key_type=types.int32,
             #value_type=types.float32[:])
         for light in config:
-            lights[light['id']] = Rti.Latlong2UV(light['latlong'])
+            id = light['id']
+            u, v = Rti.Latlong2UV(light['latlong'])
+
+            if frames[id] is not None:
+                # Fill matrix with coordinate 
+                u, v = light
+                A = np.vstack((A, np.array([1, u, v, u*v, u**2, v**2])))
+
         
         # Iterate over pixels
         #@njit(parallel=True)
@@ -46,6 +54,7 @@ class Rti:
                     vec_rgb = np.zeros((0, 3))
                     
                     # Iterate over lights
+                    ## Die schleife nach vorne!
                     for id, light in lights.items():
                         if frames[id] is not None:
                             # Fill matrix with coordinate 
@@ -58,6 +67,8 @@ class Rti:
                     #   x is the vector of the 6 unknown factors
                     #   b are the pixel values (RGB)
                     # Equation is over determined, we can use the least-squares solution
+                    # A muss invertiert werden! Alles vor der Schleife
+                    #np.linalg.inv()
                     result, _, _, _ = np.linalg.lstsq(A, vec_rgb, rcond=None)
                     for row in enumerate(result):
                         factors[row[0]][y][x] = row[1]

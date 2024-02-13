@@ -242,4 +242,4 @@ class ImgBuffer:
     
     # Factory for single pixel value
     def FromPix(values, domain: ImgDomain = ImgDomain.sRGB) -> ImgBuffer:
-        return ImgBuffer(img=np.array([[values]]))#.astype(IMAGE_DTYPE_INT)) # TODO: int/float
+        return ImgBuffer(img=np.array([[values]]).astype(IMAGE_DTYPE_INT)) # TODO: int/float; default for int is int64 which causes problems!

@@ -300,7 +300,7 @@ def lightsHdriRotate(hw):
     dome = Lightdome(hw.config)
     hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
     dome.processHdri(hdri)
-    dome.sampleHdri(0)
+    dome.sampleLightsForHdri(0)
     img = dome.generateLatLong(hdri)
     ImgOp.SaveEval(img.get(), "hdri_latlong")
     img = dome.generateUV()
@@ -308,7 +308,7 @@ def lightsHdriRotate(hw):
     
     # Function for
     def fn(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleHdri(i*3) # 10 degree / second
+        dome.sampleLightsForHdri(i*3) # 10 degree / second
         lights.setLights(dome.getLights())
         return i<360
     
