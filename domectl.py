@@ -327,7 +327,7 @@ def lightsConfigRun(hw):
 #################### EVAL MODES ####################
 
 def evalRti(img_seq, config):
-    log.info(f"Generate HDRI Lighting from RTI data")
+    log.info(f"Generate RTI Data from image sequence")
     
     # Scale down
     for id, img in img_seq:

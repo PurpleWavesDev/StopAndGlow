@@ -5,7 +5,7 @@ import math
 
 import cv2 as cv
 
-import taichi as ti
+#import taichi as ti
 #from numba import njit, prange, types
 #from numba.typed import Dict
 
@@ -13,79 +13,52 @@ from src.imgdata import *
 from src.sequence import *
 from src.config import *
 
+SIX_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2])
+#SEVEN_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2, u**2 * v + ])
+EIGTH_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2, u**2 * v, v**2 * u])
+
 class Rti:
     def __init__(self, resolution=(0,0)):
         self._res_x = resolution[0]
         self._res_y = resolution[1]
         
         self._factors = np.zeros((0,))
-        self._frames = dict()#Dict.empty(
-            #key_type=types.int32,
-            #value_type=types.float32[:])
-
         
-    def calculate(self, img_seq: Sequence, config: Config, num_factors=6):
-        # Load images first
-        for id, img in img_seq:
-            self._frames[id] = img.asDomain(ImgDomain.Lin, as_float=True).get()
-            img.unload()
-        
-        # Fill lights dict for numba
-        lights = dict()#Dict.empty(
-            #key_type=types.int32,
-            #value_type=types.float32[:])
+    def calculate(self, img_seq: Sequence, config: Config, num_factors=8):
+        # Generate matrix inverse and load frames
+        frames = list()
+        img_keys = img_seq.getKeys()
+        A = np.zeros((0,num_factors))
+        # Iterate over lights
         for light in config:
             id = light['id']
-            u, v = Rti.Latlong2UV(light['latlong'])
-
-            if frames[id] is not None:
+            # Check if ID is in image sequence            
+            if id in img_keys:
+                # Load frames
+                frames.append(img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get())
+                img_seq[id].unload()
                 # Fill matrix with coordinate 
-                u, v = light
-                A = np.vstack((A, np.array([1, u, v, u*v, u**2, v**2])))
-
+                u, v = Rti.Latlong2UV(light['latlong'])
+                A = np.vstack((A, EIGTH_FACTORS(u, v))) # TODO
+        # Calculate inverse
+        A = np.linalg.pinv(A)
         
+        # Empty array for factors
+        self._factors = np.zeros((num_factors, self._res_y, self._res_x, 3))
         # Iterate over pixels
-        #@njit(parallel=True)
-        def parallel_calc(frames, lights, res_x, res_y):
-            factors = np.zeros((6, res_y, res_x, 3))
-            for y in range(res_y):
-                for x in range(res_x):
-                    A = np.zeros((0,6))
-                    vec_rgb = np.zeros((0, 3))
-                    
-                    # Iterate over lights
-                    ## Die schleife nach vorne!
-                    for id, light in lights.items():
-                        if frames[id] is not None:
-                            # Fill matrix with coordinate 
-                            u, v = light
-                            A = np.vstack((A, np.array([1, u, v, u*v, u**2, v**2])))
-                            # Fill vector with pixel values
-                            vec_rgb = np.vstack((vec_rgb, frames[id][y][x]))
-                            
-                    # We want to solve following equation: A x = b; where
-                    #   x is the vector of the 6 unknown factors
-                    #   b are the pixel values (RGB)
-                    # Equation is over determined, we can use the least-squares solution
-                    # A muss invertiert werden! Alles vor der Schleife
-                    #np.linalg.inv()
-                    result, _, _, _ = np.linalg.lstsq(A, vec_rgb, rcond=None)
-                    for row in enumerate(result):
-                        factors[row[0]][y][x] = row[1]
-                        
-            return factors
-        
-        self._factors = parallel_calc(self._frames, lights, self._res_x, self._res_y)
+        for y in range(self._res_y):
+            for x in range(self._res_x):
+                vec_rgb = np.zeros((0, 3))
                 
-                ## SVD decomposition replaces this problem with: U diag(s) Vh x = b
-                ## Compute SVD
-                #U,s,Vh = np.linalg.svd(mat_a)
-                ## U diag(s) Vh x = b <=> diag(s) Vh x = U.T b = c
-                #c = np.dot(U.T, vec_b)
-                ## diag(s) Vh x = c <=> Vh x = diag(1/s) c = w (trivial inversion of a diagonal matrix)
-                #w = np.dot(np.diag(1/s), c)
-                ## Vh x = w <=> x = Vh.H w (where .H stands for hermitian = conjugate transpose)
-                #x = np.dot(Vh.conj().T, w)
+                # Iterate over frames
+                for frame in frames:
+                    vec_rgb = np.vstack((vec_rgb, frame[y][x]))
+                
+                # Calculate result and apply to factor array
+                result = A @ vec_rgb
+                for row in enumerate(result):
+                    self._factors[row[0]][y][x] = row[1]
+                    
     
     def load(self, rti_seq: Sequence):
         #self._factors = np.zeros((0, self._res_y, self._res_x, 3))
@@ -94,7 +67,7 @@ class Rti:
     def get(self) -> Sequence:
         seq = Sequence()
         
-        for i in range(6):
+        for i in range(self._factors.shape[0]):
             seq.append(ImgBuffer(img=self._factors[i], domain=ImgDomain.Lin), i)
         
         return seq
@@ -106,7 +79,8 @@ class Rti:
         
         for x in range(self._res_x):
             for y in range(self._res_y):
-                rgb = self.a(0)[y, x] + self.a(1)[y, x]*u + self.a(2)[y, x]*v + self.a(3)[y, x]*u*v + self.a(4)[y, x]*u**2 + self.a(5)[y, x]*v**2
+                #rgb = self.a(0)[y, x] + self.a(1)[y, x]*u + self.a(2)[y, x]*v + self.a(3)[y, x]*u*v + self.a(4)[y, x]*u**2 + self.a(5)[y, x]*v**2
+                rgb = self.a(0)[y, x] + self.a(1)[y, x]*u + self.a(2)[y, x]*v + self.a(3)[y, x]*u*v + self.a(4)[y, x]*u**2 + self.a(5)[y, x]*v**2 + self.a(6)[y, x]*u**2 * v + self.a(7)[y, x]*v**2 * u
                 image.setPix((x, y), rgb)
         
         return image
