@@ -41,7 +41,7 @@ FLAGS = flags.FLAGS
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_stack', 'eval_linearize', 'eval_cal','relight_simple', 'relight_rti', 'relight_ml', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_stack', 'eval_linearize', 'eval_cal','relight_simple', 'relight_rti', 'relight_ml', 'viewer_rti', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
@@ -178,6 +178,10 @@ def main(argv):
                     relightRti(sequence, name+'_lit_rti')
                 case 'ml':
                     relightMl(sequence, hw.config, name+'_lit_ml')
+        elif mode == 'viewer':
+            match mode_type:
+                case 'rti':
+                    viewerRti(sequence)
 
 
                     
@@ -504,6 +508,16 @@ def relightRti(img_seq, output_name):
     
 def relightMl(img_seq, config, output_name):
     pass
+
+
+#################### VIEWER MODES ####################
+
+def viewerRti(img_seq):
+    log.info(f"Generate HDRI Lighting from RTI data")
+    
+    rti = Rti(img_seq.get(0).resolution())
+    rti.load(img_seq)
+    rti.launchViewer()
     
 
 

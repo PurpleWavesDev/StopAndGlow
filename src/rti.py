@@ -6,16 +6,19 @@ import math
 import cv2 as cv
 
 #import taichi as ti
+#import taichi.math as tm
 #from numba import njit, prange, types
 #from numba.typed import Dict
 
 from src.imgdata import *
 from src.sequence import *
 from src.config import *
+import src.rti_taichi as rtaichi
 
 SIX_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2])
 #SEVEN_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2, u**2 * v + ])
 EIGTH_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2, u**2 * v, v**2 * u])
+
 
 class Rti:
     def __init__(self, resolution=(0,0)):
@@ -94,6 +97,10 @@ class Rti:
         normals = np.zeros((self._res_y, self._res_x, 3))
         
         return normals
+
+
+    def launchViewer(self, scale=1):
+        rtaichi.launchViewer(res=(int(self._res_x * scale), int(self._res_y * scale)))
     
     def a(self, factor) -> ArrayLike:
         return self._factors[factor]

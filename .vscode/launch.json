@@ -99,7 +99,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=relight_rti", "--sequence_name=20240127_1511_lights_linear_rti", "--hdri_rotation=0", "--sequence_domain=guess"],
+            "args": ["--loglevel=DEBUG", "--mode=relight_rti", "--sequence_name=20240127_1511_lights_linear_rti", "--hdri_rotation=0"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -108,7 +108,16 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=relight_ml", "--sequence_name=2024_ml", "--hdri_rotation=0", "--sequence_domain=guess"],
+            "args": ["--loglevel=DEBUG", "--mode=relight_ml", "--sequence_name=2024_ml", "--hdri_rotation=0"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "RTI Viewer",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=viewer_rti", "--sequence_name=20240127_1511_lights_linear_rti"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
