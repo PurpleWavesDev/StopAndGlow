@@ -227,8 +227,8 @@ class ImgBuffer:
     def setPix(self, coord, val):
         self.get()[coord[1]][coord[0]] = val
         
-    def scale(self, factor) -> ArrayLike:
-        interpol = cv.INTER_AREA if factor < 1 else cv.INTER_LINEAR
+    def scale(self, factor, high_qual=True) -> ArrayLike:
+        interpol = cv.INTER_NEAREST if not high_qual else cv.INTER_AREA if factor < 1 else cv.INTER_LINEAR
         img = cv.resize(self.get(), dsize=None, fx=factor, fy=factor, interpolation=interpol)
         return ImgBuffer(path=self._path, img=img, domain=self._domain)
     

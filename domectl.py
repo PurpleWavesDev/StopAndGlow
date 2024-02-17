@@ -334,12 +334,12 @@ def evalRti(img_seq, config):
     log.info(f"Generate RTI Data from image sequence")
     
     # Scale down
-    for id, img in img_seq:
-        img = img.scale(0.5)
-        img_seq[id] = img
+    #for id, img in img_seq:
+    #    img = img.scale(0.5, False)
+    #    img_seq[id] = img
     
     # Calculate RTI
-    rti = Rti(img_seq.get(0).resolution())
+    rti = Rti()
     rti.calculate(img_seq, config)
     
     # Save RTI sequence
@@ -349,6 +349,8 @@ def evalRti(img_seq, config):
     for id, rti_img in rti_seq:
         rti_img.setPath(f"{path}_{id:03d}")
         rti_img.save(format=ImgFormat.EXR)
+        
+    rti.launchViewer()
     
     # Debug outputs
     ImgOp.SaveEval(rti.sampleLight((45,0)).get(), "RTI1", ImgFormat.EXR)
@@ -410,6 +412,7 @@ def evalLinearize(img_seq, output_name):
         id = img_seq.getKeys()[i]
         img.setPath(os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{id:03d}"))
         img.setFormat(ImgFormat.EXR)
+        #img = img.scale(0.5) # TODO
         img.unload(save=True)
 
 def evalCal(img_seq):
@@ -515,7 +518,7 @@ def relightMl(img_seq, config, output_name):
 def viewerRti(img_seq):
     log.info(f"Generate HDRI Lighting from RTI data")
     
-    rti = Rti(img_seq.get(0).resolution())
+    rti = Rti()
     rti.load(img_seq)
     rti.launchViewer()
     

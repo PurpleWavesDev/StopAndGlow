@@ -5,110 +5,166 @@ import math
 
 import cv2 as cv
 
-#import taichi as ti
-#import taichi.math as tm
+import taichi as ti
+import taichi.math as tm
 #from numba import njit, prange, types
 #from numba.typed import Dict
 
 from src.imgdata import *
 from src.sequence import *
 from src.config import *
-import src.rti_taichi as rtaichi
+import src.rti_taichi as rtichi
 
-SIX_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2])
-#SEVEN_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2, u**2 * v + ])
-EIGTH_FACTORS = lambda u, v: np.array([1, u, v, u*v, u**2, v**2, u**2 * v, v**2 * u])
+POL_GRADE_3 = lambda u, v: np.array([1, u, v, u*v, u**2, v**2])
+POL_GRADE_4 = lambda u, v: np.concatenate((POL_GRADE_3(u, v), [u**2 * v, v**2 * u, u**3, v**3]))
+POL_GRADE_5 = lambda u, v: np.concatenate((POL_GRADE_4(u, v), [u**2 * v**2, u**3 * v, v**3 * u, u**4, v**4]))
+POL_GRADE_6 = lambda u, v: np.concatenate((POL_GRADE_5(u, v), [u**3 * v**2, u**2 * v**3, u**4 * v, u * v**4, u**5, v**5]))
 
+def PolGrade(grade, u, v):
+    match grade:
+        case 3:
+            return POL_GRADE_3(u, v)
+        case 4:
+            return POL_GRADE_4(u, v)
+        case 5:
+            return POL_GRADE_5(u, v)
+        case 6:
+            return POL_GRADE_6(u, v)
+            
+# (1, 3,) 6, 10, 15, 21
 
 class Rti:
-    def __init__(self, resolution=(0,0)):
-        self._res_x = resolution[0]
-        self._res_y = resolution[1]
+    def __init__(self):
+        pass
+    
+    def calculate(self, img_seq: Sequence, config: Config, grade=3):
+        # Limit polynom grade and calculate number of factors
+        grade = max(3, min(6, grade))
+        num_factors = int((grade+1)*grade / 2)
+        # Get dict of light ids with coordinates that are both in the config and image sequence
+        lights = {light['id']: Rti.Latlong2UV(light['latlong']) for light in config if light['id'] in img_seq.getKeys()}
+        log.debug(f"RTI Calculate: {len(lights)} images with light coordinates available in image sequence of length {len(img_seq)}")
+        # Get resoultion and image count
+        res_x, res_y = img_seq.get(0).resolution()
+        img_count = len(lights)
         
-        self._factors = np.zeros((0,))
+        # Generate polynom-matrix
+        A = np.zeros((0, num_factors))
+        for coord in lights.values():
+            u, v = coord
+            A = np.vstack((A, PolGrade(grade, u, v)))
+        # Calculate (pseudo)inverse
+        mat_inv = np.linalg.pinv(A).astype(np.float32)
         
-    def calculate(self, img_seq: Sequence, config: Config, num_factors=8):
-        # Generate matrix inverse and load frames
-        frames = list()
-        img_keys = img_seq.getKeys()
-        A = np.zeros((0,num_factors))
-        # Iterate over lights
-        for light in config:
-            id = light['id']
-            # Check if ID is in image sequence            
-            if id in img_keys:
-                # Load frames
-                frames.append(img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get())
-                img_seq[id].unload()
-                # Fill matrix with coordinate 
-                u, v = Rti.Latlong2UV(light['latlong'])
-                A = np.vstack((A, EIGTH_FACTORS(u, v))) # TODO
-        # Calculate inverse
-        A = np.linalg.pinv(A)
-        
-        # Empty array for factors
-        self._factors = np.zeros((num_factors, self._res_y, self._res_x, 3))
-        # Iterate over pixels
-        for y in range(self._res_y):
-            for x in range(self._res_x):
-                vec_rgb = np.zeros((0, 3))
-                
-                # Iterate over frames
-                for frame in frames:
-                    vec_rgb = np.vstack((vec_rgb, frame[y][x]))
-                
-                # Calculate result and apply to factor array
-                result = A @ vec_rgb
-                for row in enumerate(result):
-                    self._factors[row[0]][y][x] = row[1]
+        # Important fields in full resoultion
+        # Field for factors
+        self._rti_factors = ti.Vector.field(n=3, dtype=ti.f32, shape=(num_factors, res_y, res_x))
+        # Fields for inverse and pixel buffer
+        ti_mat_inv = ti.ndarray(dtype=ti.f32, shape=(num_factors, img_count))
+        ti_mat_inv.from_numpy(mat_inv)
+
+        # Image slices for memory reduction
+        slice_length = 200
+        sequence = ti.Vector.field(n=3, dtype=ti.f32, shape=(img_count, slice_length, res_x))
+        for slice_count in range(int(res_y/slice_length)):
+            start = slice_count*slice_length
+            end = min((slice_count+1)*slice_length, res_y)
+            
+            # Copy frames to buffer
+            #arr = np.stack([img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end] for id in lights.keys()])
+            #sequence.from_numpy(arr)
+            for i, id in enumerate(lights.keys()):
+                rtichi.copyFrame(sequence, i, img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end])
+            
+            # Calculate Factors
+            rtichi.calculateFactors(sequence, self._rti_factors, ti_mat_inv, start)
                     
     
     def load(self, rti_seq: Sequence):
-        #self._factors = np.zeros((0, self._res_y, self._res_x, 3))
-        self._factors = np.stack([frame[1].get() for frame in rti_seq], axis=0)
+        # Init Taichi field
+        res_x, res_y = rti_seq.get(0).resolution()
+        self._rti_factors = ti.Vector.field(n=3, dtype=ti.f32, shape=(len(rti_seq), res_y, res_x))
+        
+        # Copy frames to factors
+        arr = np.stack([frame[1].get() for frame in rti_seq], axis=0)
+        self._rti_factors.from_numpy(arr)
+        
     
     def get(self) -> Sequence:
         seq = Sequence()
+        arr = self._rti_factors.to_numpy()
         
-        for i in range(self._factors.shape[0]):
-            seq.append(ImgBuffer(img=self._factors[i], domain=ImgDomain.Lin), i)
+        for i in range(self._rti_factors.shape[0]):
+            seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
         
         return seq
     
     def sampleLight(self, light_pos) -> ImgBuffer:
-        image = ImgBuffer(img=np.zeros((self._res_y, self._res_x, 3)), domain=ImgDomain.Lin)
+        # Init Taichi field
+        res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
+        pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
         
         u, v = Rti.Latlong2UV(light_pos)
+        rtichi.sampleLight(pixels, self._rti_factors, u, v)
         
-        for x in range(self._res_x):
-            for y in range(self._res_y):
-                #rgb = self.a(0)[y, x] + self.a(1)[y, x]*u + self.a(2)[y, x]*v + self.a(3)[y, x]*u*v + self.a(4)[y, x]*u**2 + self.a(5)[y, x]*v**2
-                rgb = self.a(0)[y, x] + self.a(1)[y, x]*u + self.a(2)[y, x]*v + self.a(3)[y, x]*u*v + self.a(4)[y, x]*u**2 + self.a(5)[y, x]*v**2 + self.a(6)[y, x]*u**2 * v + self.a(7)[y, x]*v**2 * u
-                image.setPix((x, y), rgb)
-        
-        return image
+        return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)
     
-    def sampleHdri(self, hdri) -> ImgBuffer:
-        image = ImgBuffer()
+    def sampleHdri(self, hdri, rotation) -> ImgBuffer:
+        # Init Taichi field
+        res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
+        pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
         
-        return image
+        rtichi.sampleHdri(pixels, self._rti_factors, hdri, rotation)
+        
+        return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)
     
     def sampleNormals(self) -> ArrayLike:
-        normals = np.zeros((self._res_y, self._res_x, 3))
+        # Init Taichi field
+        res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
+        normals = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
         
-        return normals
+        rtichi.sampleNormals(normals, self._rti_factors)
+        
+        return ImgBuffer(img=normals.to_numpy(), domain=ImgDomain.Lin)
 
 
     def launchViewer(self, scale=1):
-        rtaichi.launchViewer(res=(int(self._res_x * scale), int(self._res_y * scale)))
+        # Init Taichi field
+        res_x, res_y = (int(self._rti_factors.shape[2] * scale), int(self._rti_factors.shape[1] * scale))
+        gui = ti.GUI("RTI Viewer", res=(res_y, res_x), fast_gui=True)
+        pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
+
+        u: ti.f32 = 0.5
+        v: ti.f32 = 0
+        while gui.running:
+            # Events Escape
+            if gui.get_event(ti.GUI.ESCAPE):
+                break
+            # Event Mouse click
+            if gui.get_event(ti.GUI.LMB):
+                coords = gui.get_cursor_pos()
+                coords = coords*2 - 1
+                u, v = coords
+            else:
+                v = (v+1.01)%2 - 1
+            
+            if True:
+                rtichi.sampleLight(pixels, self._rti_factors, u, v)
+            elif False:
+                rtichi.sampleHdri(pixels, self._rti_factors, hdri, v)
+            else:
+                rtichi.sampleNormals(pixel, self._rti_factors)
+            gui.set_image(pixels)
+            gui.show()
+
     
     def a(self, factor) -> ArrayLike:
         return self._factors[factor]
     
     # Static functions
     def Latlong2UV(latlong) -> [float, float]:
-        """Returns Lat-Long coordinates in the range of -1 to 1"""
-        return (latlong[0] / 90, latlong[1]/180 - 1)
+        """Returns Lat-Long coordinates in the range of 0 to 1"""
+        return ((latlong[0]+90) / 180, latlong[1]/180)
 
 # OpenExr Sample Function    
 #import OpenEXR as exr
