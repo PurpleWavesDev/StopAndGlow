@@ -36,7 +36,7 @@ def sampleLight(pix: ti.template(), A: ti.template(), u: ti.f32, v: ti.f32):
         if A.shape[0] >= 15:
             # Grade 5
             pix[y, x] += A[10, y, x] * u**2 * v**2 + A[11, y, x] * u**3 * v + A[12, y, x] * u * v**3 +\
-                A[13, y, x] * u*4 + A[14, y, x] * v**4
+                A[13, y, x] * u**4 + A[14, y, x] * v**4
         if A.shape[0] >= 21:
             # Grade 6
             pix[y, x] += A[15, y, x] * u**3 * v**2 + A[16, y, x] * u**2 * v**3 +\
@@ -47,12 +47,18 @@ def sampleLight(pix: ti.template(), A: ti.template(), u: ti.f32, v: ti.f32):
         pix[y, x] *= 10
         
 @ti.kernel
-def sampleHdri(pix: ti.template(), A: ti.template(), hdri: ti.types.ndarray(dtype=ti.types.vector(3, ti.f32), ndim=2), rotation: ti.f32):
-    pass
+def sampleHdri(pix: ti.template(), A: ti.template(), hdri: ti.template(), rotation: ti.f32):
+    for y, x in pix:
+        pix[y, x] = [ti.random(), ti.random(), ti.random()]
    
 @ti.kernel
 def sampleNormals(pix: ti.template(), A: ti.template()):
     pass
+
+@ti.kernel
+def lin2srgb(pix: ti.template(), exposure: ti.f32):
+    for y, x in pix:
+        pix[y, x] = pix[y, x] * exposure
 
 @ti.kernel
 def transpose(field_in: ti.template(), field_out: ti.template()):

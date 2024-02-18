@@ -340,7 +340,7 @@ def evalRti(img_seq, config):
     
     # Calculate RTI
     rti = Rti()
-    rti.calculate(img_seq, config, grade=3)
+    rti.calculate(img_seq, config, grade=6)
     
     # Save RTI sequence
     rti_seq = rti.get()
@@ -520,7 +520,8 @@ def viewerRti(img_seq):
     
     rti = Rti()
     rti.load(img_seq)
-    rti.launchViewer()
+    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    rti.launchViewer(hdri)
     
 
 

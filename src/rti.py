@@ -36,6 +36,7 @@ def PolGrade(grade, u, v):
 class Rti:
     def __init__(self):
         ti.init(arch=ti.gpu, debug=True)
+        self._u_min = self._u_max = self._v_min = self._v_max = None
     
     def calculate(self, img_seq: Sequence, config: Config, grade=3):
         # Limit polynom grade and calculate number of factors
@@ -52,6 +53,10 @@ class Rti:
         A = np.zeros((0, num_factors))
         for coord in lights.values():
             u, v = coord
+            self._u_min = u if self._u_min is None else min(u, self._u_min)
+            self._u_max = u if self._u_max is None else max(u, self._u_max)
+            self._v_min = v if self._v_min is None else min(v, self._v_min)
+            self._v_max = v if self._v_max is None else max(v, self._v_max)
             A = np.vstack((A, PolGrade(grade, u, v)))
         # Calculate (pseudo)inverse
         mat_inv = np.linalg.pinv(A).astype(np.float32)
@@ -88,6 +93,10 @@ class Rti:
         # Copy frames to factors
         arr = np.stack([frame[1].get() for frame in rti_seq], axis=0)
         self._rti_factors.from_numpy(arr)
+        
+        # Load metadata TODO
+        self._u_min = self._v_min = 0
+        self._u_max = self._v_max = 1
         
     
     def get(self) -> Sequence:
@@ -128,40 +137,74 @@ class Rti:
         return ImgBuffer(img=normals.to_numpy(), domain=ImgDomain.Lin)
 
 
-    def launchViewer(self, scale=1): # TODO: Scale doesnt work
+    def launchViewer(self, hdri=None, scale=1): # TODO: Scale doesnt work
         # Init Taichi field
         res_x, res_y = (int(self._rti_factors.shape[2] * scale), int(self._rti_factors.shape[1] * scale))
-        gui = ti.GUI("RTI Viewer", res=(res_x, res_y), fast_gui=True)
+        window = ti.ui.Window("RTI Viewer", res=(res_x, res_y), fps_limit=60)
+        canvas = window.get_canvas()
+        # Fields
         pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
         img = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_x, res_y))
-
+        if hdri is not None:
+            hdri_x, hdri_y = hdri.resolution()
+            hdri_ti = ti.Vector.field(n=3, dtype=ti.f32, shape=(hdri_y, hdri_x))
+            hdri_ti.from_numpy(hdri.get())
+        
         u: ti.f32 = 0.75
         v: ti.f32 = 0.5
-        while gui.running:
-            # Events Escape
-            if gui.get_event(ti.GUI.ESCAPE):
-                break
-            # Event Mouse click
-            if True:#gui.get_event(ti.GUI.SPACE):
-                v, u = gui.get_cursor_pos()
+        exposure: ti.f32 = 1
+        mode = 0
+        mode_count = 3
+        control_by_mouse = False
+        while window.running:
+            # Events
+            # Arrows, exposure control and mode change
+            if window.is_pressed(ti.ui.UP):
+                exposure += 0.1
+            elif window.is_pressed(ti.ui.DOWN):
+                exposure -= 0.1
+            if window.get_event(ti.ui.PRESS):
+                # Escape/Quit
+                if window.event.key in [ti.ui.ESCAPE]: break
+                # Space for control switch
+                elif window.event.key in [ti.ui.SPACE]:
+                    control_by_mouse = not control_by_mouse
+                # Mode changes
+                elif window.event.key in [ti.ui.RIGHT]:
+                    mode = (mode+1) % mode_count
+                    if mode == 1 and hdri is None:
+                        mode += 1
+                elif window.event.key in [ti.ui.LEFT]:
+                    mode = (mode+mode_count-1) % mode_count
+                    if mode == 1 and hdri is None:
+                        mode -= 1
+            
+            if control_by_mouse:
+                v, u = window.get_cursor_pos()
+                u = self._u_min + (self._u_max-self._u_min) * u
+                v = self._v_min + (self._v_max-self._v_min) * v
             else:
                 v = (v+0.01)%1
             
-            if True:
-                rtichi.sampleLight(pixels, self._rti_factors, u, v)
-            elif False:
-                rtichi.sampleHdri(pixels, self._rti_factors, hdri, v)
-            else:
-                rtichi.sampleNormals(pixel, self._rti_factors)
+            match mode:
+                case 0:
+                    rtichi.sampleLight(pixels, self._rti_factors, u, v)
+                    rtichi.lin2srgb(pixels, exposure)
+                case 1:
+                    rtichi.sampleHdri(pixels, self._rti_factors, hdri_ti, v)
+                    rtichi.lin2srgb(pixels, exposure)
+                case 2:
+                    rtichi.sampleNormals(pixels, self._rti_factors)
             rtichi.transpose(pixels, img)
-            gui.set_image(img)
-            gui.show()
+            
+            canvas.set_image(img)
+            window.show()
 
         
     # Static functions
     def Latlong2UV(latlong) -> [float, float]:
         """Returns Lat-Long coordinates in the range of 0 to 1"""
-        return ((latlong[0]+90) / 180, latlong[1]/360)
+        return ((latlong[0]+90) / 180, (latlong[1]+180)%360 / 360)
 
 # OpenExr Sample Function    
 #import OpenEXR as exr
