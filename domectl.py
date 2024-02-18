@@ -518,9 +518,15 @@ def relightMl(img_seq, config, output_name):
 def viewerRti(img_seq):
     log.info(f"Generate HDRI Lighting from RTI data")
     
+    # HDRI
+    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    res_y, res_x = hdri.get().shape[:2]
+    blur_size = int(15*res_y/100)
+    blur_size += 1-blur_size%2 # Make it odd
+    hdri.set(cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
+    
     rti = Rti()
     rti.load(img_seq)
-    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
     rti.launchViewer(hdri)
     
 

@@ -160,9 +160,9 @@ class Rti:
             # Events
             # Arrows, exposure control and mode change
             if window.is_pressed(ti.ui.UP):
-                exposure += 0.1
+                exposure *= 1.02
             elif window.is_pressed(ti.ui.DOWN):
-                exposure -= 0.1
+                exposure /= 1.02
             if window.get_event(ti.ui.PRESS):
                 # Escape/Quit
                 if window.event.key in [ti.ui.ESCAPE]: break

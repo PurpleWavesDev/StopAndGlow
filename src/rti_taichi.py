@@ -25,31 +25,45 @@ def calculateFactors(sequence: ti.template(), factors: ti.template(), inverse: t
 @ti.kernel
 def sampleLight(pix: ti.template(), A: ti.template(), u: ti.f32, v: ti.f32):
     for y, x in pix:
-        # (1, 3,) 6, 10, 15, 21
-        # Grade 3
-        pix[y, x] = A[0, y, x] + A[1, y, x] * u + A[2, y, x] * v +\
-            A[3, y, x] * u*v + A[4, y, x] * u**2 + A[5, y, x] * v**2
-        if A.shape[0] >= 10:
-            # Grade 4
-            pix[y, x] += A[6, y, x] * u**2 * v + A[7, y, x] * v**2 * u +\
-                A[8, y, x] * u**3 + A[9, y, x] * v**3
-        if A.shape[0] >= 15:
-            # Grade 5
-            pix[y, x] += A[10, y, x] * u**2 * v**2 + A[11, y, x] * u**3 * v + A[12, y, x] * u * v**3 +\
-                A[13, y, x] * u**4 + A[14, y, x] * v**4
-        if A.shape[0] >= 21:
-            # Grade 6
-            pix[y, x] += A[15, y, x] * u**3 * v**2 + A[16, y, x] * u**2 * v**3 +\
-                A[17, y, x] * u**4 * v + A[18, y, x] * u * v**4 +\
-                A[19, y, x] * u**5 + A[20, y, x] * v**5
-
+        pix[y, x] = sampleUV(A, y, x, u, v)
         # Exposure correction (?)
         pix[y, x] *= 10
+
+        
+@ti.func
+def sampleUV(A: ti.template(), y: ti.i32, x: ti.i32, u: ti.f32, v: ti.f32):
+    # (1, 3,) 6, 10, 15, 21
+    # Grade 3
+    rgb = A[0, y, x] + A[1, y, x] * u + A[2, y, x] * v +\
+        A[3, y, x] * u*v + A[4, y, x] * u**2 + A[5, y, x] * v**2
+    if A.shape[0] >= 10:
+        # Grade 4
+        rgb += A[6, y, x] * u**2 * v + A[7, y, x] * v**2 * u +\
+            A[8, y, x] * u**3 + A[9, y, x] * v**3
+    if A.shape[0] >= 15:
+        # Grade 5
+        rgb += A[10, y, x] * u**2 * v**2 + A[11, y, x] * u**3 * v + A[12, y, x] * u * v**3 +\
+            A[13, y, x] * u**4 + A[14, y, x] * v**4
+    if A.shape[0] >= 21:
+        # Grade 6
+        rgb += A[15, y, x] * u**3 * v**2 + A[16, y, x] * u**2 * v**3 +\
+            A[17, y, x] * u**4 * v + A[18, y, x] * u * v**4 +\
+            A[19, y, x] * u**5 + A[20, y, x] * v**5
+    return rgb
+
         
 @ti.kernel
 def sampleHdri(pix: ti.template(), A: ti.template(), hdri: ti.template(), rotation: ti.f32):
+    samples_y = 10
+    samples_x = 40
+    rot = 1 - rotation
     for y, x in pix:
-        pix[y, x] = [ti.random(), ti.random(), ti.random()]
+        pix[y, x] = 0
+        for yy, xx in ti.ndrange(samples_y, samples_x):
+            u = yy / (samples_y) * 0.3 + 0.6
+            v = xx / samples_x
+            pix[y, x] += sampleUV(A, y, x, u, v) / (10) * \
+                hdri[ti.cast(u*hdri.shape[0], ti.i32), ti.cast(((v+rot) * hdri.shape[1]) % hdri.shape[1], ti.i32)]
    
 @ti.kernel
 def sampleNormals(pix: ti.template(), A: ti.template()):
