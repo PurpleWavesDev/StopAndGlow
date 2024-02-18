@@ -35,7 +35,7 @@ def PolGrade(grade, u, v):
 
 class Rti:
     def __init__(self):
-        pass
+        ti.init(arch=ti.gpu, debug=True)
     
     def calculate(self, img_seq: Sequence, config: Config, grade=3):
         # Limit polynom grade and calculate number of factors
@@ -64,7 +64,7 @@ class Rti:
         ti_mat_inv.from_numpy(mat_inv)
 
         # Image slices for memory reduction
-        slice_length = 200
+        slice_length = int(res_y/8) # TODO Round up?
         sequence = ti.Vector.field(n=3, dtype=ti.f32, shape=(img_count, slice_length, res_x))
         for slice_count in range(int(res_y/slice_length)):
             start = slice_count*slice_length
@@ -128,25 +128,24 @@ class Rti:
         return ImgBuffer(img=normals.to_numpy(), domain=ImgDomain.Lin)
 
 
-    def launchViewer(self, scale=1):
+    def launchViewer(self, scale=1): # TODO: Scale doesnt work
         # Init Taichi field
         res_x, res_y = (int(self._rti_factors.shape[2] * scale), int(self._rti_factors.shape[1] * scale))
-        gui = ti.GUI("RTI Viewer", res=(res_y, res_x), fast_gui=True)
+        gui = ti.GUI("RTI Viewer", res=(res_x, res_y), fast_gui=True)
         pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
+        img = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_x, res_y))
 
-        u: ti.f32 = 0.5
-        v: ti.f32 = 0
+        u: ti.f32 = 0.75
+        v: ti.f32 = 0.5
         while gui.running:
             # Events Escape
             if gui.get_event(ti.GUI.ESCAPE):
                 break
             # Event Mouse click
-            if gui.get_event(ti.GUI.LMB):
-                coords = gui.get_cursor_pos()
-                coords = coords*2 - 1
-                u, v = coords
+            if True:#gui.get_event(ti.GUI.SPACE):
+                v, u = gui.get_cursor_pos()
             else:
-                v = (v+1.01)%2 - 1
+                v = (v+0.01)%1
             
             if True:
                 rtichi.sampleLight(pixels, self._rti_factors, u, v)
@@ -154,17 +153,15 @@ class Rti:
                 rtichi.sampleHdri(pixels, self._rti_factors, hdri, v)
             else:
                 rtichi.sampleNormals(pixel, self._rti_factors)
-            gui.set_image(pixels)
+            rtichi.transpose(pixels, img)
+            gui.set_image(img)
             gui.show()
 
-    
-    def a(self, factor) -> ArrayLike:
-        return self._factors[factor]
-    
+        
     # Static functions
     def Latlong2UV(latlong) -> [float, float]:
         """Returns Lat-Long coordinates in the range of 0 to 1"""
-        return ((latlong[0]+90) / 180, latlong[1]/180)
+        return ((latlong[0]+90) / 180, latlong[1]/360)
 
 # OpenExr Sample Function    
 #import OpenEXR as exr

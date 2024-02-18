@@ -1,10 +1,6 @@
 import taichi as ti
 import taichi.math as tm
 
-ti.init(arch=ti.gpu)
-
-pixel_vec = ti.Vector.field(n=3, dtype=ti.f32, shape=(15))
-
 
 @ti.kernel
 def copyFrame(sequence: ti.template(), frame_index: ti.i32, copy_frame: ti.types.ndarray(dtype=ti.f32, ndim=3)):
@@ -48,7 +44,7 @@ def sampleLight(pix: ti.template(), A: ti.template(), u: ti.f32, v: ti.f32):
                 A[19, y, x] * u**5 + A[20, y, x] * v**5
 
         # Exposure correction (?)
-        pix[x, y] *= 10
+        pix[y, x] *= 10
         
 @ti.kernel
 def sampleHdri(pix: ti.template(), A: ti.template(), hdri: ti.types.ndarray(dtype=ti.types.vector(3, ti.f32), ndim=2), rotation: ti.f32):
@@ -57,6 +53,11 @@ def sampleHdri(pix: ti.template(), A: ti.template(), hdri: ti.types.ndarray(dtyp
 @ti.kernel
 def sampleNormals(pix: ti.template(), A: ti.template()):
     pass
+
+@ti.kernel
+def transpose(field_in: ti.template(), field_out: ti.template()):
+    for x, y in field_out:
+        field_out[x, field_out.shape[1]-y-1] = field_in[y, x]
    
 #@ti.kernel
 #def copyFactors(A: ti.template(), factors: ti.types.ndarray(dtype=ti.f32, ndim=4)):
