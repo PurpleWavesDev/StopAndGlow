@@ -189,10 +189,10 @@ class Rti:
             match mode:
                 case 0:
                     rtichi.sampleLight(pixels, self._rti_factors, u, v)
-                    rtichi.lin2srgb(pixels, exposure)
+                    rtichi.lin2sRGB(pixels, exposure)
                 case 1:
                     rtichi.sampleHdri(pixels, self._rti_factors, hdri_ti, v)
-                    rtichi.lin2srgb(pixels, exposure)
+                    rtichi.lin2sRGB(pixels, exposure)
                 case 2:
                     rtichi.sampleNormals(pixels, self._rti_factors)
             rtichi.transpose(pixels, img)
