@@ -133,6 +133,9 @@ def main(argv):
             case 'off':
                 hw.lights.off()
             case 'ambient':
+                # All lights on:
+                #hw.lights.setList(range(512), 5)
+                #hw.lights.write()
                 # Ambient light will be turned on anyway, just pass
                 pass
 
@@ -205,6 +208,10 @@ def captureVideo(hw):
 
     log.info("Starting quick capture (video)")
     # Worker & Timer
+    if safe_video_rec:
+        pass#ids = [id, id for id in hw.config.getIds()]
+    else:
+        ids = hw.config.getIds()
     t = Timer(worker.VideoListWorker(hw, hw.config.getIds(), subframe_count=1)) # TODO: Subframe count right? Should be FLAGS.video_frames_skip probably?
 
     # Capture
