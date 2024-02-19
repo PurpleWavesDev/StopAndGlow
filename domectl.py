@@ -344,20 +344,12 @@ def evalRti(img_seq, config):
     
     # Save RTI sequence
     rti_seq = rti.get()
-    path = FLAGS.sequence_output_name if FLAGS.sequence_output_name != "" else FLAGS.sequence_name + "_rti"
-    path = os.path.join(FLAGS.sequence_path, path, path)
-    for id, rti_img in rti_seq:
-        rti_img.setPath(f"{path}_{id:03d}")
-        rti_img.save(format=ImgFormat.EXR)
-        
+    name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != "" else FLAGS.sequence_name + "_rti"
+    rti_seq.saveSequence(name, FLAGS.sequence_path, ImgFormat.EXR)
+
+    # For quick visualisation        
     rti.launchViewer()
-    
-    # Debug outputs
-    ImgOp.SaveEval(rti.sampleLight((45,0)).get(), "RTI1", ImgFormat.EXR)
-    ImgOp.SaveEval(rti.sampleLight((45,180)).get(), "RTI2", ImgFormat.EXR)
-    ImgOp.SaveEval(rti.sampleLight((45,360)).get(), "RTI3", ImgFormat.EXR)
-    ImgOp.SaveEval(rti.sampleLight((0, 0)).get(), "RTI4", ImgFormat.EXR)
-    ImgOp.SaveEval(rti.sampleLight((90, 0)).get(), "RTI5", ImgFormat.EXR)
+
 
 def evalHdri(img_seq):
     log.info(f"Processing HDRI RGB sequence")

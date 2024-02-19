@@ -1,8 +1,10 @@
 from enum import Enum
 import os
 import re
+from pathlib import Path
 import logging as log
 from absl import flags
+import json
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -23,9 +25,17 @@ class Sequence():
     def __init__(self):
         self._frames = dict()
         self._maskFrame = None
+        self._meta = dict()
+        self._meta_changed = False
+        self._metafile_name = None
         self._min=-1
         self._max=-1
         self._is_video = False
+    
+    def __del__(self):
+        if self._meta and self._meta_changed:
+            # Save metadata
+            self.writeMeta()
 
     def load(self, path, domain=ImgDomain.Keep, video_frame_list=range(0)):
         # TODO
@@ -40,6 +50,7 @@ class Sequence():
                 log.error(f"Can't load file {path}")
                 
     def loadFolder(self, path, domain=ImgDomain.Keep):
+        self._metafile_name = os.path.join(path, 'meta.json')
         # Search for frames in folder
         for f in os.listdir(path):
             p = os.path.join(path, f)
@@ -49,6 +60,8 @@ class Sequence():
                 if match is not None:
                     id = int(match.group(1))
                     self.append(ImgBuffer(p, domain=domain), id)
+                elif 'meta.json' in f:
+                    self.loadMeta()
                 else:
                     log.warn("Found file without sequence numbering: {f}")
         
@@ -65,10 +78,16 @@ class Sequence():
         
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
-        seq_name = os.path.splitext(os.path.basename(path))[0]
-                    
+        seq_name = os.path.splitext(os.path.basename(path))[0]                    
         self._img_name_base = os.path.join(base_dir, seq_name, seq_name)
         self._mask_name_base = os.path.join(base_dir, seq_name+'_mask', seq_name+'_mask')
+        # Load Metadata from video meta file
+        self._metafile_name = os.path.join(base_dir, seq_name+'.json')
+        self.loadMeta()
+        if self._meta:
+            self._meta_changed = True
+        # Change file name to folder path
+        self._metafile_name = os.path.join(base_dir, seq_name, 'meta.json')
             
         # Load video
         self._vidcap = cv.VideoCapture(path)
@@ -162,6 +181,43 @@ class Sequence():
     def set(self, index, img: ImgBuffer):
         # TODO: Gets overwritten when using a video that is not loaded yet
         self[self.getKeys()[index]] = img
+    
+    def saveSequence(self, name: str, base_path: str, format: ImgFormat = ImgFormat.JPG):
+        path = os.path.join(base_path, name, name)
+        for id, img in self:
+            img.setPath(f"{path}_{id:03d}")
+            img.save(format=format)
+        # Metadata
+        self._metafile_name = os.path.join(base_path, name, 'meta.json')
+        if self._meta:
+            self.writeMeta()
+    
+    ### Metadata ###
+    
+    def loadMeta(self):
+        if os.path.isfile(self._metafile_name):
+            with open(self._metafile_name, 'r') as f:
+                self._meta = json.load(f)
+                self._meta_changed = False
+            
+    def writeMeta(self):
+        if self._metafile_name is not None:
+            Path(os.path.split(self._metafile_name)[0]).mkdir(parents=True, exist_ok=True)
+            with open(self._metafile_name, 'w') as f:
+                json.dump(self._meta, f, indent=4)
+                self._meta_changed = False
+            log.debug(f"Saved metadata to {self._metafile_name}")
+        
+    def getMeta(self, key: str, default=None):
+        if not key in self._meta:
+            return default
+        return self._meta[key]
+    
+    def setMeta(self, key: str, value):
+        self._meta[key] = value
+        self._meta_changed = True
+    
+    ### Operators / Attributes ###
         
     def __getitem__(self, key):
         if self._is_video:

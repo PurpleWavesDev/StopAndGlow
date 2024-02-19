@@ -26,15 +26,6 @@ class ImgFormat(Enum):
     JPG = 1
     EXR = 2
     Keep = -1
-
-class ImgMetadata():
-    def __init__(self, iso=100, aperture=8, exposure=1/100):
-        iso=iso
-        aperture=aperture
-        exposure=exposure
-    iso = None
-    aperture = None
-    exposure = None
     
 class ImgDomain(Enum):
     sRGB = 0
@@ -47,12 +38,11 @@ class ImgDomain(Enum):
     #def __init__(self, pix):
     
 class ImgBuffer:
-    def __init__(self, path=None, img: ArrayLike = None, domain: ImgDomain = ImgDomain.Keep, meta: ImgMetadata = ImgMetadata()):
+    def __init__(self, path=None, img: ArrayLike = None, domain: ImgDomain = ImgDomain.Keep):
         self._img=img
         self._domain=domain
         self._format=ImgFormat.Keep
         self._from_file=False
-        self._meta = meta
         if self._format == ImgFormat.Keep:
             self.setPath(path)
         else:
@@ -103,19 +93,12 @@ class ImgBuffer:
             self.load()
         return self._img
 
-    def set(self, img: ArrayLike, domain: ImgDomain = ImgDomain.Keep, meta: ImgMetadata = ImgMetadata(), overwrite_file=False):
+    def set(self, img: ArrayLike, domain: ImgDomain = ImgDomain.Keep, overwrite_file=False):
         self._img=img
-        self._meta = meta
         if domain != ImgDomain.Keep:
             self._domain = domain
         if overwrite_file:
             self._from_file=False
-
-    def getMeta(self) -> ImgMetadata:
-        return self._meta
-
-    def setMeta(self, meta: ImgMetadata):
-        self._meta = meta
 
     def load(self):
         if self._path is not None:

@@ -95,16 +95,22 @@ class Rti:
         self._rti_factors.from_numpy(arr)
         
         # Load metadata TODO
-        self._u_min = self._v_min = 0
-        self._u_max = self._v_max = 1
+        self._u_min, self._u_max = rti_seq.getMeta('rti_u_minmax', (0, 1))
+        self._v_min, self._v_max = rti_seq.getMeta('rti_v_minmax', (0, 1))
         
     
     def get(self) -> Sequence:
         seq = Sequence()
         arr = self._rti_factors.to_numpy()
         
+        # Add frames to sequence
         for i in range(self._rti_factors.shape[0]):
             seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
+        
+        # Metadata
+        seq.setMeta('rti_u_minmax', (self._u_min, self._u_max))
+        seq.setMeta('rti_v_minmax', (self._v_min, self._v_max))
+        #seq.setMeta('rti_inv', self._mat_inv) # TODO: Really needed?
         
         return seq
     
