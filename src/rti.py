@@ -15,11 +15,18 @@ from src.sequence import *
 from src.config import *
 import src.rti_taichi as rtichi
 
+# Tailor series
 POL_GRADE_3 = lambda u, v: np.array([1, u, v, u*v, u**2, v**2])
 POL_GRADE_4 = lambda u, v: np.concatenate((POL_GRADE_3(u, v), [u**2 * v, v**2 * u, u**3, v**3]))
 POL_GRADE_5 = lambda u, v: np.concatenate((POL_GRADE_4(u, v), [u**2 * v**2, u**3 * v, v**3 * u, u**4, v**4]))
 POL_GRADE_6 = lambda u, v: np.concatenate((POL_GRADE_5(u, v), [u**3 * v**2, u**2 * v**3, u**4 * v, u * v**4, u**5, v**5]))
 
+# Fourier series
+FOUR_G2 = lambda u, v: np.array([sin(u), cos(u), sin(v), cos(v), sin(2*u), cos(2*u), sin(2*v), cos(2*v)])
+#FOUR_G3
+#FOUR_G4
+
+# (1, 3,) 6, 10, 15, 21
 def PolGrade(grade, u, v):
     match grade:
         case 3:
@@ -30,18 +37,27 @@ def PolGrade(grade, u, v):
             return POL_GRADE_5(u, v)
         case 6:
             return POL_GRADE_6(u, v)
+        
+def FourierSeries(orders, u, v):
+    series = np.array([1])
+    for n in range(1, orders+1):
+            for m in range(1, orders+1):
+                series = np.append(series, (math.cos(n*u)*math.cos(m*v)))
+                series = np.append(series, (math.cos(n*u)*math.sin(m*v)))
+                series = np.append(series, (math.sin(n*u)*math.cos(m*v)))
+                series = np.append(series, (math.sin(n*u)*math.sin(m*v)))
+    return series
             
-# (1, 3,) 6, 10, 15, 21
 
 class Rti:
     def __init__(self):
         ti.init(arch=ti.gpu, debug=True)
         self._u_min = self._u_max = self._v_min = self._v_max = None
     
-    def calculate(self, img_seq: Sequence, config: Config, grade=3):
-        # Limit polynom grade and calculate number of factors
-        grade = max(3, min(6, grade))
-        num_factors = int((grade+1)*grade / 2)
+    def calculate(self, img_seq: Sequence, config: Config, order=3):
+        # Limit polynom order and calculate number of factors
+        order = max(3, min(6, order))
+        num_factors = int((order+1)*order / 2)
         # Get dict of light ids with coordinates that are both in the config and image sequence
         lights = {light['id']: Rti.Latlong2UV(light['latlong']) for light in config if light['id'] in img_seq.getKeys()}
         log.debug(f"RTI Calculate: {len(lights)} images with light coordinates available in image sequence of length {len(img_seq)}")
@@ -51,15 +67,18 @@ class Rti:
         
         # Generate polynom-matrix
         A = np.zeros((0, num_factors))
+        A_fourier = np.zeros((0, 4*order*order+1))
         for coord in lights.values():
             u, v = coord
             self._u_min = u if self._u_min is None else min(u, self._u_min)
             self._u_max = u if self._u_max is None else max(u, self._u_max)
             self._v_min = v if self._v_min is None else min(v, self._v_min)
             self._v_max = v if self._v_max is None else max(v, self._v_max)
-            A = np.vstack((A, PolGrade(grade, u, v)))
+            A = np.vstack((A, PolGrade(order, u, v)))
+            A_fourier = np.vstack((A_fourier, FourierSeries(order, u, v)))
         # Calculate (pseudo)inverse
         mat_inv = np.linalg.pinv(A).astype(np.float32)
+        mat_four_inv = np.linalg.pinv(A_fourier).astype(np.float32)
         
         # Important fields in full resoultion
         # Field for factors

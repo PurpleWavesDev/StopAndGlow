@@ -340,7 +340,7 @@ def evalRti(img_seq, config):
     
     # Calculate RTI
     rti = Rti()
-    rti.calculate(img_seq, config, grade=6)
+    rti.calculate(img_seq, config, order=3)
     
     # Save RTI sequence
     rti_seq = rti.get()
