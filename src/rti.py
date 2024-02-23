@@ -22,7 +22,7 @@ POL_GRADE_5 = lambda u, v: np.concatenate((POL_GRADE_4(u, v), [u**2 * v**2, u**3
 POL_GRADE_6 = lambda u, v: np.concatenate((POL_GRADE_5(u, v), [u**3 * v**2, u**2 * v**3, u**4 * v, u * v**4, u**5, v**5]))
 
 # Fourier series
-FOUR_G2 = lambda u, v: np.array([sin(u), cos(u), sin(v), cos(v), sin(2*u), cos(2*u), sin(2*v), cos(2*v)])
+#FOUR_G2 = lambda u, v: np.array([sin(u), cos(u), sin(v), cos(v), sin(2*u), cos(2*u), sin(2*v), cos(2*v)])
 #FOUR_G3
 #FOUR_G4
 
@@ -66,19 +66,20 @@ class Rti:
         img_count = len(lights)
         
         # Generate polynom-matrix
-        A = np.zeros((0, num_factors))
-        A_fourier = np.zeros((0, 4*order*order+1))
+        #A = np.zeros((0, num_factors))
+        num_factors = 4*order*order+1
+        A_fourier = np.zeros((0, num_factors))
         for coord in lights.values():
             u, v = coord
             self._u_min = u if self._u_min is None else min(u, self._u_min)
             self._u_max = u if self._u_max is None else max(u, self._u_max)
             self._v_min = v if self._v_min is None else min(v, self._v_min)
             self._v_max = v if self._v_max is None else max(v, self._v_max)
-            A = np.vstack((A, PolGrade(order, u, v)))
+            #A = np.vstack((A, PolGrade(order, u, v)))
             A_fourier = np.vstack((A_fourier, FourierSeries(order, u, v)))
         # Calculate (pseudo)inverse
-        mat_inv = np.linalg.pinv(A).astype(np.float32)
-        mat_four_inv = np.linalg.pinv(A_fourier).astype(np.float32)
+        #mat_inv = np.linalg.pinv(A).astype(np.float32)
+        mat_inv = np.linalg.pinv(A_fourier).astype(np.float32)
         
         # Important fields in full resoultion
         # Field for factors

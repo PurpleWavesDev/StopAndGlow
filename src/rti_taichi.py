@@ -27,7 +27,7 @@ def calculateFactors(sequence: ti.template(), factors: ti.template(), inverse: t
 @ti.kernel
 def sampleLight(pix: ti.template(), A: ti.template(), u: ti.f32, v: ti.f32):
     for y, x in pix:
-        pix[y, x] = sampleUV(A, y, x, u, v)
+        pix[y, x] = sampleUVFour(A, y, x, u, v)
         # Exposure correction (?)
         pix[y, x] *= 10
 
@@ -53,6 +53,18 @@ def sampleNormals(pix: ti.template(), A: ti.template()):
         pass
 
         
+@ti.func
+def sampleUVFour(A: ti.template(), y: ti.i32, x: ti.i32, u: ti.f32, v: ti.f32):
+    rgb = A[0, y, x]
+    for m, n in ti.ndrange((1, A.shape[0]), (1, A.shape[0])):
+        mult = A[m, y, x] * A[n, y, x]
+        rgb += mult * tm.cos(n*u)*tm.cos(m*v) +\
+               mult * tm.cos(n*u)*tm.sin(m*v) +\
+               mult * tm.sin(n*u)*tm.cos(m*v) +\
+               mult * tm.sin(n*u)*tm.sin(m*v)
+    return rgb
+    
+
 @ti.func
 def sampleUV(A: ti.template(), y: ti.i32, x: ti.i32, u: ti.f32, v: ti.f32):
     # (1, 3,) 6, 10, 15, 21
