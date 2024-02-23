@@ -17,11 +17,12 @@ from src.sequence import Sequence
 from src.utils import logging_disabled
 from src.config_canon90d import *
 
+import gphoto2 as gp
 
 class Cam:
     def __init__(self):
         # Lets kill any gphoto process that blocks the ressource
-        # conda killgphoto2()
+        killgphoto2()
         # Lazy loading for camera
         self._cam = None
         self._files = dict()
@@ -33,7 +34,6 @@ class Cam:
             self._cam.exit()
         
     def getCam(self):
-        import gphoto2 as gp
         if self._cam is None:
             self._cam = gp.Camera()
             self._cam.init()

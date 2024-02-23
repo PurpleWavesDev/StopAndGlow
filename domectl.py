@@ -59,6 +59,7 @@ flags.DEFINE_boolean('sequence_save', True, 'If captured sequences should be sav
 # TODO: Should be hard-coded
 flags.DEFINE_integer('video_frames_skip', 2, 'Frames to skip between valid frames in video sequence', lower_bound=0)
 flags.DEFINE_float('video_fps', 25, 'Frame rate for the video capture.')
+flags.DEFINE_boolean('video_safe_rec', True, "Captures two pictures for the same frame and discharges the first one.")
 # Additional resources
 flags.DEFINE_string('input_hdri', 'HDRIs/pretville_cinema_1k.exr', 'Name/Path of HDRI that is used for sky dome sampling.')
 flags.DEFINE_float('hdri_rotation', 0, 'Rotation of HDRI in degrees.', lower_bound=0, upper_bound=360)
@@ -114,6 +115,9 @@ def main(argv):
         
         # Sequence download, evaluation of video not necessary for capture only
         sequence = download(hw, name, keep=FLAGS.sequence_keep, save=FLAGS.sequence_save)
+        FLAGS.sequence_name = name
+        if FLAGS.capture_mode == 'quick':
+            FLAGS.sequence_name+=".MP4"
     
     
     ### Separate lights only modes from evaluation ###
@@ -134,8 +138,11 @@ def main(argv):
                 hw.lights.off()
             case 'ambient':
                 # All lights on:
-                #hw.lights.setList(range(512), 5)
-                #hw.lights.write()
+                hw.lights.setList(range(512), 5)
+                hw.lights.write()
+                for i in range(512):
+                    hw.lights.setList([i], 255)
+                    hw.lights.write()
                 # Ambient light will be turned on anyway, just pass
                 pass
 
@@ -208,18 +215,22 @@ def captureVideo(hw):
 
     log.info("Starting quick capture (video)")
     # Worker & Timer
-    if safe_video_rec:
-        pass#ids = [id, id for id in hw.config.getIds()]
+    if FLAGS.video_safe_rec:
+        ids = []
+        for id in hw.config.getIds():
+            ids.append(id)
+            ids.append(id)
     else:
         ids = hw.config.getIds()
-    t = Timer(worker.VideoListWorker(hw, hw.config.getIds(), subframe_count=1)) # TODO: Subframe count right? Should be FLAGS.video_frames_skip probably?
+    t = Timer(worker.VideoListWorker(hw, ids, subframe_count=1)) # TODO: Subframe count right? Should be FLAGS.video_frames_skip probably?
 
     # Capture
     hw.cam.triggerVideoStart()
     time.sleep(1)
     t.start((1+FLAGS.video_frames_skip) / FLAGS.video_fps)
     t.join()
-    time.sleep(1)
+    time.sleep(0.5)
+    lightsTop(hw, brightness=80)
     hw.cam.triggerVideoEnd()
 
     
@@ -561,6 +572,8 @@ def load(name, config):
         sequence.loadFolder(path, domain)
     else:
         # Load video
+        frames_skip = FLAGS.video_frames_skip * 2 + 1 if FLAGS.video_safe_rec else FLAGS.video_frames_skip
+            
         sequence.loadVideo(path, config.getIds(), video_frames_skip=FLAGS.video_frames_skip)
     
     return sequence

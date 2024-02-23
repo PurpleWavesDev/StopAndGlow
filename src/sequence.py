@@ -63,7 +63,7 @@ class Sequence():
                 elif 'meta.json' in f:
                     self.loadMeta()
                 else:
-                    log.warn("Found file without sequence numbering: {f}")
+                    log.warn(f"Found file without sequence numbering: {f}")
         
         # Sort it
         self._frames = dict(sorted(self._frames.items()))

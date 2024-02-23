@@ -18,7 +18,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=capture_lights", "--capture_mode=quick"],
+            "args": ["--loglevel=DEBUG", "--mode=capture_lights", "--capture_mode=quick", "--config_name="],
             "console": "integratedTerminal",
             "justMyCode": true
         },
