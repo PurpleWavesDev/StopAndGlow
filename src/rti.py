@@ -7,104 +7,47 @@ import cv2 as cv
 
 import taichi as ti
 import taichi.math as tm
-#from numba import njit, prange, types
-#from numba.typed import Dict
 
 from src.imgdata import *
 from src.sequence import *
 from src.config import *
-import src.rti_taichi as rtichi
+from src.renderer import *
+import src.ti_base as tib
+import src.ti_rti as rtichi
 
-# Tailor series
-POL_GRADE_3 = lambda u, v: np.array([1, u, v, u*v, u**2, v**2])
-POL_GRADE_4 = lambda u, v: np.concatenate((POL_GRADE_3(u, v), [u**2 * v, v**2 * u, u**3, v**3]))
-POL_GRADE_5 = lambda u, v: np.concatenate((POL_GRADE_4(u, v), [u**2 * v**2, u**3 * v, v**3 * u, u**4, v**4]))
-POL_GRADE_6 = lambda u, v: np.concatenate((POL_GRADE_5(u, v), [u**3 * v**2, u**2 * v**3, u**4 * v, u * v**4, u**5, v**5]))
 
-# Fourier series
-#FOUR_G2 = lambda u, v: np.array([sin(u), cos(u), sin(v), cos(v), sin(2*u), cos(2*u), sin(2*v), cos(2*v)])
-#FOUR_G3
-#FOUR_G4
 
-# (1, 3,) 6, 10, 15, 21
-def PolGrade(grade, u, v):
-    match grade:
-        case 3:
-            return POL_GRADE_3(u, v)
-        case 4:
-            return POL_GRADE_4(u, v)
-        case 5:
-            return POL_GRADE_5(u, v)
-        case 6:
-            return POL_GRADE_6(u, v)
+def TaylorSeries(order, u, v):
+    series = np.array([1], dtype=np.float32)
+    for n in range(1, order+1):
+        for i in range(n+1):
+            series = np.append(series, u**(n-i) * v**i)
+    return series
+def TaylorFactorCount(order):
+    # Order:   0, 1, 2,  3,  4
+    # Factors: 1, 3, 6, 10,  ...
+    return (order+1)*(order+2) // 2
+    #return (order+1)**2 // 2 + (order+1) // 2
         
-def FourierSeries(orders, u, v):
-    series = np.array([1])
-    for n in range(1, orders+1):
-            for m in range(1, orders+1):
+def FourierSeries(order, u, v):
+    series = np.array([1], dtype=np.float32)
+    for n in range(1, order+1):
+            for m in range(1, order+1):
                 series = np.append(series, (math.cos(n*u)*math.cos(m*v)))
                 series = np.append(series, (math.cos(n*u)*math.sin(m*v)))
                 series = np.append(series, (math.sin(n*u)*math.cos(m*v)))
                 series = np.append(series, (math.sin(n*u)*math.sin(m*v)))
     return series
-            
+def FourierFactorCount(order):
+    return 4*order*order+1
 
-class Rti:
+
+
+class RtiRenderer(Renderer):
     def __init__(self):
-        ti.init(arch=ti.gpu, debug=True)
         self._u_min = self._u_max = self._v_min = self._v_max = None
-    
-    def calculate(self, img_seq: Sequence, config: Config, order=3):
-        # Limit polynom order and calculate number of factors
-        order = max(3, min(6, order))
-        num_factors = int((order+1)*order / 2)
-        # Get dict of light ids with coordinates that are both in the config and image sequence
-        lights = {light['id']: Rti.Latlong2UV(light['latlong']) for light in config if light['id'] in img_seq.getKeys()}
-        log.debug(f"RTI Calculate: {len(lights)} images with light coordinates available in image sequence of length {len(img_seq)}")
-        # Get resoultion and image count
-        res_x, res_y = img_seq.get(0).resolution()
-        img_count = len(lights)
         
-        # Generate polynom-matrix
-        #A = np.zeros((0, num_factors))
-        num_factors = 4*order*order+1
-        A_fourier = np.zeros((0, num_factors))
-        for coord in lights.values():
-            u, v = coord
-            self._u_min = u if self._u_min is None else min(u, self._u_min)
-            self._u_max = u if self._u_max is None else max(u, self._u_max)
-            self._v_min = v if self._v_min is None else min(v, self._v_min)
-            self._v_max = v if self._v_max is None else max(v, self._v_max)
-            #A = np.vstack((A, PolGrade(order, u, v)))
-            A_fourier = np.vstack((A_fourier, FourierSeries(order, u, v)))
-        # Calculate (pseudo)inverse
-        #mat_inv = np.linalg.pinv(A).astype(np.float32)
-        mat_inv = np.linalg.pinv(A_fourier).astype(np.float32)
-        
-        # Important fields in full resoultion
-        # Field for factors
-        self._rti_factors = ti.Vector.field(n=3, dtype=ti.f32, shape=(num_factors, res_y, res_x))
-        # Fields for inverse and pixel buffer
-        ti_mat_inv = ti.ndarray(dtype=ti.f32, shape=(num_factors, img_count))
-        ti_mat_inv.from_numpy(mat_inv)
-
-        # Image slices for memory reduction
-        slice_length = int(res_y/8) # TODO Round up?
-        sequence = ti.Vector.field(n=3, dtype=ti.f32, shape=(img_count, slice_length, res_x))
-        for slice_count in range(int(res_y/slice_length)):
-            start = slice_count*slice_length
-            end = min((slice_count+1)*slice_length, res_y)
-            
-            # Copy frames to buffer
-            #arr = np.stack([img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end] for id in lights.keys()])
-            #sequence.from_numpy(arr)
-            for i, id in enumerate(lights.keys()):
-                rtichi.copyFrame(sequence, i, img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end])
-            
-            # Calculate Factors
-            rtichi.calculateFactors(sequence, self._rti_factors, ti_mat_inv, start)
-                    
-    
+    # Loading, processing etc.
     def load(self, rti_seq: Sequence):
         # Init Taichi field
         res_x, res_y = rti_seq.get(0).resolution()
@@ -117,7 +60,7 @@ class Rti:
         # Load metadata TODO
         self._u_min, self._u_max = rti_seq.getMeta('rti_u_minmax', (0, 1))
         self._v_min, self._v_max = rti_seq.getMeta('rti_v_minmax', (0, 1))
-        
+
     
     def get(self) -> Sequence:
         seq = Sequence()
@@ -131,20 +74,99 @@ class Rti:
         seq.setMeta('rti_u_minmax', (self._u_min, self._u_max))
         seq.setMeta('rti_v_minmax', (self._v_min, self._v_max))
         #seq.setMeta('rti_inv', self._mat_inv) # TODO: Really needed?
-        
         return seq
     
-    def sampleLight(self, light_pos) -> ImgBuffer:
+    def process(self, img_seq: Sequence, config: Config, settings={'order': 3}):
+        # Limit polynom order and calculate number of factors
+        order = settings['order'] if 'order' in settings else 3
+        order = max(3, min(6, order))
+        
+        # Get dict of light ids with coordinates that are both in the config and image sequence
+        lights = {light['id']: Latlong2UV(light['latlong']) for light in config if light['id'] in img_seq.getKeys()}
+        log.debug(f"RTI Calculate: {len(lights)} images with light coordinates available in image sequence of length {len(img_seq)}")
+        # Get resoultion and image count
+        res_x, res_y = img_seq.get(0).resolution()
+        img_count = len(lights)
+        
+        # Generate polynom-matrix
+        num_factors = TaylorFactorCount(order)
+        A = np.zeros((0, num_factors))
+        # Iterate over lights
+        for coord in lights.values():
+            u, v = coord
+            self._u_min = u if self._u_min is None else min(u, self._u_min)
+            self._u_max = u if self._u_max is None else max(u, self._u_max)
+            self._v_min = v if self._v_min is None else min(v, self._v_min)
+            self._v_max = v if self._v_max is None else max(v, self._v_max)
+            A = np.vstack((A, TaylorSeries(order, u, v)))
+        # Calculate (pseudo)inverse
+        mat_inv = np.linalg.pinv(A).astype(np.float32)
+        
+        # Important fields in full resoultion
+        # Field for factors
+        self._rti_factors = ti.Vector.field(n=3, dtype=ti.f32, shape=(num_factors, res_y, res_x))
+        # Fields for inverse and pixel buffer
+        ti_mat_inv = ti.ndarray(dtype=ti.f32, shape=(num_factors, img_count))
+        ti_mat_inv.from_numpy(mat_inv)
+        mat_inv = None
+
+        # Image slices for memory reduction
+        slice_length = res_y//8
+        sequence = ti.Vector.field(n=3, dtype=ti.f32, shape=(img_count, slice_length, res_x))
+        for slice_count in range(res_y//slice_length):
+            start = slice_count*slice_length
+            end = min((slice_count+1)*slice_length, res_y)
+            
+            # Copy frames to buffer
+            for i, id in enumerate(lights.keys()):
+                rtichi.copyFrame(sequence, i, img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end])
+            
+            # Calculate Factors
+            rtichi.calculateFactors(sequence, self._rti_factors, ti_mat_inv, start)
+
+    
+    # Render settings
+    def getRenderModes(self) -> list:
+        return ("RTILight", "RTIHdri", "Normals")
+    
+    def getRenderSettings(self, render_mode) -> RenderSettings:
+        match render_mode:
+            case 0: # RTILight
+                return RenderSettings(is_linear=True, needs_coords=True)
+            case 1: # RTIHdri
+                return RenderSettings(is_linear=True, needs_coords=True)
+            case 2: # Normals
+                return RenderSettings(is_linear=False)
+    
+    def setCoords(self, u, v):
+        self._u = self._u_min + (self._u_max-self._u_min) * u
+        self._v = self._v_min + (self._v_max-self._v_min) * v
+        self._rot = v
+
+    # Render!
+    def render(self, render_mode, buffer, hdri=None):
+        match render_mode:
+            case 0: # RTILight
+                rtichi.sampleLight(buffer, self._rti_factors, self._u, self._v)
+            case 1: # RTIHdri
+                #self.renderHdri(hdri, self._rot)
+                pass
+            case 2: # Normals
+                #self.renderNormals()
+                pass
+        
+
+    def renderLight(self, light_pos) -> ImgBuffer:
         # Init Taichi field
         res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
         pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
         
-        u, v = Rti.Latlong2UV(light_pos)
+        u, v = Latlong2UV(light_pos)
         rtichi.sampleLight(pixels, self._rti_factors, u, v)
         
         return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)
     
-    def sampleHdri(self, hdri, rotation) -> ImgBuffer:
+    def renderHdri(self, hdri, rotation) -> ImgBuffer:
         # Init Taichi field
         res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
         pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
@@ -153,7 +175,7 @@ class Rti:
         
         return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)
     
-    def sampleNormals(self) -> ArrayLike:
+    def renderNormals(self) -> ArrayLike:
         # Init Taichi field
         res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
         normals = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
@@ -164,10 +186,6 @@ class Rti:
 
 
     def launchViewer(self, hdri=None, scale=1): # TODO: Scale doesnt work
-        # Init Taichi field
-        res_x, res_y = (int(self._rti_factors.shape[2] * scale), int(self._rti_factors.shape[1] * scale))
-        window = ti.ui.Window("RTI Viewer", res=(res_x, res_y), fps_limit=60)
-        canvas = window.get_canvas()
         # Fields
         pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
         img = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_x, res_y))
@@ -176,61 +194,11 @@ class Rti:
             hdri_ti = ti.Vector.field(n=3, dtype=ti.f32, shape=(hdri_y, hdri_x))
             hdri_ti.from_numpy(hdri.get())
         
-        u: ti.f32 = 0.75
-        v: ti.f32 = 0.5
-        exposure: ti.f32 = 1
-        mode = 0
-        mode_count = 3
-        control_by_mouse = False
-        while window.running:
-            # Events
-            # Arrows, exposure control and mode change
-            if window.is_pressed(ti.ui.UP):
-                exposure *= 1.02
-            elif window.is_pressed(ti.ui.DOWN):
-                exposure /= 1.02
-            if window.get_event(ti.ui.PRESS):
-                # Escape/Quit
-                if window.event.key in [ti.ui.ESCAPE]: break
-                # Space for control switch
-                elif window.event.key in [ti.ui.SPACE]:
-                    control_by_mouse = not control_by_mouse
-                # Mode changes
-                elif window.event.key in [ti.ui.RIGHT]:
-                    mode = (mode+1) % mode_count
-                    if mode == 1 and hdri is None:
-                        mode += 1
-                elif window.event.key in [ti.ui.LEFT]:
-                    mode = (mode+mode_count-1) % mode_count
-                    if mode == 1 and hdri is None:
-                        mode -= 1
-            
-            if control_by_mouse:
-                v, u = window.get_cursor_pos()
-                u = self._u_min + (self._u_max-self._u_min) * u
-                v = self._v_min + (self._v_max-self._v_min) * v
-            else:
-                v = (v+0.01)%1
-            
-            match mode:
-                case 0:
-                    rtichi.sampleLight(pixels, self._rti_factors, u, v)
-                    rtichi.lin2sRGB(pixels, exposure)
-                case 1:
-                    rtichi.sampleHdri(pixels, self._rti_factors, hdri_ti, v)
-                    rtichi.lin2sRGB(pixels, exposure)
-                case 2:
-                    rtichi.sampleNormals(pixels, self._rti_factors)
-            rtichi.transpose(pixels, img)
-            
-            canvas.set_image(img)
-            window.show()
 
-        
     # Static functions
-    def Latlong2UV(latlong) -> [float, float]:
-        """Returns Lat-Long coordinates in the range of 0 to 1"""
-        return ((latlong[0]+90) / 180, (latlong[1]+180)%360 / 360)
+def Latlong2UV(latlong) -> [float, float]:
+    """Returns Lat-Long coordinates in the range of 0 to 1"""
+    return ((latlong[0]+90) / 180, (latlong[1]+180)%360 / 360)
 
 # OpenExr Sample Function    
 #import OpenEXR as exr

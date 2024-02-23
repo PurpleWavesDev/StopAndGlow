@@ -28,10 +28,11 @@ from src.imgdata import *
 from src.sequence import Sequence
 from src.lightdome import Lightdome
 from src.eval import Eval
-from src.rti import Rti
+from src.rti import RtiRenderer
 from src.img_op import *
 from src.cam_op import *
-
+from src.viewer import *
+import src.ti_base as tib
 
 # Types
 HW = namedtuple("HW", ["cam", "lights", "config"])
@@ -71,6 +72,7 @@ def main(argv):
 
     # Prepare hardware for tasks
     hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
+    tib.init(on_cuda=True, debug=True)
     mode, mode_type = FLAGS.mode.split("_", 1)
     sequence = None
 
@@ -339,16 +341,13 @@ def evalRti(img_seq, config):
     #    img_seq[id] = img
     
     # Calculate RTI
-    rti = Rti()
-    rti.calculate(img_seq, config, order=3)
+    rti = RtiRenderer()
+    rti.process(img_seq, config, {'order': 5})
     
     # Save RTI sequence
     rti_seq = rti.get()
     name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != "" else FLAGS.sequence_name + "_rti"
     rti_seq.saveSequence(name, FLAGS.sequence_path, ImgFormat.EXR)
-
-    # For quick visualisation        
-    rti.launchViewer()
 
 
 def evalHdri(img_seq):
@@ -508,7 +507,7 @@ def relightMl(img_seq, config, output_name):
 #################### VIEWER MODES ####################
 
 def viewerRti(img_seq):
-    log.info(f"Generate HDRI Lighting from RTI data")
+    log.info(f"Lauching viewer")
     
     # HDRI
     hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
@@ -517,9 +516,10 @@ def viewerRti(img_seq):
     blur_size += 1-blur_size%2 # Make it odd
     hdri.set(cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
     
-    rti = Rti()
-    rti.load(img_seq)
-    rti.launchViewer(hdri)
+    viewer = Viewer()
+    viewer.setSequences(rti_factors=img_seq)
+    viewer.setHdris([hdri])
+    viewer.launch()
     
 
 
