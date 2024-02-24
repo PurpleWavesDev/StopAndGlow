@@ -342,7 +342,7 @@ def evalRti(img_seq, config):
     
     # Calculate RTI
     rti = RtiRenderer()
-    rti.process(img_seq, config, {'order': 5})
+    rti.process(img_seq, config, {'order': 2})
     
     # Save RTI sequence
     rti_seq = rti.get()

@@ -1,5 +1,6 @@
 import taichi as ti
 import taichi.math as tm
+import taichi.types as tt
 
 @ti.kernel
 def copyFrame(sequence: ti.template(), frame_index: ti.i32, copy_frame: ti.types.ndarray(dtype=ti.f32, ndim=3)):
@@ -22,15 +23,15 @@ def calculateFactors(sequence: ti.template(), factors: ti.template(), inverse: t
 
 
 @ti.kernel
-def sampleLight(pix: ti.template(), A: ti.template(), u: ti.f32, v: ti.f32):
+def sampleLight(pix: ti.types.ndarray(dtype=tt.vector(3, ti.f32), ndim=2), A: ti.template(), u: ti.f32, v: ti.f32):
     for y, x in pix:
-        pix[y, x] = sampleUVFour(A, y, x, u, v)
+        pix[y, x] = sampleUV(A, y, x, u, v)
         # Exposure correction (?)
         pix[y, x] *= 10
 
         
 @ti.kernel
-def sampleHdri(pix: ti.template(), A: ti.template(), hdri: ti.template(), rotation: ti.f32):
+def sampleHdri(pix: ti.types.ndarray(dtype=tt.vector(3, ti.f32), ndim=2), A: ti.template(), hdri: ti.template(), rotation: ti.f32):
     samples_y = 10
     samples_x = 40
     rot = 1 - rotation
@@ -64,22 +65,28 @@ def sampleUVFour(A: ti.template(), y: ti.i32, x: ti.i32, u: ti.f32, v: ti.f32):
 
 @ti.func
 def sampleUV(A: ti.template(), y: ti.i32, x: ti.i32, u: ti.f32, v: ti.f32):
-    # (1, 3,) 6, 10, 15, 21
-    # Grade 3
-    rgb = A[0, y, x] + A[1, y, x] * u + A[2, y, x] * v +\
-        A[3, y, x] * u*v + A[4, y, x] * u**2 + A[5, y, x] * v**2
+    rgb = A[0, y, x]
+    #n = 1, 2, 3, 4, 5, 6, 7, 8, 9
+    #a = 1, 1, 2, 2, 2, 3, 3, 3, 3
+    #b = 0, 1, 0, 1, 2, 0, 1, 2, 3
+    
+    rgb += sampleSum(A, y, x, u, v, 1, 1)        
+    if A.shape[0] >= 6:
+        rgb += sampleSum(A, y, x, u, v, 3, 2)
     if A.shape[0] >= 10:
-        # Grade 4
-        rgb += A[6, y, x] * u**2 * v + A[7, y, x] * v**2 * u +\
-            A[8, y, x] * u**3 + A[9, y, x] * v**3
+        rgb += sampleSum(A, y, x, u, v, 6, 3)
     if A.shape[0] >= 15:
-        # Grade 5
-        rgb += A[10, y, x] * u**2 * v**2 + A[11, y, x] * u**3 * v + A[12, y, x] * u * v**3 +\
-            A[13, y, x] * u**4 + A[14, y, x] * v**4
+        rgb += sampleSum(A, y, x, u, v, 10, 4)
     if A.shape[0] >= 21:
-        # Grade 6
-        rgb += A[15, y, x] * u**3 * v**2 + A[16, y, x] * u**2 * v**3 +\
-            A[17, y, x] * u**4 * v + A[18, y, x] * u * v**4 +\
-            A[19, y, x] * u**5 + A[20, y, x] * v**5
+        rgb += sampleSum(A, y, x, u, v, 15, 5)
+    if A.shape[0] >= 28: 
+        rgb += sampleSum(A, y, x, u, v, 21, 6)
+        
     return rgb
 
+@ti.func
+def sampleSum(A, y, x, u, v, o, a):
+    rgb = A[o, y, x] * u**(a)
+    for i in range(1, a+1):
+        rgb += A[o+i, y, x] * u**(a-i) * v**i
+    return rgb

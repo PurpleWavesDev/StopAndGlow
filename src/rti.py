@@ -7,6 +7,7 @@ import cv2 as cv
 
 import taichi as ti
 import taichi.math as tm
+import taichi.types as tt
 
 from src.imgdata import *
 from src.sequence import *
@@ -25,7 +26,7 @@ def TaylorSeries(order, u, v):
     return series
 def TaylorFactorCount(order):
     # Order:   0, 1, 2,  3,  4
-    # Factors: 1, 3, 6, 10,  ...
+    # Factors: 1, 3, 6, 10, 15, 21
     return (order+1)*(order+2) // 2
     #return (order+1)**2 // 2 + (order+1) // 2
         
@@ -79,7 +80,7 @@ class RtiRenderer(Renderer):
     def process(self, img_seq: Sequence, config: Config, settings={'order': 3}):
         # Limit polynom order and calculate number of factors
         order = settings['order'] if 'order' in settings else 3
-        order = max(3, min(6, order))
+        order = max(2, min(6, order))
         
         # Get dict of light ids with coordinates that are both in the config and image sequence
         lights = {light['id']: Latlong2UV(light['latlong']) for light in config if light['id'] in img_seq.getKeys()}
@@ -159,7 +160,8 @@ class RtiRenderer(Renderer):
     def renderLight(self, light_pos) -> ImgBuffer:
         # Init Taichi field
         res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
-        pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
+        #pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
+        pixels = ti.ndarray(tt.math.vec3, (res_y, res_x))
         
         u, v = Latlong2UV(light_pos)
         rtichi.sampleLight(pixels, self._rti_factors, u, v)
@@ -169,8 +171,9 @@ class RtiRenderer(Renderer):
     def renderHdri(self, hdri, rotation) -> ImgBuffer:
         # Init Taichi field
         res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
-        pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
-        
+        #pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
+        pixels = ti.ndarray(ti.math.vec3, (res_y, res_x))
+
         rtichi.sampleHdri(pixels, self._rti_factors, hdri, rotation)
         
         return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)

@@ -16,7 +16,7 @@ class RenderModules(Enum):
     
 class Viewer:
     def __init__(self, res=(1920, 1080)):
-        self._framebuf = ti.field(ti.f32)
+        self._framebuf = ti.field(ti.types.vector(3, ti.f32))
         self._renderer = None
         self._mode = 0
         self._hdris = None
@@ -25,7 +25,8 @@ class Viewer:
     def init(self, res):
         self._res = res
         # column-major but with changed x/y coordinates
-        ti.root.dense(ti.j, self._res[0]).dense(ti.i, self._res[1]).place(self._framebuf)
+        ti.root.dense(ti.j, self._res[1]).dense(ti.i, self._res[0]).place(self._framebuf)
+        #self._framebuf = ti.VectorType
         
     def setSequences(self, rti_factors = None):
         self._rti_factors = rti_factors
@@ -73,8 +74,8 @@ class Viewer:
         u: np.float32 = 0.75
         v: np.float32 = 0.5
         
-        pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(self._res[1], self._res[0]))
-        
+        #pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(self._res[1], self._res[0]))
+        pixels = ti.ndarray(ti.types.vector(3, ti.f32), (self._res[1], self._res[0]))
         while window.running:
             # Frame times
             time_cur = time.time()
@@ -88,7 +89,7 @@ class Viewer:
                 if window.event.key in [ti.ui.ESCAPE]: break
                 # Space for control switch
                 elif window.event.key in [ti.ui.SPACE]:
-                    control_by_mouse = not control_by_mouse
+                    mouse_control = not mouse_control
                 # Arrows for mode changes
                 elif window.event.key in [ti.ui.RIGHT]:
                     self.cycleMode()
@@ -106,7 +107,7 @@ class Viewer:
                 if mouse_control:
                     v, u = window.get_cursor_pos()
                 else:
-                    v = (v+max(1, time_frame) * 5) % 1
+                    v = (v+time_frame/5) % 1
                 self._renderer.setCoords(u, v)
             
             ### Rendering ###
@@ -126,7 +127,7 @@ class Viewer:
     
 # Kernels
 @ti.kernel
-def copy_framebuf(pixel: ti.types.ndarray(), framebuf: ti.template()):
+def copy_framebuf(pixel: tib.pixarr, framebuf: ti.template()):
     for y, x in pixel:
         framebuf[x, framebuf.shape[1]-1 -y] = pixel[y, x]
    
