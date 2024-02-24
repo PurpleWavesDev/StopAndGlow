@@ -12,6 +12,7 @@ class RenderSettings:
         self.needs_coords=needs_coords
 
 class Renderer:
+    name = "Renderer"
     # Loading, processing etc.
     def load(self, img_seq: Sequence):
         pass

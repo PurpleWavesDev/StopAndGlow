@@ -3,8 +3,9 @@ import json
 
 class Config:
     def __init__(self, path=None):
-        self._min=-1
-        self._max=-1
+        self._id_min=-1
+        self._id_max=-1
+        self._lat_min = self._lat_max = self._long_min = self._long_max = -1
 
         if path is not None:
             self.load(path)
@@ -16,16 +17,13 @@ class Config:
 
     def addLight(self, id, uv, latlong):
         self._data['lights'].append({'id': id, 'uv': uv, 'latlong': latlong})
-        self._min = id if self._min == -1 else min(self._min, id)
-        self._max = id if self._max == -1 else max(self._max, id)
-
+        self._findMinMax(id, latlong)
+        
     def load(self, path):
         with open(path, "r") as file:
             self._data = json.load(file)
-            if self._data['lights']:
-                # List should always be sorted (there is no gurantee though), access ID of first and last element
-                self._min = self.getByIndex(0)['id']
-                self._max = self.getByIndex(-1)['id']
+            for light in self._data['lights']:
+                self._findMinMax(light['id'], light['latlong'])
 
     def save(self, path, name='calibration.json'):
         if not os.path.exists(path):
@@ -42,10 +40,14 @@ class Config:
         return self._data['lights'][index]
 
     def getIdBounds(self):
-        return [self._min, self._max]
+        return (self._id_min, self._id_max)
     
     def getIds(self):
         return [d['id'] for d in self._data['lights']]
+    
+    def getCoordBounds(self):
+        """Returns minimum and maximum latlong values as (latlong_min, latlong_max)"""
+        return ((self._lat_min, self._long_min), (self._lat_max, self._long_max))
 
     def __getitem__(self, key):
         return next((item for item in self._data['lights'] if item["id"] == key), None)
@@ -55,7 +57,24 @@ class Config:
         
     # TODO: Nicht getestet
     def __delitem__(self, key):
-        del self[key]
+        del self._data['lights'][key]
     
     def __iter__(self):
         return iter(self._data['lights'])
+
+    # Statics
+    def NormalizeLatlong(latlong) -> (float, float):
+        """Returns Lat-Long coordinates in the range of 0 to 1"""
+        return ((latlong[0]+90) / 180, (latlong[1]+180)%360 / 360)
+
+    
+    # Helper
+    def _findMinMax(self, id, latlong):
+        self._id_min, self._id_max = self._minMax(self._id_min, self._id_max, id)
+        self._lat_min, self._lat_max = self._minMax(self._lat_min, self._lat_max, latlong[0])
+        self._long_min, self._long_max = self._minMax(self._long_min, self._long_max, latlong[1])
+        
+    def _minMax(self, cur_val_min, cur_val_max, new_val):
+        min_val = new_val if cur_val_min == -1 else min(cur_val_min, new_val)
+        max_val = new_val if cur_val_max == -1 else max(cur_val_max, new_val)
+        return (min_val, max_val)

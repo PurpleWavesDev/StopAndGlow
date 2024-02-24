@@ -28,11 +28,14 @@ from src.imgdata import *
 from src.sequence import Sequence
 from src.lightdome import Lightdome
 from src.eval import Eval
-from src.rti import RtiRenderer
 from src.img_op import *
 from src.cam_op import *
 from src.viewer import *
 import src.ti_base as tib
+# Renderer
+from src.renderer.renderer import Renderer
+from src.renderer.rti import RtiRenderer
+from src.renderer.rgbstack import RgbStacker
 
 # Types
 HW = namedtuple("HW", ["cam", "lights", "config"])
@@ -159,10 +162,12 @@ def main(argv):
     
         if mode == 'eval':
             match mode_type:
+                # TODO: Names for process function!!
                 case 'rti':
-                    evalRti(sequence, hw.config)
+                    settings = {'order': 3}
+                    process(RtiRenderer(), sequence, hw.config, "rti", settings)
                 case 'hdri':
-                    evalHdri(sequence)
+                    process(RgbStacker(), sequence, hw.config, "rgb_hdri")
                 case 'stack':
                     output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type
                     evalStack(sequence, output_name)
@@ -332,37 +337,29 @@ def lightsConfigRun(hw):
 
 #################### EVAL MODES ####################
 
-def evalRti(img_seq, config):
-    log.info(f"Generate RTI Data from image sequence")
+def process(renderer, img_seq, config, name, settings={}):
+    log.info(f"Process image sequence for {renderer.name}")
     
-    # Scale down
+    # TODO: Possible scale
     #for id, img in img_seq:
     #    img = img.scale(0.5, False)
     #    img_seq[id] = img
     
-    # Calculate RTI
-    rti = RtiRenderer()
-    rti.process(img_seq, config, {'order': 2})
+    # Process
+    renderer.process(img_seq, config, settings)
     
-    # Save RTI sequence
-    rti_seq = rti.get()
-    name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != "" else FLAGS.sequence_name + "_rti"
-    rti_seq.saveSequence(name, FLAGS.sequence_path, ImgFormat.EXR)
+    # Save data
+    seq_out = renderer.get()
+    if (len(seq_out) > 0):
+        domain = seq_out.get(0).domain()
+        seq_out.saveSequence(name, FLAGS.sequence_path, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
 
+    # Launch viewer
+    if True:
+        viewer = Viewer()
+        viewer.setRenderer(renderer)
+        viewer.launch()
 
-def evalHdri(img_seq):
-    log.info(f"Processing HDRI RGB sequence")
-
-    # Get channels and stack them
-    r = img_seq[0].r()
-    g = img_seq[1].g()
-    b = img_seq[2].b()
-    
-    # Stacking
-    path = os.path.join(os.path.split(img_seq[0].getPath())[0], 'HDRI_stacked')
-    rgb = ImgOp.StackChannels([r, g, b], path)
-    rgb.setFormat(ImgFormat.JPG)
-    rgb.save()
 
 def evalStack(sequences, output_name, cam_response=None):
     stacked_seq = Sequence()

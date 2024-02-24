@@ -41,6 +41,11 @@ def sRGB2Lin(pix: tt.ndarray(tt.vector(3, ti.f32), ndim=2)):
         #pix[y, x] = sRGBtosXYZ @ pix[y, x]
 
 @ti.kernel
+def exposure(pix: tt.ndarray(tt.vector(3, ti.f32), ndim=2), exposure: ti.f32):
+    for y, x in pix:
+        pix[y, x] = pix[y, x] * exposure
+    
+@ti.kernel
 def transpose(field_in: ti.template(), field_out: ti.template()):
     for x, y in field_out:
         field_out[x, field_out.shape[1]-y-1] = field_in[y, x]

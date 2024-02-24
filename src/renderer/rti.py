@@ -12,9 +12,9 @@ import taichi.types as tt
 from src.imgdata import *
 from src.sequence import *
 from src.config import *
-from src.renderer import *
+from src.renderer.renderer import *
 import src.ti_base as tib
-import src.ti_rti as rtichi
+import src.renderer.ti_rti as trti
 
 
 
@@ -45,6 +45,8 @@ def FourierFactorCount(order):
 
 
 class RtiRenderer(Renderer):
+    name = "RTI Renderer"
+    
     def __init__(self):
         self._u_min = self._u_max = self._v_min = self._v_max = None
         
@@ -58,9 +60,9 @@ class RtiRenderer(Renderer):
         arr = np.stack([frame[1].get() for frame in rti_seq], axis=0)
         self._rti_factors.from_numpy(arr)
         
-        # Load metadata TODO
-        self._u_min, self._u_max = rti_seq.getMeta('rti_u_minmax', (0, 1))
-        self._v_min, self._v_max = rti_seq.getMeta('rti_v_minmax', (0, 1))
+        # Load metadata
+        self._u_min, self._v_min = rti_seq.getMeta('latlong_min', (0, 0))
+        self._u_max, self._v_max = rti_seq.getMeta('latlong_max', (1, 1))
 
     
     def get(self) -> Sequence:
@@ -72,8 +74,9 @@ class RtiRenderer(Renderer):
             seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
         
         # Metadata
-        seq.setMeta('rti_u_minmax', (self._u_min, self._u_max))
-        seq.setMeta('rti_v_minmax', (self._v_min, self._v_max))
+        seq.setMeta('latlong_min', (self._u_min, self._v_min))
+        seq.setMeta('latlong_max', (self._u_max, self._v_max))
+        #seq.setMeta('order', self._order)
         #seq.setMeta('rti_inv', self._mat_inv) # TODO: Really needed?
         return seq
     
@@ -120,10 +123,10 @@ class RtiRenderer(Renderer):
             
             # Copy frames to buffer
             for i, id in enumerate(lights.keys()):
-                rtichi.copyFrame(sequence, i, img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end])
+                trti.copyFrame(sequence, i, img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end])
             
             # Calculate Factors
-            rtichi.calculateFactors(sequence, self._rti_factors, ti_mat_inv, start)
+            trti.calculateFactors(sequence, self._rti_factors, ti_mat_inv, start)
 
     
     # Render settings
@@ -148,7 +151,7 @@ class RtiRenderer(Renderer):
     def render(self, render_mode, buffer, hdri=None):
         match render_mode:
             case 0: # RTILight
-                rtichi.sampleLight(buffer, self._rti_factors, self._u, self._v)
+                trti.sampleLight(buffer, self._rti_factors, self._u, self._v)
             case 1: # RTIHdri
                 #self.renderHdri(hdri, self._rot)
                 pass
@@ -164,7 +167,7 @@ class RtiRenderer(Renderer):
         pixels = ti.ndarray(tt.math.vec3, (res_y, res_x))
         
         u, v = Latlong2UV(light_pos)
-        rtichi.sampleLight(pixels, self._rti_factors, u, v)
+        trti.sampleLight(pixels, self._rti_factors, u, v)
         
         return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)
     
@@ -174,7 +177,7 @@ class RtiRenderer(Renderer):
         #pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
         pixels = ti.ndarray(ti.math.vec3, (res_y, res_x))
 
-        rtichi.sampleHdri(pixels, self._rti_factors, hdri, rotation)
+        trti.sampleHdri(pixels, self._rti_factors, hdri, rotation)
         
         return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)
     
@@ -183,19 +186,9 @@ class RtiRenderer(Renderer):
         res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
         normals = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
         
-        rtichi.sampleNormals(normals, self._rti_factors)
+        trti.sampleNormals(normals, self._rti_factors)
         
         return ImgBuffer(img=normals.to_numpy(), domain=ImgDomain.Lin)
-
-
-    def launchViewer(self, hdri=None, scale=1): # TODO: Scale doesnt work
-        # Fields
-        pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
-        img = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_x, res_y))
-        if hdri is not None:
-            hdri_x, hdri_y = hdri.resolution()
-            hdri_ti = ti.Vector.field(n=3, dtype=ti.f32, shape=(hdri_y, hdri_x))
-            hdri_ti.from_numpy(hdri.get())
         
 
     # Static functions

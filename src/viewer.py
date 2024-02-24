@@ -6,7 +6,8 @@ import taichi.math as tm
 import numpy as np
 
 import src.ti_base as tib
-from src.rti import RtiRenderer
+
+from src.renderer.rti import RtiRenderer
 
 
 class RenderModules(Enum):
@@ -33,21 +34,23 @@ class Viewer:
 
     def setHdris(self, hdris: list):
         self._hdris = hdris
-                
-    def setRenderer(self, renderer):
-        match renderer:
-            case RenderModules.RTIStandard:
-                self._renderer = RtiRenderer()
-                self._renderer.load(self._rti_factors)
-                self._render_settings = self._renderer.getRenderSettings(0)
-                
-            case RenderModules.RTITest:
-                pass
+        
+    def cycleRenderer(self, new_renderer=None, left=False):
+        if new_renderer is not None:
+            match renderer:
+                case RenderModules.RTIStandard:
+                    self._renderer = RtiRenderer()
+                    self._renderer.load(self._rti_factors)
+                    self._render_settings = self._renderer.getRenderSettings(0)
+                    
+                case RenderModules.RTITest:
+                    pass
         
         self.setMode(0)
-        
-    def cycleRenderer(self, left=False):
-        pass
+                
+    def setRenderer(self, renderer):
+        self._renderer = renderer
+        self.setMode(0)
         
     def cycleMode(self, left=False):
         count = len(self._renderer.getRenderModes)
@@ -62,7 +65,7 @@ class Viewer:
 
     def launch(self):
         if self._renderer == None:
-            self.setRenderer(RenderModules.RTIStandard)
+            self.cycleRenderer(RenderModules.RTIStandard)
 
         window = ti.ui.Window("DomeCtl Viewer", res=self._res, fps_limit=60)
         canvas = window.get_canvas()
@@ -70,7 +73,7 @@ class Viewer:
         
         # Controls
         mouse_control = False
-        exposure: np.float32 = 1
+        exposure: np.float32 = 1.0
         u: np.float32 = 0.75
         v: np.float32 = 0.5
         
@@ -98,9 +101,9 @@ class Viewer:
             
             # Exposure correction
             if window.is_pressed(ti.ui.UP):
-                exposure *= 1 + (1 * time_frame)
+                exposure *= 1.0 + (1.0 * time_frame)
             elif window.is_pressed(ti.ui.DOWN):
-                exposure /= 1 + (1 * time_frame)
+                exposure /= 1.0 + (1.0 * time_frame)
 
             # Coordinate inputs
             if self._render_settings.needs_coords:
@@ -119,6 +122,8 @@ class Viewer:
             ### Display ###
             if self._render_settings.is_linear:
                 tib.lin2sRGB(pixels, exposure)
+            elif self._render_settings.with_exposure:
+                tib.exposure(pixels, exposure)
             copy_framebuf(pixels, self._framebuf)
             canvas.set_image(self._framebuf)
             window.show()
