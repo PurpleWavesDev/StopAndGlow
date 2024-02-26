@@ -20,6 +20,8 @@ class Renderer:
         return Sequence()
     def process(self, img_seq: Sequence, config: Config, settings=dict()):
         pass
+    def setSequence(self, img_seq: Sequence):
+        pass
 
     # Render settings
     def getRenderModes(self) -> list:

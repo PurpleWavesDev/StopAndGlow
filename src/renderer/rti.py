@@ -123,7 +123,7 @@ class RtiRenderer(Renderer):
             
             # Copy frames to buffer
             for i, id in enumerate(lights.keys()):
-                trti.copyFrame(sequence, i, img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end])
+                tib.copyFrameToSequence(sequence, i, img_seq[id].asDomain(ImgDomain.Lin, as_float=True).get()[start:end])
             
             # Calculate Factors
             trti.calculateFactors(sequence, self._rti_factors, ti_mat_inv, start)

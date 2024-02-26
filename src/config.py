@@ -1,5 +1,6 @@
 import os
 import json 
+import math
 
 class Config:
     def __init__(self, path=None):
@@ -49,6 +50,9 @@ class Config:
         """Returns minimum and maximum latlong values as (latlong_min, latlong_max)"""
         return ((self._lat_min, self._long_min), (self._lat_max, self._long_max))
 
+    def getCoords(self):
+        return [d['latlong'] for d in self._data['lights']]
+    
     def __getitem__(self, key):
         return next((item for item in self._data['lights'] if item["id"] == key), None)
 
@@ -63,10 +67,13 @@ class Config:
         return iter(self._data['lights'])
 
     # Statics
-    def NormalizeLatlong(latlong) -> (float, float):
+    def NormalizeLatlong(latlong) -> [float, float]:
         """Returns Lat-Long coordinates in the range of 0 to 1"""
-        return ((latlong[0]+90) / 180, (latlong[1]+180)%360 / 360)
-
+        return ((latlong[0]+90) / 180, (latlong[1]) / 360)
+    
+    def LatlongRadians(latlong) -> [float, float]:
+        """Returns Lat-Long coordinates as radians in the range of -Pi/2 to Pi/2 Latitude and -Pi to Pi Longitude"""
+        return (math.radians(latlong[0]), math.radians(latlong[1]))
     
     # Helper
     def _findMinMax(self, id, latlong):

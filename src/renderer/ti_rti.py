@@ -3,14 +3,6 @@ import taichi.math as tm
 import taichi.types as tt
 
 @ti.kernel
-def copyFrame(sequence: ti.template(), frame_index: ti.i32, copy_frame: ti.types.ndarray(dtype=ti.f32, ndim=3)):
-    # Iterate over pixels
-    H, W = sequence.shape[1], sequence.shape[2]
-    for y, x in ti.ndrange(H, W):
-        # Copy frame
-        sequence[frame_index, y, x] = [copy_frame[y, x, 0], copy_frame[y, x, 1], copy_frame[y, x, 2]]
-
-@ti.kernel
 def calculateFactors(sequence: ti.template(), factors: ti.template(), inverse: ti.types.ndarray(dtype=ti.f32, ndim=2), row_offset: ti.i32):
     # Iterate over pixels and factor count
     H, W, C = sequence.shape[1], sequence.shape[2], factors.shape[0]

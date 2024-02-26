@@ -29,15 +29,18 @@ class Viewer:
         ti.root.dense(ti.j, self._res[1]).dense(ti.i, self._res[0]).place(self._framebuf)
         #self._framebuf = ti.VectorType
         
-    def setSequences(self, rti_factors = None):
-        self._rti_factors = rti_factors
+    def setSequences(self, image_sequence = None, rti_factors = None):
+        if image_sequence is not None:
+            self._img_sequence = image_sequence
+        if rti_factors is not None:
+            self._rti_factors = rti_factors
 
     def setHdris(self, hdris: list):
         self._hdris = hdris
         
     def cycleRenderer(self, new_renderer=None, left=False):
         if new_renderer is not None:
-            match renderer:
+            match new_renderer:
                 case RenderModules.RTIStandard:
                     self._renderer = RtiRenderer()
                     self._renderer.load(self._rti_factors)
@@ -53,7 +56,7 @@ class Viewer:
         self.setMode(0)
         
     def cycleMode(self, left=False):
-        count = len(self._renderer.getRenderModes)
+        count = len(self._renderer.getRenderModes())
         if not left:
             self.setMode((self._mode+1) % count)
         else:
@@ -109,6 +112,8 @@ class Viewer:
             if self._render_settings.needs_coords:
                 if mouse_control:
                     v, u = window.get_cursor_pos()
+                    u = (u+1) % 1
+                    v = (v+1) % 1
                 else:
                     v = (v+time_frame/5) % 1
                 self._renderer.setCoords(u, v)

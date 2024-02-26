@@ -59,5 +59,5 @@ class RgbStacker(Renderer):
     def render(self, render_mode, buffer, hdri=None):
         # Return stacked image
         y, x = buffer.shape
-        buffer.from_numpy(self._stacked.get()[0:y, 0:x, :])
+        buffer.from_numpy(self._stacked.get()[0:y, 0:x, :]) # TODO: Proper rescaling
         

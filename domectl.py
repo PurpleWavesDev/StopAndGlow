@@ -36,6 +36,7 @@ import src.ti_base as tib
 from src.renderer.renderer import Renderer
 from src.renderer.rti import RtiRenderer
 from src.renderer.rgbstack import RgbStacker
+from src.renderer.lightstack import LightStacker
 
 # Types
 HW = namedtuple("HW", ["cam", "lights", "config"])
@@ -45,7 +46,7 @@ FLAGS = flags.FLAGS
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_stack', 'eval_linearize', 'eval_cal','relight_simple', 'relight_rti', 'relight_ml', 'viewer_rti', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lightstack', 'eval_expostack', 'eval_linearize', 'eval_cal','relight_simple', 'relight_rti', 'relight_ml', 'viewer_rti', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
@@ -167,8 +168,14 @@ def main(argv):
                     settings = {'order': 3}
                     process(RtiRenderer(), sequence, hw.config, "rti", settings)
                 case 'hdri':
-                    process(RgbStacker(), sequence, hw.config, "rgb_hdri")
-                case 'stack':
+                    # RGB HDRI Stack
+                    process(RgbStacker(), sequence, hw.config, "rgb_stack")
+                case 'lightstack':
+                    # Light stacking
+                    stacker = LightStacker()
+                    #stacker.setSequence(sequence)
+                    process(stacker, sequence, hw.config, "light_stack")
+                case 'expostack':
                     output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type
                     evalStack(sequence, output_name)
                 case 'linearize':
@@ -347,7 +354,7 @@ def process(renderer, img_seq, config, name, settings={}):
     
     # Process
     renderer.process(img_seq, config, settings)
-    
+
     # Save data
     seq_out = renderer.get()
     if (len(seq_out) > 0):

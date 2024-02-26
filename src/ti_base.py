@@ -50,3 +50,11 @@ def transpose(field_in: ti.template(), field_out: ti.template()):
     for x, y in field_out:
         field_out[x, field_out.shape[1]-y-1] = field_in[y, x]
    
+
+@ti.kernel
+def copyFrameToSequence(sequence: ti.template(), frame_index: ti.i32, copy_frame: pixarr):
+    # Iterate over pixels
+    H, W = sequence.shape[1], sequence.shape[2]
+    for y, x in ti.ndrange(H, W):
+        # Copy frame
+        sequence[frame_index, y, x] = copy_frame[y, x]
