@@ -59,6 +59,15 @@
             "justMyCode": true
         },
         {
+            "name": "Eval Light Stack",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--mode=eval_lightstack", "--sequence_name=20240127_1511_lights_linear", "--video_frames_skip=2"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Eval Sequence to EXR",
             "type": "python",
             "request": "launch",
@@ -72,7 +81,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=eval_stack", "--sequence_name=20240129_0954_lights.MP4,20240127_1511_lights.MP4,20240129_0935_lights.MP4", "--video_frames_skip=2", "--sequence_output_name=stack_output"],
+            "args": ["--loglevel=DEBUG", "--mode=eval_expostack", "--sequence_name=20240129_0954_lights.MP4,20240127_1511_lights.MP4,20240129_0935_lights.MP4", "--video_frames_skip=2", "--sequence_output_name=stack_output"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

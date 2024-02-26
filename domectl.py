@@ -28,10 +28,15 @@ from src.imgdata import *
 from src.sequence import Sequence
 from src.lightdome import Lightdome
 from src.eval import Eval
-from src.rti import Rti
 from src.img_op import *
 from src.cam_op import *
-
+from src.viewer import *
+import src.ti_base as tib
+# Renderer
+from src.renderer.renderer import Renderer
+from src.renderer.rti import RtiRenderer
+from src.renderer.rgbstack import RgbStacker
+from src.renderer.lightstack import LightStacker
 
 # Types
 HW = namedtuple("HW", ["cam", "lights", "config"])
@@ -41,7 +46,7 @@ FLAGS = flags.FLAGS
 
 # Global flag defines
 # Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_stack', 'eval_linearize', 'eval_cal','relight_simple', 'relight_rti', 'relight_ml', 'viewer_rti', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
+flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lightstack', 'eval_expostack', 'eval_linearize', 'eval_cal','relight_simple', 'relight_rti', 'relight_ml', 'viewer_rti', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
 flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
 flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
 # Configuration
@@ -72,6 +77,7 @@ def main(argv):
 
     # Prepare hardware for tasks
     hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
+    tib.init(on_cuda=True, debug=True)
     mode, mode_type = FLAGS.mode.split("_", 1)
     sequence = None
 
@@ -167,11 +173,19 @@ def main(argv):
     
         if mode == 'eval':
             match mode_type:
+                # TODO: Names for process function!!
                 case 'rti':
-                    evalRti(sequence, hw.config)
+                    settings = {'order': 3}
+                    process(RtiRenderer(), sequence, hw.config, "rti", settings)
                 case 'hdri':
-                    evalHdri(sequence)
-                case 'stack':
+                    # RGB HDRI Stack
+                    process(RgbStacker(), sequence, hw.config, "rgb_stack")
+                case 'lightstack':
+                    # Light stacking
+                    stacker = LightStacker()
+                    #stacker.setSequence(sequence)
+                    process(stacker, sequence, hw.config, "light_stack")
+                case 'expostack':
                     output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type
                     evalStack(sequence, output_name)
                 case 'linearize':
@@ -348,40 +362,29 @@ def lightsConfigRun(hw):
 
 #################### EVAL MODES ####################
 
-def evalRti(img_seq, config):
-    log.info(f"Generate RTI Data from image sequence")
+def process(renderer, img_seq, config, name, settings={}):
+    log.info(f"Process image sequence for {renderer.name}")
     
-    # Scale down
+    # TODO: Possible scale
     #for id, img in img_seq:
     #    img = img.scale(0.5, False)
     #    img_seq[id] = img
     
-    # Calculate RTI
-    rti = Rti()
-    rti.calculate(img_seq, config, grade=6)
-    
-    # Save RTI sequence
-    rti_seq = rti.get()
-    name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != "" else FLAGS.sequence_name + "_rti"
-    rti_seq.saveSequence(name, FLAGS.sequence_path, ImgFormat.EXR)
+    # Process
+    renderer.process(img_seq, config, settings)
 
-    # For quick visualisation        
-    rti.launchViewer()
+    # Save data
+    seq_out = renderer.get()
+    if (len(seq_out) > 0):
+        domain = seq_out.get(0).domain()
+        seq_out.saveSequence(name, FLAGS.sequence_path, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
 
+    # Launch viewer
+    if True:
+        viewer = Viewer()
+        viewer.setRenderer(renderer)
+        viewer.launch()
 
-def evalHdri(img_seq):
-    log.info(f"Processing HDRI RGB sequence")
-
-    # Get channels and stack them
-    r = img_seq[0].r()
-    g = img_seq[1].g()
-    b = img_seq[2].b()
-    
-    # Stacking
-    path = os.path.join(os.path.split(img_seq[0].getPath())[0], 'HDRI_stacked')
-    rgb = ImgOp.StackChannels([r, g, b], path)
-    rgb.setFormat(ImgFormat.JPG)
-    rgb.save()
 
 def evalStack(sequences, output_name, cam_response=None):
     stacked_seq = Sequence()
@@ -526,7 +529,7 @@ def relightMl(img_seq, config, output_name):
 #################### VIEWER MODES ####################
 
 def viewerRti(img_seq):
-    log.info(f"Generate HDRI Lighting from RTI data")
+    log.info(f"Lauching viewer")
     
     # HDRI
     hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
@@ -535,9 +538,10 @@ def viewerRti(img_seq):
     blur_size += 1-blur_size%2 # Make it odd
     hdri.set(cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
     
-    rti = Rti()
-    rti.load(img_seq)
-    rti.launchViewer(hdri)
+    viewer = Viewer()
+    viewer.setSequences(rti_factors=img_seq)
+    viewer.setHdris([hdri])
+    viewer.launch()
     
 
 
