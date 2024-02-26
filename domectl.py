@@ -27,7 +27,7 @@ import src.worker as worker
 from src.imgdata import *
 from src.sequence import Sequence
 from src.lightdome import Lightdome
-from src.eval import Eval
+from src.calibrate import Calibrate
 from src.img_op import *
 from src.cam_op import *
 from src.viewer import *
@@ -44,65 +44,75 @@ HW = namedtuple("HW", ["cam", "lights", "config"])
 # Globals
 FLAGS = flags.FLAGS
 
-# Global flag defines
-# Mode and logging
-flags.DEFINE_enum('mode', 'capture_lights', ['capture_lights', 'capture_rti', 'capture_hdri', 'capture_cal', 'eval_rti', 'eval_hdri', 'eval_lightstack', 'eval_expostack', 'eval_linearize', 'eval_cal','relight_simple', 'relight_rti', 'relight_ml', 'viewer_rti', 'lights_hdri', 'lights_animate', 'lights_run', 'lights_ambient', 'lights_off', 'cam_deleteall', 'cam_stopvideo'], 'What the script should do.')
-flags.DEFINE_enum('capture_mode', 'jpg', ['jpg', 'raw', 'quick'], 'Capture modes: Image (jpg or raw) or video/quick.')
-flags.DEFINE_enum('loglevel', 'INFO', ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], 'Level of logging.')
-# Configuration
-flags.DEFINE_string('config_path', '../HdM_BA/data/config', 'Where the configurations should be stored.')
-flags.DEFINE_string('config_name', 'lightdome.json', 'Name of input config file.')
-flags.DEFINE_string('config_output_name', '', "Name of config to write calibration data to. Default is 'lightdome' and current date & time.")
-# Sequence 
-flags.DEFINE_string('sequence_path', '../HdM_BA/data', 'Where the image data should be written to.')
-flags.DEFINE_string('sequence_name', '', 'Sequence name to download and/or evaluate. Default is type of capture current date & time.')
-flags.DEFINE_string('sequence_output_name', '', 'Sequence name for processed sequences e.g. stacking.')
-flags.DEFINE_enum  ('sequence_domain', 'guess', ['guess', 'lin', 'sRGB'], 'Domain of sequence. Default for EXR is linear, sRGB for PNGs and JPGs.')
-flags.DEFINE_boolean('sequence_keep', False, 'Keep images on camera after downloading.')
-flags.DEFINE_boolean('sequence_save', True, 'If captured sequences should be saved or discarded after evaluation.')
-# Capture settings
-# TODO: Should be hard-coded
-flags.DEFINE_integer('video_frames_skip', 2, 'Frames to skip between valid frames in video sequence', lower_bound=0)
-flags.DEFINE_float('video_fps', 25, 'Frame rate for the video capture.')
-flags.DEFINE_boolean('video_safe_rec', True, "Captures two pictures for the same frame and discharges the first one.")
-# Additional resources
-flags.DEFINE_string('input_hdri', 'HDRIs/pretville_cinema_1k.exr', 'Name/Path of HDRI that is used for sky dome sampling.')
-flags.DEFINE_float('hdri_rotation', 0, 'Rotation of HDRI in degrees.', lower_bound=0, upper_bound=360)
+### Example of usage for domectl
+# domectl --capture --hdr --seq-type=lights|hdri|fullrun --seq-name="" --seq-domain=keep|linear|srgb --seq-save --seq-convert
+# domectl --process --eval-type=cal|hdri|lightstack|rti|expostack|convert --eval-folder="" --eval-name=""
+# domectl --viewer --headless --record --record-folder="" --record-name="" --hdri-folder="" --hdri-name=""
+# domectl --camctl=none|stop|erase
+# domectl --lightctl=none|on|off|run|anim-latlong|hdri --brightness=0-255 --limiter=0-255
+
+### Global flag defines ###
+# General
+flags.DEFINE_enum('loglevel', 'INFO', ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'], 'Level of logging.')
+# Capture
+flags.DEFINE_bool('capture', False, "Set this flag to capture footage instead of loading it from disk.")
+flags.DEFINE_bool('hdr', False, "If set, capture will be either raw images or multiple videos for exposure stacking, depending on the camera mode.")
+flags.DEFINE_integer('vid_frames_skip', 2, 'Frames to skip between valid frames in video sequence', lower_bound=0)
+flags.DEFINE_float('vid_fps', 25, 'Frame rate for the video capture.')
+flags.DEFINE_boolean('vid_safe', True, "Captures two pictures for the same frame and discharges the first one.")
+# Sequence settings
+flags.DEFINE_enum('seq_type', 'lights', ["lights", "hdri", "fullrun"], "Sequence consists of images from all lights of the current config, three images for RGB channel stacking or a full run for all light IDs without config.")
+flags.DEFINE_enum('seq_domain', 'keep', ['keep', 'lin', 'srgb'], 'Domain of sequence, default for EXR is linear, sRGB for PNGs and JPGs.')
+flags.DEFINE_string('seq_folder', '../HdM_BA/data/capture', 'Where the image data should be written to.')
+flags.DEFINE_string('seq_name', '', 'Name of captured sequence or folder/file to load, default is current date & time + type of capture.')
+flags.DEFINE_bool('seq_save', True, "Save downloaded images to disk.")
+flags.DEFINE_bool('seq_convert', False, "Convert to image files if a video was captured.")
+# Calibration
+flags.DEFINE_string('cal_folder', '../HdM_BA/data/config', 'Folder for light calibration.')
+flags.DEFINE_string('cal_name', 'lightdome.json', 'Name of calibration file to be loaded or generated.')
+# HDRI
+flags.DEFINE_string('hdri_folder', '../HdM_BA/data/hdri', 'Folder for HDRI environment maps.')
+flags.DEFINE_string('hdri_name', '', 'Name of HDRI image to be used for processing.')
+flags.DEFINE_float('hdri_rotation', 0.0, 'Rotation of HDRI in degrees.', lower_bound=0, upper_bound=360)
+# Processing
+flags.DEFINE_bool('process', False, "Set this flag to enable processing of recorded footage.")
+flags.DEFINE_enum('eval_type', 'pass', ["cal", "hdri", "lightstack", "rti", "expostack", "convert", 'pass'], "How the sequence should be processed or interpreted by the viewer.")
+flags.DEFINE_string('eval_folder', '../HdM_BA/data/processed', 'Folder for HDRI environment maps.')
+flags.DEFINE_string('eval_name', '', 'Name of HDRI image to be used for processing.')
+# Viewer
+flags.DEFINE_bool('viewer', False, "Set this flag to launch the viewer with the loaded or processed data.")
+flags.DEFINE_bool('record', False, "Set this flag to record a 360° environment turn in headless mode.")
+flags.DEFINE_string('rec_folder', '../HdM_BA/data/rec', 'Folder for recorded renderings.')
+flags.DEFINE_string('rec_name', '', 'Name of video output of recorded rendering.')
+# Camera control
+flags.DEFINE_enum('camctl', 'none', ["none", "stop", "erase"], "")
+# Light control
+flags.DEFINE_enum('lightctl', 'none', ["none", "on", "off", "run", "anim_latlong", "anim_hdri"], "How the sequence should be processed or interpreted by the viewer.")
+
+
 
 
 def main(argv):
     # Init logger
     reload(log)
     log.basicConfig(level=log._nameToLevel[FLAGS.loglevel], format='[%(levelname)s] %(message)s')
+    datetime_now = datetime.datetime.now().strftime("%Y%m%d_%H%M")
 
     # Prepare hardware for tasks
-    hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.config_path, FLAGS.config_name)))
+    hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)))
     tib.init(on_cuda=True, debug=True)
-    mode, mode_type = FLAGS.mode.split("_", 1)
+
+    ### Load image sequence, either by capturing or loading sequence from disk ###
     sequence = None
-
-    ### Camera quick controlls ###
-    if 'cam' in mode:
-        if 'stopvideo' in mode_type:
-            triggerVideoEnd()
-        elif 'deleteall' in mode_type:
-            # Delete all files on camera
-            hw.cam.deleteAll()
-
-        #CamOp.FindMaxExposure(hw.cam)
-        #hw.cam.setIso('100')
-        #hw.cam.setAperture('8')
-        # All done, return
-        return
-    
-    ### Load image sequence, either bei capturing or loading sequence from disk ###
-    if mode == "capture":
+    if FLAGS.capture:
+        # Set name
+        seq_name = FLAGS.seq_name if FLAGS.seq_name != '' else datetime_now + '_' + FLAGS.seq_type # 240116_2333_lights
+        
         # Init lights
         hw.lights.getInterface()
-        name = FLAGS.sequence_name if FLAGS.sequence_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type # 240116_2333_cal
         
         # Set configuration for camera
-        # TODO! Organize better
+        # TODO! Organize better, move to capture module
         if not hw.cam.isVideoMode():
             if FLAGS.capture_mode == 'raw':
                 hw.cam.setImgFormat(CamImgFormat.Raw)
@@ -124,88 +134,93 @@ def main(argv):
         FLAGS.sequence_name = name
         if FLAGS.capture_mode == 'quick':
             FLAGS.sequence_name+=".MP4"
+        
+    elif FLAGS.process or FLAGS.viewer:
+        # Load from disk
+        sequence = load(FLAGS.seq_name, hw.config)
+        if len(sequence) == 0:
+            log.warn("Empty sequence loaded")
     
-    
-    ### Separate lights only modes from evaluation ###
-    if mode == 'lights':
-        # Lights only modes
+    ### Process sequence ###
+    renderer = None
+    if FLAGS.process:
+        settings = dict()
+        name = FLAGS.eval_name if FLAGS.eval_name != '' else datetime_now + '_' + FLAGS.eval_type
+        match FLAGS.eval_type:
+            case 'cal':
+                Calibrate(sequence)
+            case 'hdri':
+                renderer = RgbStacker()
+            case 'lightstack':
+                renderer = LightStacker()
+            case 'rti':
+                settings = {'order': 3}
+                renderer = RtiRenderer()
+            case 'expostack':
+                evalStack(sequence, name)
+            case 'convert':
+                Convert(sequence, name)
+            
+        if renderer is not None:
+            Process(renderer, sequence, hw.config, name, settings)
+            
+    ### Launch viewer ###
+    if FLAGS.viewer:
+        if renderer is None and FLAGS.eval_name != '':
+            # Load renderer with eval data
+            eval_seq = Sequence()
+            eval_seq.load(os.path.join(FLAGS.eval_folder, FLAGS.eval_name))
+            renderer = None
+            match FLAGS.eval_type:
+                case 'hdri':
+                    renderer = RgbStacker()
+                case 'lightstack':
+                    renderer = LightStacker()
+                case 'rti':
+                    renderer = RtiRenderer()
+            if renderer is not None:
+                renderer.load(eval_seq)
+        
+        # Launch if renderer is loaded
+        if renderer is not None:
+            LaunchViewer(renderer)
 
+
+    ### Camera quick controlls ###
+    match FLAGS.camctl:
+        case 'none':
+            pass
+        case 'stop':
+            triggerVideoEnd()
+        case 'erase':
+            # Delete all files on camera
+            hw.cam.deleteAll()
+        #CamOp.FindMaxExposure(hw.cam)
+        #hw.cam.setIso('100')
+        #hw.cam.setAperture('8')
+        # All done, return
+    
+    
+    ### Light modes after capturing and processing ###
+    if FLAGS.lightctl != 'none':
         # Init lights
         hw.lights.getInterface()
 
-        match mode_type:
-            case 'hdri':
-                lightsHdriRotate(hw)
-            case 'animate':
-                lightsAnimate(hw)
-            case 'run':
-                lightsConfigRun(hw)
+        match FLAGS.lightctl:
+            case 'on':
+                lightsTop(hw, brightness=80)
             case 'off':
                 hw.lights.off()
-            case 'ambient':
-                # All lights on:
-                hw.lights.setList(range(512), 5)
-                hw.lights.write()
-                for i in range(512):
-                    hw.lights.setList([i], 255)
-                    hw.lights.write()
-                # Ambient light will be turned on anyway, just pass
-                pass
+            case 'run':
+                lightsConfigRun(hw)
+            case 'anim_latlong':
+                lightsAnimate(hw)
+            case 'anim_hdri':
+                lightsHdriRotate(hw)
 
         # Default light
-        if not 'off' in mode_type:
+        if FLAGS.lightctl != 'off':
             lightsTop(hw, brightness=80)
-    
-    else:
-        # Split sequence
-        names = FLAGS.sequence_name.split(',')
-        # Load data
-        if len(names) == 1:
-            sequence = load(FLAGS.sequence_name, hw.config)
-            if len(sequence) == 0:
-                log.error("Empty sequence, aborting")
-                return
-        else:
-            sequence = []
-            # Load sequence for every comma separated name
-            for seq in names:
-                sequence.append(load(seq, hw.config))
-    
-        if mode == 'eval':
-            match mode_type:
-                # TODO: Names for process function!!
-                case 'rti':
-                    settings = {'order': 3}
-                    process(RtiRenderer(), sequence, hw.config, "rti", settings)
-                case 'hdri':
-                    # RGB HDRI Stack
-                    process(RgbStacker(), sequence, hw.config, "rgb_stack")
-                case 'lightstack':
-                    # Light stacking
-                    stacker = LightStacker()
-                    #stacker.setSequence(sequence)
-                    process(stacker, sequence, hw.config, "light_stack")
-                case 'expostack':
-                    output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_' + mode_type
-                    evalStack(sequence, output_name)
-                case 'linearize':
-                    output_name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else f"{os.path.splitext(FLAGS.sequence_name)[0]}_linear"
-                    evalLinearize(sequence, output_name)
-                case 'cal':
-                    evalCal(sequence)
-        elif mode == 'relight':
-            name = FLAGS.sequence_output_name if FLAGS.sequence_output_name != '' else os.path.splitext(FLAGS.sequence_name)[0]
-            match mode_type:
-                case 'simple':
-                    relightSimple(sequence, hw.config, name+'_lit_simp')
-                case 'rti':
-                    relightRti(sequence, name+'_lit_rti')
-                case 'ml':
-                    relightMl(sequence, hw.config, name+'_lit_ml')
-        elif mode == 'viewer':
-            match mode_type:
-                case 'rti':
-                    viewerRti(sequence)
 
 
                     
@@ -360,9 +375,41 @@ def lightsConfigRun(hw):
     t.join()
 
 
-#################### EVAL MODES ####################
+#################### Processing functions ####################
 
-def process(renderer, img_seq, config, name, settings={}):
+def Calibrate(img_seq):
+    log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
+
+    new_config=Config()
+    cal = Calibrate()
+    img_mask = img_seq.getMaskFrame()
+
+    # Find center of chrome ball with mask frame
+    cal.findCenter(img_mask)
+    
+    # Loop through all calibration frames
+    debug_img = img_mask.asInt().get()
+    for id, img in img_seq:
+        if not cal.filterBlackframe(img):
+            # Process frame
+            uv = cal.findReflection(img, id, debug_img)
+            if uv is not None:
+                new_config.addLight(id, uv, Calibrate.SphericalToLatlong(uv))
+            img.unload()
+        else:
+            log.debug(f"Found blackframe '{id}'")
+            img.unload()
+        
+    # Save debug image
+    ImgOp.SaveEval(debug_img, "reflections")
+
+    # Save config
+    name = FLAGS.config_output_name if FLAGS.config_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
+    log.info(f"Saving config as '{name}' with {len(new_config)} lights from ID {new_config.getIdBounds()}")
+    new_config.save(FLAGS.config_path, name)
+
+
+def Process(renderer, img_seq, config, name, settings):
     log.info(f"Process image sequence for {renderer.name}")
     
     # TODO: Possible scale
@@ -410,7 +457,7 @@ def evalStack(sequences, output_name, cam_response=None):
                 frames[i].setPath(os.path.join(FLAGS.sequence_path, output_name, f"first_{i:03d}"))
                 frames[i].save(ImgFormat.JPG)
         
-        path = os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{id:03d}")
+        path = os.path.join(FLAGS.seq_folder, output_name, f"{output_name}_{id:03d}")
         stacked_seq.append(ImgOp.ExposureStacking(frames, cam_response, path=path), id)
         
         # Save & unload frame
@@ -419,45 +466,14 @@ def evalStack(sequences, output_name, cam_response=None):
     # Return sequence with stacked images       
     return stacked_seq
 
-def evalLinearize(img_seq, output_name):
+def Convert(img_seq, output_name):
     for i in range(len(img_seq)):
         img = img_seq.get(i).asDomain(ImgDomain.Lin, as_float=True)
         id = img_seq.getKeys()[i]
-        img.setPath(os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{id:03d}"))
+        img.setPath(os.path.join(FLAGS.seq_folder, output_name, f"{output_name}_{id:03d}"))
         img.setFormat(ImgFormat.EXR)
         #img = img.scale(0.5) # TODO
         img.unload(save=True)
-
-def evalCal(img_seq):
-    log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
-
-    new_config=Config()
-    eval=Eval()
-    img_mask = img_seq.getMaskFrame()
-
-    # Find center of chrome ball with mask frame
-    eval.findCenter(img_mask)
-    
-    # Loop through all calibration frames
-    debug_img = img_mask.asInt().get()
-    for id, img in img_seq:
-        if not eval.filterBlackframe(img):
-            # Process frame
-            uv = eval.findReflection(img, id, debug_img)
-            if uv is not None:
-                new_config.addLight(id, uv, Eval.SphericalToLatlong(uv))
-            img.unload()
-        else:
-            log.debug(f"Found blackframe '{id}'")
-            img.unload()
-        
-    # Save debug image
-    ImgOp.SaveEval(debug_img, "reflections")
-
-    # Save config
-    name = FLAGS.config_output_name if FLAGS.config_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
-    log.info(f"Saving config as '{name}' with {len(new_config)} lights from ID {new_config.getIdBounds()}")
-    new_config.save(FLAGS.config_path, name)
 
 
 
@@ -489,58 +505,22 @@ def relightSimple(img_seq, config, output_name):
     lighting.save()
 
 
-def relightRti(img_seq, output_name):
-    log.info(f"Generate HDRI Lighting from RTI data")
-    
-    rti = Rti(img_seq.get(0).resolution())
-    rti.load(img_seq)
-    
-    # Sequence generator
-    for i in range(36):
-        lighting = rti.sampleLight((45, i*10))
-        lighting.setPath(os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{i:03d}"))
-        lighting.set(lighting.get()*20)
-        lighting = lighting.asDomain(ImgDomain.sRGB)
-        lighting.setFormat(ImgFormat.JPG)
-        lighting.save()
-    return    
-    
-    ImgOp.SaveEval(rti.sampleLight((45,0)).get(), "RTI1", ImgFormat.EXR)
-    ImgOp.SaveEval(rti.sampleLight((45,180)).get(), "RTI2", ImgFormat.EXR)
-    ImgOp.SaveEval(rti.sampleLight((45,360)).get(), "RTI3", ImgFormat.EXR)
-    ImgOp.SaveEval(rti.sampleLight((0, 0)).get(), "RTI4", ImgFormat.EXR)
-    ImgOp.SaveEval(rti.sampleLight((90, 0)).get(), "RTI5", ImgFormat.EXR)
-    
-    
-    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
-    
-    # Generate scene with HDRI lighting
-    lighting = rti.sampleHdri(hdri)
-    
-    lighting.setPath(os.path.join(FLAGS.sequence_path, output_name, output_name))
-    lighting.setFormat(ImgFormat.EXR)
-    lighting.save()
-    
-    
-def relightMl(img_seq, config, output_name):
-    pass
+#################### VIEWER ####################
 
-
-#################### VIEWER MODES ####################
-
-def viewerRti(img_seq):
+def LaunchViewer(renderer):
     log.info(f"Lauching viewer")
     
     # HDRI
-    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
-    res_y, res_x = hdri.get().shape[:2]
-    blur_size = int(15*res_y/100)
-    blur_size += 1-blur_size%2 # Make it odd
-    hdri.set(cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
+    #hdri = ImgBuffer(os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
+    #res_y, res_x = hdri.get().shape[:2]
+    #blur_size = int(15*res_y/100)
+    #blur_size += 1-blur_size%2 # Make it odd
+    #hdri.set(cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
     
     viewer = Viewer()
-    viewer.setSequences(rti_factors=img_seq)
-    viewer.setHdris([hdri])
+    #viewer.setSequences(rti_factors=img_seq)
+    #viewer.setHdris([hdri])
+    viewer.setRenderer(renderer)
     viewer.launch()
     
 
@@ -549,36 +529,47 @@ def viewerRti(img_seq):
 
 def download(hw, name, keep=False, save=False):
     """Download from camera"""
-    log.debug(f"Downloading sequence '{name}' to {FLAGS.sequence_path}")
+    log.debug(f"Downloading sequence '{name}' to {FLAGS.seq_folder}")
     sequence = Sequence()
-    if 'quick' in FLAGS.capture_mode:
-        sequence = hw.cam.getVideoSequence(FLAGS.sequence_path, name, hw.config.getIds(), keep=keep)
+    if hw.cam.isVideoMode():
+        sequence = hw.cam.getVideoSequence(FLAGS.seq_folder, name, hw.config.getIds(), keep=keep)
     else:
-        sequence = hw.cam.getSequence(FLAGS.sequence_path, name, keep=keep)
+        sequence = hw.cam.getSequence(FLAGS.seq_folder, name, keep=keep)
+        img_format = ImgFormat.EXR if FLAGS.hdr else ImgFormat.JPG
         if save:
             for _, img in sequence:
-                img.save(format = ImgFormat.EXR if FLAGS.capture_mode == 'raw' else ImgFormat.JPG)
+                img.save(img_format)
     return sequence
     
-def load(name, config):
+def load(seq_name, config):
     """Load from disk"""
     sequence = Sequence()
     
-    path = os.path.join(FLAGS.sequence_path, name)
-    if os.path.splitext(name)[1] == '':
-        # Load folder
-        domain = ImgDomain.Lin
-        match FLAGS.sequence_domain:
-            case 'guess':
-                domain = ImgDomain.Keep
-            case 'sRGB':
-                domain = ImgDomain.sRGB
-        sequence.loadFolder(path, domain)
-    else:
-        # Load video
-        frames_skip = FLAGS.video_frames_skip * 2 + 1 if FLAGS.video_safe_rec else FLAGS.video_frames_skip
-            
-        sequence.loadVideo(path, config.getIds(), video_frames_skip=FLAGS.video_frames_skip)
+    # TODO: Metadata?
+    if seq_name != '':
+        path = os.path.join(FLAGS.seq_folder, seq_name)
+        if os.path.splitext(seq_name)[1] == '':
+            # Load folder
+            domain = ImgDomain.Keep
+            # Override domain
+            match FLAGS.seq_domain:
+                case 'lin':
+                    domain = ImgDomain.Lin
+                case 'srgb':
+                    domain = ImgDomain.sRGB
+            sequence.loadFolder(path, domain)
+        else:
+            # Load video
+            # IDs according sequence type
+            match FLAGS.seq_type:
+                case 'lights':
+                    ids = config.getIds()
+                case 'hdri':
+                    ids = [0, 1, 2]
+                case 'fullrun':
+                    ids = range(512)
+            frames_skip = FLAGS.vid_frames_skip * 2 + 1 if FLAGS.video_safe_rec else FLAGS.vid_frames_skip
+            sequence.loadVideo(path, ids, video_frames_skip=frames_skip)
     
     return sequence
 

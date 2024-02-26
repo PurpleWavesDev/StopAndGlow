@@ -12,7 +12,7 @@ from src.utils import logging_disabled
 from src.mathutils import *
 
 
-class Eval:
+class Calibrate:
     def __init__(self):
         # Settings
         self.reflection_threshold=245

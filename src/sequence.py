@@ -38,7 +38,7 @@ class Sequence():
             self.writeMeta()
 
     def load(self, path, domain=ImgDomain.Keep, video_frame_list=range(0)):
-        # TODO
+        # TODO Metadata!!
         match (os.path.splitext(path)[1]).lower():
             case '':
                 # Path, load folder
