@@ -76,7 +76,7 @@ flags.DEFINE_string('hdri_name', '', 'Name of HDRI image to be used for processi
 flags.DEFINE_float('hdri_rotation', 0.0, 'Rotation of HDRI in degrees.', lower_bound=0, upper_bound=360)
 # Processing
 flags.DEFINE_bool('process', False, "Set this flag to enable processing of recorded footage.")
-flags.DEFINE_enum('eval_type', 'pass', ["cal", "hdri", "lightstack", "rti", "expostack", "convert", 'pass'], "How the sequence should be processed or interpreted by the viewer.")
+flags.DEFINE_enum('eval_type', 'pass', ["cal", "rgbstack", "lightstack", "rti", "expostack", "convert", 'pass'], "How the sequence should be processed or interpreted by the viewer.")
 flags.DEFINE_string('eval_folder', '../HdM_BA/data/processed', 'Folder for HDRI environment maps.')
 flags.DEFINE_string('eval_name', '', 'Name of HDRI image to be used for processing.')
 # Viewer
@@ -148,8 +148,8 @@ def main(argv):
         name = FLAGS.eval_name if FLAGS.eval_name != '' else datetime_now + '_' + FLAGS.eval_type
         match FLAGS.eval_type:
             case 'cal':
-                Calibrate(sequence)
-            case 'hdri':
+                calibrate(sequence)
+            case 'rgbstack':
                 renderer = RgbStacker()
             case 'lightstack':
                 renderer = LightStacker()
@@ -172,7 +172,7 @@ def main(argv):
             eval_seq.load(os.path.join(FLAGS.eval_folder, FLAGS.eval_name))
             renderer = None
             match FLAGS.eval_type:
-                case 'hdri':
+                case 'rgbstack':
                     renderer = RgbStacker()
                 case 'lightstack':
                     renderer = LightStacker()
@@ -377,7 +377,7 @@ def lightsConfigRun(hw):
 
 #################### Processing functions ####################
 
-def Calibrate(img_seq):
+def calibrate(img_seq):
     log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
 
     new_config=Config()
@@ -424,7 +424,7 @@ def Process(renderer, img_seq, config, name, settings):
     seq_out = renderer.get()
     if (len(seq_out) > 0):
         domain = seq_out.get(0).domain()
-        seq_out.saveSequence(name, FLAGS.sequence_path, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
+        seq_out.saveSequence(name, FLAGS.eval_folder, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
 
     # Launch viewer
     if True:
@@ -568,7 +568,7 @@ def load(seq_name, config):
                     ids = [0, 1, 2]
                 case 'fullrun':
                     ids = range(512)
-            frames_skip = FLAGS.vid_frames_skip * 2 + 1 if FLAGS.video_safe_rec else FLAGS.vid_frames_skip
+            frames_skip = FLAGS.vid_frames_skip * 2 + 1 if FLAGS.vid_safe else FLAGS.vid_frames_skip
             sequence.loadVideo(path, ids, video_frames_skip=frames_skip)
     
     return sequence

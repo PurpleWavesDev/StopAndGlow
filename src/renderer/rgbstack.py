@@ -15,7 +15,6 @@ from src.config import *
 
 from src.renderer.renderer import *
 import src.ti_base as tib
-#import src.renderer.ti_stack as tstack
 
 
 class RgbStacker(Renderer):
@@ -43,8 +42,8 @@ class RgbStacker(Renderer):
         # Get channels and stack them
         self._domain = settings['domain'] if 'domain' in settings else ImgDomain.Keep
         r = img_seq[0].asDomain(self._domain).r()
-        g = img_seq[0].asDomain(self._domain).g()
-        b = img_seq[0].asDomain(self._domain).b()
+        g = img_seq[1].asDomain(self._domain).g()
+        b = img_seq[2].asDomain(self._domain).b()
         
         # Stacking
         self._stacked = ImgOp.StackChannels([r, g, b])        

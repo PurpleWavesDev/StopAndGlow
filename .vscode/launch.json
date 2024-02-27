@@ -45,7 +45,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=cal", "--seq_name=cal"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=cal", "--seq_name=20240223_1637_cal.MP4"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -54,7 +54,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=cal", "--seq_name=cal"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rgbstack", "--seq_name=20240129_1016_hdri"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -63,7 +63,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=cal", "--seq_name=cal"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=lightstack", "--seq_name=20240127_1511_lights_linear"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
