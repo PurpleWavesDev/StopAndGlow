@@ -70,6 +70,7 @@ flags.DEFINE_bool('seq_convert', False, "Convert to image files if a video was c
 # Calibration
 flags.DEFINE_string('cal_folder', '../HdM_BA/data/config', 'Folder for light calibration.')
 flags.DEFINE_string('cal_name', 'lightdome.json', 'Name of calibration file to be loaded or generated.')
+flags.DEFINE_string('new_cal_name', 'lightdome.json', 'Name of calibration file to be loaded or generated.')
 # HDRI
 flags.DEFINE_string('hdri_folder', '../HdM_BA/data/hdri', 'Folder for HDRI environment maps.')
 flags.DEFINE_string('hdri_name', '', 'Name of HDRI image to be used for processing.')
@@ -140,6 +141,12 @@ def main(argv):
         sequence = load(FLAGS.seq_name, hw.config)
         if len(sequence) == 0:
             log.warn("Empty sequence loaded")
+        
+            # TODO: Possible scale
+        #for id, img in img_seq:
+        #    img = img.scale(0.5, False)
+        #    img_seq[id] = img
+
     
     ### Process sequence ###
     renderer = None
@@ -148,7 +155,10 @@ def main(argv):
         name = FLAGS.eval_name if FLAGS.eval_name != '' else datetime_now + '_' + FLAGS.eval_type
         match FLAGS.eval_type:
             case 'cal':
-                calibrate(sequence)
+                #calibrate(sequence)
+                settings = {'interactive': FLAGS.viewer}
+                renderer = Calibrate()
+                
             case 'rgbstack':
                 renderer = RgbStacker()
             case 'lightstack':
@@ -185,7 +195,14 @@ def main(argv):
         if renderer is not None:
             LaunchViewer(renderer)
 
-
+    ### Config ###
+    if type(renderer) is Calibrate:
+        # Save config
+        cal_name = FLAGS.new_cal_name if FLAGS.new_cal_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
+        new_cal = renderer.getCalibration()
+        log.info(f"Saving calibration as '{cal_name}' with {len(new_cal)} lights from ID {new_cal.getIdBounds()}")
+        new_cal.save(FLAGS.cal_folder, cal_name)
+        
     ### Camera quick controlls ###
     match FLAGS.camctl:
         case 'none':
@@ -377,46 +394,9 @@ def lightsConfigRun(hw):
 
 #################### Processing functions ####################
 
-def calibrate(img_seq):
-    log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
-
-    new_config=Config()
-    cal = Calibrate()
-    img_mask = img_seq.getMaskFrame()
-
-    # Find center of chrome ball with mask frame
-    cal.findCenter(img_mask)
-    
-    # Loop through all calibration frames
-    debug_img = img_mask.asInt().get()
-    for id, img in img_seq:
-        if not cal.filterBlackframe(img):
-            # Process frame
-            uv = cal.findReflection(img, id, debug_img)
-            if uv is not None:
-                new_config.addLight(id, uv, Calibrate.SphericalToLatlong(uv))
-            img.unload()
-        else:
-            log.debug(f"Found blackframe '{id}'")
-            img.unload()
-        
-    # Save debug image
-    ImgOp.SaveEval(debug_img, "reflections")
-
-    # Save config
-    name = FLAGS.config_output_name if FLAGS.config_output_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
-    log.info(f"Saving config as '{name}' with {len(new_config)} lights from ID {new_config.getIdBounds()}")
-    new_config.save(FLAGS.config_path, name)
-
-
 def Process(renderer, img_seq, config, name, settings):
     log.info(f"Process image sequence for {renderer.name}")
-    
-    # TODO: Possible scale
-    #for id, img in img_seq:
-    #    img = img.scale(0.5, False)
-    #    img_seq[id] = img
-    
+        
     # Process
     renderer.process(img_seq, config, settings)
 

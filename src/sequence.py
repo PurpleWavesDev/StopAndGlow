@@ -142,14 +142,13 @@ class Sequence():
                         if self._vid_frame_number >= len(self._frames):
                             #log.debug(f"No new frame at frame {self._vid_frame_count} with {self._vid_frame_number} valid frames")
                             break
-                        if not ImgOp.blackframe(self._vid_frame):
-                            # Use this frame#
-                            id = self.getKeys()[self._vid_frame_number]
-                            log.debug(f"Valid sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
-                            # Append
-                            self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB)
+                        # Append
+                        id = self.getKeys()[self._vid_frame_number]
+                        self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB)
+                        if ImgOp.blackframe(self._vid_frame):
+                            log.warn(f"Black frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                         else:
-                            log.debug(f"Blackframe at frame {self._vid_frame_number} / {self._vid_frame_count}")   
+                            log.debug(f"Valid sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                     # Skip every other frame
                     self._vid_state = VidParseState.Skip
                     self._vid_frame_number += 1
