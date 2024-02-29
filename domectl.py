@@ -225,7 +225,9 @@ def main(argv):
 
         match FLAGS.lightctl:
             case 'on':
-                lightsTop(hw, brightness=80)
+                hw.lights.setNth(6, value=100)
+                hw.lights.write()
+                #lightsTop(hw, brightness=80)
             case 'off':
                 hw.lights.off()
             case 'run':
