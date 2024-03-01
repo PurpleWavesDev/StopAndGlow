@@ -47,7 +47,7 @@ class Calibrate(Renderer):
 
     # Render settings
     def getRenderModes(self) -> list:
-        return ["Chromeball", "Threshold", "Result"]
+        return ["Sequence", "Chromeball", "Threshold", "Result"]
     def getRenderSettings(self, render_mode) -> RenderSettings:
         return RenderSettings()
     def setCoords(self, u, v):
@@ -56,11 +56,14 @@ class Calibrate(Renderer):
     # Rendering
     def render(self, render_mode, buffer, hdri=None):
         match render_mode:
-            case 0: # Chromeball
+            case 0: # Sequence
+                buffer.from_numpy(self._sequence.getMaskFrame().get())
+                #buffer.from_numpy(self._sequence.get(0).get())
+            case 1: # Chromeball
                 buffer.from_numpy(self._mask_rgb.get())
-            case 1: # Threshold
+            case 2: # Threshold
                 buffer.from_numpy(np.dstack([self.cb_mask, self.cb_mask, self.cb_mask]))
-            case 2: # Result
+            case 3: # Result
                 buffer.from_numpy(self._reflections)
 
 
