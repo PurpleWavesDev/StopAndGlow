@@ -101,34 +101,19 @@ def main(argv):
 
     # Prepare hardware for tasks
     hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)))
-    tib.init(on_cuda=True, debug=True)
 
     ### Load image sequence, either by capturing or loading sequence from disk ###
     sequence = None
     if FLAGS.capture:
         # Set name
         seq_name = FLAGS.seq_name if FLAGS.seq_name != '' else datetime_now + '_' + FLAGS.seq_type # 240116_2333_lights
-        
-        # Init lights
-        hw.lights.getInterface()
-        
-        # Set configuration for camera
-        # TODO! Organize better, move to capture module
+
+        capture = Capture(hw, FLAGS)
         if not hw.cam.isVideoMode():
-            if FLAGS.capture_mode == 'raw':
-                hw.cam.setImgFormat(CamImgFormat.Raw)
-            else:
-                hw.cam.setImgFormat(CamImgFormat.JpgMedium)
-            #hw.cam.setExposure('1/100')
-            
-        # Capturing for all modes
-        if 'hdri' in mode_type:
-            captureHdri(hw)
+            capture.captureSequence(seq_name)
         else:
-            capture(hw)            
+            capture.captureVideo(seq_name)
         
-        # Default light
-        lightsTop(hw, brightness=80)
         
         # Sequence download, evaluation of video not necessary for capture only
         sequence = download(hw, name, keep=FLAGS.sequence_keep, save=FLAGS.sequence_save)
@@ -140,7 +125,7 @@ def main(argv):
         # Load from disk
         sequence = load(FLAGS.seq_name, hw.config)
         if len(sequence) == 0:
-            log.warn("Empty sequence loaded")
+            log.warning("Empty sequence loaded")
         
             # TODO: Possible scale
         #for id, img in img_seq:
@@ -151,6 +136,8 @@ def main(argv):
     ### Process sequence ###
     renderer = None
     if FLAGS.process:
+        tib.TIBase.init(on_cuda=True, debug=True)
+
         settings = dict()
         name = FLAGS.eval_name if FLAGS.eval_name != '' else datetime_now + '_' + FLAGS.eval_type
         match FLAGS.eval_type:
@@ -164,7 +151,7 @@ def main(argv):
             case 'lightstack':
                 renderer = LightStacker()
             case 'rti':
-                settings = {'order': 3}
+                settings = {'order': 2}
                 renderer = RtiRenderer()
             case 'expostack':
                 evalStack(sequence, name)
@@ -176,6 +163,8 @@ def main(argv):
             
     ### Launch viewer ###
     if FLAGS.viewer:
+        tib.TIBase.init(on_cuda=True, debug=True)
+
         if renderer is None and FLAGS.eval_name != '':
             # Load renderer with eval data
             eval_seq = Sequence()
