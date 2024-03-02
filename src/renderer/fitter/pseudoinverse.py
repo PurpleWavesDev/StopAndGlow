@@ -1,0 +1,127 @@
+from abc import ABC, abstractmethod
+
+import logging as log
+import numpy as np
+
+import taichi as ti
+import taichi.math as tm
+import taichi.types as tt
+import src.ti_base as tib
+
+from src.config import *
+from src.sequence import *
+
+class PseudoinverseFitter(ABC):
+    name = "Pseudoinverse Fitter"
+    
+    def __init__(self, settings):
+        self._coefficients = self._inverse = None
+        
+    def loadCoefficients(self, coefficient_seq):
+        # Load metadata
+        coefficient_count = coefficient_seq.getMeta('coefficient_count', 0)
+        # Check length of coefficient_count, maybe not load all frames?
+        if coefficient_count != 0 and coefficient_count != len(coefficient_seq):
+            log.error(f"Coefficient count in metadata ({coefficient_count}) and sequence length ({len(coefficient_seq)}) mismatch!")
+        
+        # Init coefficient field and copy data
+        res_x, res_y = coefficient_seq.get(0).resolution()
+        self._coefficients = ti.Vector.field(n=3, dtype=ti.f32, shape=(len(coefficient_seq), res_y, res_x))
+        arr = np.stack([frame[1].get() for frame in coefficient_seq], axis=0)
+        self._coefficients.from_numpy(arr)
+        
+        
+    def getCoefficients(self) -> Sequence:
+        seq = Sequence()
+        arr = self._coefficients.to_numpy()
+        
+        # Add frames to sequence
+        coefficient_count = self._coefficients.shape[0]
+        for i in range(coefficient_count):
+            seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
+        
+        # Metadata
+        seq.setMeta('fitter', type(self).__name__)
+        seq.setMeta('coefficient_count', coefficient_count)
+        
+        return seq
+
+    
+    @abstractmethod
+    def getCoefficientCount(self) -> int:
+        """Returns number of coefficients"""
+        raise NotImplementedError()
+    
+    def computeCoefficients(self, img_seq: Sequence, normals=None, slices: int = 1):
+        if self._inverse is None:
+            log.error("Can't compute coefficients without inverse data, aborting")
+            return
+        
+        coefficient_count = self.getCoefficientCount()
+        res_x, res_y = img_seq.get(0).resolution()
+        self._coefficients = ti.Vector.field(n=3, dtype=ti.f32, shape=(coefficient_count, res_y, res_x))
+        
+        # Image slices for memory reduction
+        slice_length = res_y // slices
+        sequence_buf = ti.Vector.field(n=3, dtype=ti.f32, shape=(len(img_seq), slice_length, res_x))
+        for slice_count in range(res_y // slice_length):
+            start = slice_count * slice_length
+            end = min((slice_count+1) * slice_length, res_y)
+            
+            # Copy frames to buffer
+            for i, id in enumerate(img_seq.getKeys()):
+                tib.copyFrameToSequence(sequence_buf, i, img_seq[id].asFloat().get()[start:end])
+            
+            # Compute coefficient slice
+            computeCoefficientSlice(sequence_buf, self._coefficients, self._inverse, start)
+    
+
+    def computeInverse(self, config, recalculate=False):
+        # Init array
+        light_count = len(config)
+        coefficient_count = self.getCoefficientCount()
+        self._inverse = ti.ndarray(ti.f32, (coefficient_count, light_count))
+        
+        if not recalculate and config.getInverse() is not None:
+            # Load from config
+            self._inverse.from_numpy(config.getInverse())
+        else:
+            # Create array and fill it with light positions
+            A = np.zeros((light_count, coefficient_count))
+            for i, light in enumerate(config.getLights()):
+                coord = Config.NormalizeLatlong(light['latlong'])
+                self.fillLightMatrix(A[i], coord)
+                #self._coordMinMax(coord)
+                
+            # Calculate inverse
+            self._inverse.from_numpy(np.linalg.pinv(A).astype(np.float32))
+            
+    @abstractmethod
+    def fillLightMatrix(self, line, coord):
+        raise NotImplementedError()
+    
+    @abstractmethod
+    def renderLight(self, buffer, coords, slices=1):
+        raise NotImplementedError()
+    
+    @abstractmethod
+    def renderHdri(self, buffer, hdri, rotation, slices=1):
+        raise NotImplementedError()
+
+    #def _coordMinMax(self, coords):
+    #    u, v = coords
+    #    self._u_min = u if self._u_min is None else min(u, self._u_min)
+    #    self._u_max = u if self._u_max is None else max(u, self._u_max)
+    #    self._v_min = v if self._v_min is None else min(v, self._v_min)
+    #    self._v_max = v if self._v_max is None else max(v, self._v_max)
+        
+@ti.kernel
+def computeCoefficientSlice(sequence: ti.template(), coefficients: ti.template(), inverse: ti.types.ndarray(dtype=ti.f32, ndim=2), row_offset: ti.i32):
+    # Iterate over pixels and factor count
+    H, W, C = sequence.shape[1], sequence.shape[2], coefficients.shape[0]
+    for y, x, m in ti.ndrange(H, W, C):
+        # Matrix multiplication of inverse and sequence pixels
+        for n in range(sequence.shape[0]): # n to 200/sequence count, m to 10/factor count
+            coefficients[m, y+row_offset, x][0] += inverse[m, n] * sequence[n, y, x][0]
+            coefficients[m, y+row_offset, x][1] += inverse[m, n] * sequence[n, y, x][1]
+            coefficients[m, y+row_offset, x][2] += inverse[m, n] * sequence[n, y, x][2]

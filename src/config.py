@@ -1,41 +1,55 @@
 import os
 import json 
 import math
+from numpy.typing import ArrayLike
 
 class Config:
     def __init__(self, path=None):
         self._id_min=-1
         self._id_max=-1
         self._lat_min = self._lat_max = self._long_min = self._long_max = -1
+        self._changed = False
 
         if path is not None:
             self.load(path)
         else:
             self._data = {
-                'version': '0.1.0',
-                'lights': []
+                'version': '0.2.0',
+                'lights': [],
+                'fitter': {}
             }
 
     def addLight(self, id, uv, latlong):
         self._data['lights'].append({'id': id, 'uv': uv, 'latlong': latlong})
         self._findMinMax(id, latlong)
+        self._changed = True
         
     def load(self, path):
         with open(path, "r") as file:
             self._data = json.load(file)
-            for light in self._data['lights']:
-                self._findMinMax(light['id'], light['latlong'])
+        for light in self._data['lights']:
+            self._findMinMax(light['id'], light['latlong'])
+        if not 'fitter' in self._data:
+            self._data['fitter'] = {}
+        self._changed = False
 
     def save(self, path, name='calibration.json'):
         if not os.path.exists(path):
             os.makedirs(path)
         full_path = os.path.join(path, name)
-
         with open(full_path, "w") as file:
             json.dump(self._data, file, indent=4)
+        self._changed = False
 
     def getLights(self):
         return self._data['lights']
+    
+    def setInverse(self, key, inverse: ArrayLike):
+        self._data['fitter']['inverse'] = inverse
+        self._changed = True
+        
+    def getInverse(self) -> ArrayLike | None:
+        self._data['fitter']['inverse'] if 'inverse' in self._data['fitter'] else None
 
     def getByIndex(self, index):
         return self._data['lights'][index]

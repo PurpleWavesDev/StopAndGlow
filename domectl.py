@@ -78,6 +78,7 @@ flags.DEFINE_float('hdri_rotation', 0.0, 'Rotation of HDRI in degrees.', lower_b
 # Processing
 flags.DEFINE_bool('process', False, "Set this flag to enable processing of recorded footage.")
 flags.DEFINE_enum('eval_type', 'pass', ["cal", "rgbstack", "lightstack", "rti", "expostack", "convert", 'pass'], "How the sequence should be processed or interpreted by the viewer.")
+flags.DEFINE_bool('eval_dontsave', False, "Set this flag to discard evaluation data after processing.")
 flags.DEFINE_string('eval_folder', '../HdM_BA/data/processed', 'Folder for HDRI environment maps.')
 flags.DEFINE_string('eval_name', '', 'Name of HDRI image to be used for processing.')
 # Viewer
@@ -395,13 +396,8 @@ def Process(renderer, img_seq, config, name, settings):
     seq_out = renderer.get()
     if (len(seq_out) > 0):
         domain = seq_out.get(0).domain()
-        seq_out.saveSequence(name, FLAGS.eval_folder, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
-
-    # Launch viewer
-    if True:
-        viewer = Viewer()
-        viewer.setRenderer(renderer)
-        viewer.launch()
+        if not FLAGS.eval_dontsave:
+            seq_out.saveSequence(name, FLAGS.eval_folder, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
 
 
 def evalStack(sequences, output_name, cam_response=None):
