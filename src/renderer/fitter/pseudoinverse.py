@@ -14,7 +14,7 @@ from src.sequence import *
 class PseudoinverseFitter(ABC):
     name = "Pseudoinverse Fitter"
     
-    def __init__(self, settings):
+    def __init__(self, settings = {}):
         self._coefficients = self._inverse = None
         
     def loadCoefficients(self, coefficient_seq):
@@ -74,7 +74,8 @@ class PseudoinverseFitter(ABC):
             
             # Compute coefficient slice
             computeCoefficientSlice(sequence_buf, self._coefficients, self._inverse, start)
-    
+        del sequence_buf
+        
 
     def computeInverse(self, config, recalculate=False):
         # Init array
@@ -91,7 +92,6 @@ class PseudoinverseFitter(ABC):
             for i, light in enumerate(config.getLights()):
                 coord = Config.NormalizeLatlong(light['latlong'])
                 self.fillLightMatrix(A[i], coord)
-                #self._coordMinMax(coord)
                 
             # Calculate inverse
             self._inverse.from_numpy(np.linalg.pinv(A).astype(np.float32))
@@ -107,13 +107,6 @@ class PseudoinverseFitter(ABC):
     @abstractmethod
     def renderHdri(self, buffer, hdri, rotation, slices=1):
         raise NotImplementedError()
-
-    #def _coordMinMax(self, coords):
-    #    u, v = coords
-    #    self._u_min = u if self._u_min is None else min(u, self._u_min)
-    #    self._u_max = u if self._u_max is None else max(u, self._u_max)
-    #    self._v_min = v if self._v_min is None else min(v, self._v_min)
-    #    self._v_max = v if self._v_max is None else max(v, self._v_max)
         
 @ti.kernel
 def computeCoefficientSlice(sequence: ti.template(), coefficients: ti.template(), inverse: ti.types.ndarray(dtype=ti.f32, ndim=2), row_offset: ti.i32):

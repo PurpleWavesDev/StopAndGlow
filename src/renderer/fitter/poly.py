@@ -21,8 +21,13 @@ class PolyFitter(PseudoinverseFitter):
             
     def fillLightMatrix(self, line, coord):
         u, v = coord
-        idx = 0
-        for n in range(1, self._order+1):
+        # Start with order 0 and 1 
+        line[0] = 1
+        line[1] = u
+        line[2] = v
+        # Higher orders
+        idx = 3
+        for n in range(2, self._order+1):
             for i in range(n+1):
                 line[idx] = u**(n-i) * v**i
                 idx += 1

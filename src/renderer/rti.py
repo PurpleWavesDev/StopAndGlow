@@ -12,6 +12,7 @@ from src.renderer.renderer import *
 
 from src.renderer.fitter.pseudoinverse import PseudoinverseFitter
 from src.renderer.fitter.poly import PolyFitter
+from src.renderer.fitter.normal import NormalFitter
 
 
 class RtiRenderer(Renderer):
@@ -19,6 +20,7 @@ class RtiRenderer(Renderer):
     
     def __init__(self):
         self._fitter = None
+        self._normals = None
         self._u_min = self._u_max = self._v_min = self._v_max = None
         
     
@@ -27,7 +29,7 @@ class RtiRenderer(Renderer):
         match fitter:
             case PolyFitter.__name__:
                 self._fitter = PolyFitter(settings)
-
+        self._normals = NormalFitter()
         
     # Loading, processing etc.
     def load(self, rti_seq: Sequence):
@@ -66,10 +68,12 @@ class RtiRenderer(Renderer):
         log.info(f"Generating RTI coefficients with {self._fitter.name}")
         
         # Compute inverse
+        self._normals.computeInverse(config)
         self._fitter.computeInverse(config, recalc)
         
         # Compute coefficients
-        self._fitter.computeCoefficients(img_seq)
+        self._normals.computeCoefficients(img_seq, slices=4)
+        self._fitter.computeCoefficients(img_seq, slices=4)
         
         # Save coord bounds
         coord_min, coord_max = config.getCoordBounds()
@@ -102,7 +106,7 @@ class RtiRenderer(Renderer):
             case 1: # HDRI
                 self._fitter.renderHdri(buffer, None, self._rot)
             case 2: # Normals
-                pass
+                self._normals.renderLight(buffer, (0,0))
 
     def renderLight(self, light_pos) -> ImgBuffer:
         # Init Taichi field
