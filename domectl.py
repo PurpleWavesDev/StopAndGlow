@@ -43,6 +43,7 @@ HW = namedtuple("HW", ["cam", "lights", "config"])
 
 # Globals
 FLAGS = flags.FLAGS
+DEBUG = hasattr(sys, 'gettrace') and sys.gettrace() is not None
 
 ### Example of usage for domectl
 # domectl --capture --hdr --seq-type=lights|hdri|fullrun --seq-name="" --seq-domain=keep|linear|srgb --seq-save --seq-convert
@@ -102,6 +103,8 @@ def main(argv):
 
     # Prepare hardware for tasks
     hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)))
+    tib.TIBase.gpu = True
+    tib.TIBase.debug = DEBUG
 
     ### Load image sequence, either by capturing or loading sequence from disk ###
     sequence = None
@@ -137,7 +140,7 @@ def main(argv):
     ### Process sequence ###
     renderer = None
     if FLAGS.process:
-        tib.TIBase.init(on_cuda=True, debug=True)
+        tib.TIBase.init()
 
         settings = dict()
         name = FLAGS.eval_name if FLAGS.eval_name != '' else datetime_now + '_' + FLAGS.eval_type
@@ -164,7 +167,7 @@ def main(argv):
             
     ### Launch viewer ###
     if FLAGS.viewer:
-        tib.TIBase.init(on_cuda=True, debug=True)
+        tib.TIBase.init()
 
         if renderer is None and FLAGS.eval_name != '':
             # Load renderer with eval data

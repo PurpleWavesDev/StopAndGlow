@@ -5,6 +5,7 @@ import io
 import os
 import time
 import pathlib
+import logging as log
 
 # Camera & image imports
 from PIL import Image
@@ -17,12 +18,18 @@ from src.sequence import Sequence
 from src.utils import logging_disabled
 from src.config_canon90d import *
 
-import gphoto2 as gp
+try:
+    import gphoto2 as gp
+except:
+    log.warning("GPhoto2 not available")
 
 class Cam:
     def __init__(self):
         # Lets kill any gphoto process that blocks the ressource
-        killgphoto2()
+        try:
+            killgphoto2()
+        except:
+            pass
         # Lazy loading for camera
         self._cam = None
         self._files = dict()
