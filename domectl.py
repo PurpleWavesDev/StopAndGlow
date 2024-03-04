@@ -70,7 +70,7 @@ flags.DEFINE_bool('seq_convert', False, "Convert to image files if a video was c
 # Calibration
 flags.DEFINE_string('cal_folder', '../HdM_BA/data/config', 'Folder for light calibration.')
 flags.DEFINE_string('cal_name', 'lightdome.json', 'Name of calibration file to be loaded or generated.')
-flags.DEFINE_string('new_cal_name', 'lightdome.json', 'Name of calibration file to be loaded or generated.')
+flags.DEFINE_string('new_cal_name', 'lightdome_new.json', 'Name of calibration file to be loaded or generated.')
 # HDRI
 flags.DEFINE_string('hdri_folder', '../HdM_BA/data/hdri', 'Folder for HDRI environment maps.')
 flags.DEFINE_string('hdri_name', '', 'Name of HDRI image to be used for processing.')
@@ -423,9 +423,8 @@ def load(seq_name, config):
                 case 'hdri':
                     ids = [0, 1, 2]
                 case 'fullrun':
-                    ids = range(512)
-            frames_skip = FLAGS.vid_frames_skip * 2 + 1 if FLAGS.vid_safe else FLAGS.vid_frames_skip
-            sequence.loadVideo(path, ids, video_frames_skip=frames_skip)
+                    ids = range(FLAGS.capture_max_addr)
+            sequence.loadVideo(path, ids, FLAGS.capture_frames_skip*2+1, FLAGS.capture_dmx_repeat*2) 
     
     return sequence
 
