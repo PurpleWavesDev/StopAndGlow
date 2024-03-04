@@ -111,7 +111,11 @@ def main(argv):
         seq_name = FLAGS.seq_name if FLAGS.seq_name != '' else datetime_now + '_' + FLAGS.seq_type # 240116_2333_lights
 
         capture = Capture(hw, FLAGS)
-        capture.captureSequence(hw.config)
+        hdri = None
+        if FLAGS.seq_type == 'hdri':
+            # Load hdri
+            hdri = ImgBuffer(path=os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
+        capture.captureSequence(hw.config, hdri)
         
         # Sequence download, evaluation of video not necessary for capture only
         sequence = capture.downloadSequence(seq_name, keep=False, save=FLAGS.seq_save)
@@ -193,7 +197,7 @@ def main(argv):
         case 'none':
             pass
         case 'stop':
-            triggerVideoEnd()
+            hw.cam.triggerVideoEnd()
         case 'erase':
             # Delete all files on camera
             hw.cam.deleteAll()
@@ -228,7 +232,7 @@ def main(argv):
 
     # Default lights after image capture
     elif FLAGS.capture and FLAGS.lightctl == 'none':
-        hw.lights.setTop(60, 50)
+        Lightdome(hw).setTop(60, 50)
         hw.lights.write()
 
 

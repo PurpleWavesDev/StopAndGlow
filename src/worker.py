@@ -24,10 +24,11 @@ class Worker:
 
 class LightWorker(Worker):
     """Writes single light per frame from list"""
-    def __init__(self, hw, lights: list[int]|list[dict], mask_frame: list[int]=None, trigger_capture=False, repeat_dmx=0):
+    def __init__(self, hw, lights: list[int]|dict, id_list, mask_frame: list[int]=None, trigger_capture=False, repeat_dmx=0):
         Worker.__init__(self, hw)
         self._lights = lights
-        self._single_lights = isinstance(lights[0], int)
+        self._id_list = id_list
+        self._single_lights = isinstance(lights, list)
         self._i = 0
         self._repeat_dmx = repeat_dmx
         # Picture trigger
@@ -50,7 +51,7 @@ class LightWorker(Worker):
                 self.lights.setList([light_id])
             else:
                 light_id = self._i
-                self.lights.setDict(self._lights[self._i])
+                self.lights.setLights(self._lights, self._i)
             self._i += 1
             
         # Write DMX
@@ -62,14 +63,15 @@ class LightWorker(Worker):
             self.cam.capturePhoto(light_id)
 
         # Abort condition
-        return self._i < len(self._lights)
+        return self._i < len(self._id_list)
     
     
 class LightVideoWorker(Worker):
-    def __init__(self, hw, lights: list[int]|list[dict], mask_frame: list[int], subframe_count):
+    def __init__(self, hw, lights: list[int]|dict, id_list, mask_frame: list[int], subframe_count):
         Worker.__init__(self, hw)
         self._lights = lights
-        self._single_lights = isinstance(lights[0], int)
+        self._id_list = id_list
+        self._single_lights = isinstance(lights, list)
         self._mask_frame = mask_frame if mask_frame is not None else lights if self._single_lights else range(512)
         self._subframe_count = subframe_count
         self._i = 0
@@ -89,20 +91,20 @@ class LightVideoWorker(Worker):
             elif self._frame == -1:
                 # One mask frame
                 self.lights.setList(self._mask_frame)
-            elif self._frame < len(self._lights):
+            elif self._frame < len(self._id_list):
                 if self._single_lights:
                     # Set lights for next frame
                     self.lights.setList([self._lights[self._frame]])
                 else:
-                    self.lights.setDict(self._lights[self._frame])
+                    self.lights.setLights(self._lights, self._frame)
             else:
-                # Another mask frame
+                # Show another mask frame
                 self.lights.setList(self._mask_frame)
                 self._running = False
             
             # Increment frame count
             self._frame += 1
-        
+                    
         # Write DMX value (every subframe)
         self.lights.write()
         self._subframe = (self._subframe+1) % self._subframe_count

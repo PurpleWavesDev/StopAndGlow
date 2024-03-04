@@ -37,8 +37,10 @@ class Capture:
         elif self._flags.seq_type == 'fullrun':
             lights = range(self._flags.capture_max_addr)
             self._id_list = lights
-        elif self._flags.seq_type == 'hdri': # TODO!!
-            lights = [{1: 10, 5:100}, {1: 50, 5:80}, {1: 100, 5:30}]
+        elif self._flags.seq_type == 'hdri':
+            self._dome.processHdri(hdri)
+            self._dome.sampleHdri(0)
+            lights = self._dome.getLights() # Would like to get sth like [{1: 10, 5:100}, {1: 50, 5:80}, {1: 100, 5:30}]
             self._id_list = range(3)
 
         if not self._cam.isVideoMode():
@@ -54,8 +56,9 @@ class Capture:
         else:
             self._cam.setImgFormat(CamImgFormat.JpgMedium)
         
-        log.info(f"Starting image capture for {len(lights)} frames")
-        t = Timer(worker.LightWorker(self._hw, lights, self._mask_frame, trigger_capture=True, repeat_dmx=self._flags.capture_dmx_repeat))
+        log.info(f"Starting image capture for {len(self._id_list)} frames")
+        # TODO self._id_list is a hack to let worker know how many frames / what IDs to use when a dict/HDRI is used
+        t = Timer(worker.LightWorker(self._hw, lights, self._id_list, self._mask_frame, trigger_capture=True, repeat_dmx=self._flags.capture_dmx_repeat))
         t.start(0)
         t.join()
         
@@ -64,11 +67,11 @@ class Capture:
 
 
     def captureVideo(self, lights, trigger_start=True):
-        log.info(f"Starting video capture for {len(lights)} frames")
+        log.info(f"Starting video capture for {len(self._id_list)} frames")
 
         # Worker & Timer
         subframes = 1 + self._flags.capture_frames_skip + self._flags.capture_dmx_repeat
-        t = Timer(worker.LightVideoWorker(self._hw, lights, self._mask_frame, subframe_count=subframes))
+        t = Timer(worker.LightVideoWorker(self._hw, lights, self._id_list, self._mask_frame, subframe_count=subframes))
 
         # Capture
         if trigger_start:
@@ -92,14 +95,11 @@ class Capture:
             sequence = self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip*2+1, self._flags.capture_dmx_repeat*2, keep=keep)
 
             if self._flags.seq_convert:
-                for _, img in sequence:
-                    img.save(ImgFormat.JPG)
+                sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.JPG)
         else:
-            sequence = self._cam.cam.getSequence(self._flags.seq_folder, name, keep=keep)
+            sequence = self._cam.getSequence(self._flags.seq_folder, name, keep=keep)
             if save:
-                img_format = ImgFormat.EXR if self._flags.hdr else ImgFormat.JPG
-                for _, img in sequence:
-                    img.save(img_format)
+                sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.EXR if self._flags.hdr else ImgFormat.JPG)
         
         return sequence
 

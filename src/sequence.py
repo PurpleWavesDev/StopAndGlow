@@ -84,7 +84,6 @@ class Sequence():
         base_dir = os.path.dirname(path)
         seq_name = os.path.splitext(os.path.basename(path))[0]                    
         self._img_name_base = os.path.join(base_dir, seq_name, seq_name)
-        self._mask_name_base = os.path.join(base_dir, seq_name+'_mask', seq_name+'_mask')
         # Load Metadata from video meta file
         self._metafile_name = os.path.join(base_dir, seq_name+'.json')
         self.loadMeta()
@@ -92,6 +91,9 @@ class Sequence():
             self._meta_changed = True
         # Change file name to folder path
         self._metafile_name = os.path.join(base_dir, seq_name, 'meta.json')
+        # Set metadata
+        self.setMeta('video_frames_skip', frames_skip)
+        self.setMeta('video_dmx_repeat', dmx_repeat)
             
         # Load video
         self._vidcap = cv.VideoCapture(path)
@@ -144,7 +146,7 @@ class Sequence():
                 case VidParseState.Valid:
                     if self._vid_frame_number == -1:
                         # Sillhouette frame
-                        self._maskFrame = ImgBuffer(path=self._mask_name_base+f"_{0:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB)
+                        self._maskFrame = ImgBuffer(path=self._img_name_base+"_mask", img=self._vid_frame, domain=ImgDomain.sRGB)
                     else:
                         # Abort condition
                         if self._vid_frame_number >= len(self._frames):
@@ -152,7 +154,7 @@ class Sequence():
                             break
                         # Append
                         id = self.getKeys()[self._vid_frame_number]
-                        self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}.png", img=self._vid_frame, domain=ImgDomain.sRGB)
+                        self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}", img=self._vid_frame, domain=ImgDomain.sRGB)
                         if ImgOp.blackframe(self._vid_frame):
                             log.warn(f"Black frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                         else:
@@ -197,9 +199,9 @@ class Sequence():
         for id, img in self:
             img.setPath(f"{path}_{id:03d}")
             img.save(format=format)
-        if _maskFrame is not None:
-            img.setPath(f"{path}_mask")
-            img.save(format=format)
+        if self._maskFrame is not None:
+            self._maskFrame.setPath(f"{path}_mask")
+            self._maskFrame.save(format=format)
         # Metadata
         self._metafile_name = os.path.join(base_path, name, 'meta.json')
         if self._meta:

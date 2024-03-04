@@ -60,7 +60,11 @@ class Lightdome:
             sample = f(light['latlong'])
             self._lightVals[light['id']] = sample
 
-    def getLights(self, domain=ImgDomain.Lin, type='uint8'):
+    # TODO!
+    #def getLightDict(self, domain=ImgDomain.Lin, as_int=True):
+    #    if as_int:
+    #        return [light.asDomain(domain).asInt().get()]
+    def getLights(self):
         return self._lightVals
 
     def writeLights(self):
@@ -81,7 +85,7 @@ class Lightdome:
         self._lights.reset()
         for light in self._config:
             if random.randrange(0, nth) == 0:
-                self._lightVals[light['id']] = brightness
+                self._lightVals[light['id']] = ImgBuffer.FromPix(brightness)
         self.writeLights()
         #self._mask = [light['id'] for i, light in enumerate(self._config) if i % nth == 0] # TODO: This way every nth is lit and not random
     
