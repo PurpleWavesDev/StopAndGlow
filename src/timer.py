@@ -43,7 +43,7 @@ def timer_fn(timer, worker):
             # Check for overruns or sleep remaining time
             if time_sleep < 0:
                 print(f"Error: Overrun timer by {abs(time_sleep)}")
-                next_call = time.time()
+                #next_call = time.time()
             else:
                 time.sleep(time_sleep)
                 

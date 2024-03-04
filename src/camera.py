@@ -33,6 +33,7 @@ class Cam:
         # Lazy loading for camera
         self._cam = None
         self._files = dict()
+        self._mask_file = None
         self._videoFile = None
         self._videoCameraPath = ('', '')
 
@@ -103,7 +104,10 @@ class Cam:
     def capturePhoto(self, id):
         """Captures image and saves camera file path"""
         file = self.getCam().capture(gp.GP_CAPTURE_IMAGE)
-        self._files[id] = [file.folder, file.name]
+        if id == -1:
+            self._mask_file = [file.folder, file.name]
+        else:
+            self._files[id] = [file.folder, file.name]
 
     def capturePreview(self):
         """Captures preview image in a quick way but low resolution"""
@@ -142,7 +146,7 @@ class Cam:
     
     def getImage(self, id, path, name, keep=False) -> ImgBuffer:
         """Downloads a single image by ID from the camera"""
-        file = self._files[id]        
+        file = self._files[id] if id != -1 else self._mask_file      
         #file_data = self.getCam().file_get(file[0], file[1], gp.GP_FILE_TYPE_NORMAL).get_data_and_size() # TODO! This fails sometimes
         # Workaround, save image in temp folder
         tmp_path = os.path.join('/tmp', f"{name}_{id:03d}{os.path.splitext(file[1])[1]}")
@@ -179,10 +183,13 @@ class Cam:
 
         if not keep:
             self.getCam().file_delete(file[0], file[1])
-            del self._files[id]
+            if id != -1:
+                del self._files[id]
+            else:
+                self._mask_file = None
 
         # Local full path to image 
-        full_path = os.path.join(path, name, f"{name}_{id:03d}{ext}")
+        full_path = os.path.join(path, name, f"{name}_{id:03d}{ext}" if id != -1 else f"{name}_mask{ext}")
         return ImgBuffer(path=full_path, img=image, domain=domain)
         
     def getSequence(self, path, name, keep=False, save=False) -> Sequence:
@@ -193,6 +200,11 @@ class Cam:
             if save:
                 img.save()
             seq.append(img, id)
+        if self._mask_file != None:
+            img = self.getImage(-1, path, name, keep=True)
+            if save:
+                img.save()
+            seq.setMaskFrame(img)
         if not keep:
             self.deleteFiles()
         return seq
@@ -203,15 +215,15 @@ class Cam:
             self.getImage(id, path, name, keep).unload(save=True)
 
 
-    def getVideoSequence(self, path, name, frame_list, keep=False) -> Sequence:
+    def getVideoSequence(self, path, name, frame_list, frames_skip, dmx_repeat, keep=False) -> Sequence:
+        """Downloads video file and returns sequence referencing it"""
         seq = Sequence()
         if self._videoFile is not None:
             file_path = os.path.join(path, name+os.path.splitext(self._videoCameraPath[1])[1])
             log.debug("Video is being saved to {}".format(file_path))
             self._videoFile.save(file_path)
-            # TODO: Evaluation not always necessary
-            seq = Sequence()
-            seq.load(file_path, ImgDomain.sRGB, frame_list)
+            seq.loadVideo(file_path, frame_list, frames_skip, dmx_repeat)
+            seq.setMeta('video_file', file_path)
 
             if not keep:
                 self.getCam().file_delete(self._videoCameraPath[0], self._videoCameraPath[1])

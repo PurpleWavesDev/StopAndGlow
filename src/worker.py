@@ -22,28 +22,97 @@ class Worker:
     def work(self) -> bool:
         return True
 
-class LightListWorker(Worker):
-    def __init__(self, hw, lights: list[int], trigger_capture=False):
+class LightWorker(Worker):
+    """Writes single light per frame from list"""
+    def __init__(self, hw, lights: list[int]|list[dict], mask_frame: list[int]=None, trigger_capture=False, repeat_dmx=0):
         Worker.__init__(self, hw)
-        self._lightList = lights
+        self._lights = lights
+        self._single_lights = isinstance(lights[0], int)
         self._i = 0
+        self._repeat_dmx = repeat_dmx
+        # Picture trigger
         self._trigger = trigger_capture
+        # Only record mask frame if list provided
+        self._mask_frame = mask_frame
+        self._mask_captured = self._mask_frame == None
         
     def work(self) -> bool:
-        # Set values
-        light_id = self._lightList[self._i]
-        self.lights.setList([light_id])
-        self.lights.write()
+        # First frame is masked frame
+        if not self._mask_captured:
+            # Set mask frame and write DMX
+            light_id = -1
+            self.lights.setList(self._mask_frame)
+            self._mask_captured = True
+        else:
+            # Set lights for next frame
+            if self._single_lights:
+                light_id = self._lights[self._i]
+                self.lights.setList([light_id])
+            else:
+                light_id = self._i
+                self.lights.setDict(self._lights[self._i])
+            self._i += 1
+            
+        # Write DMX
+        for _ in range(self._repeat_dmx+1):
+            self.lights.write()
 
         # Trigger camera
         if self._trigger:
-            self.cam.capturePhoto(id)
+            self.cam.capturePhoto(light_id)
 
         # Abort condition
-        self._i += 1
-        return self._i < len(self._lightList)
+        return self._i < len(self._lights)
     
+    
+class LightVideoWorker(Worker):
+    def __init__(self, hw, lights: list[int]|list[dict], mask_frame: list[int], subframe_count):
+        Worker.__init__(self, hw)
+        self._lights = lights
+        self._single_lights = isinstance(lights[0], int)
+        self._mask_frame = mask_frame if mask_frame is not None else lights if self._single_lights else range(512)
+        self._subframe_count = subframe_count
+        self._i = 0
+        
+    def init(self):
+        # Setup video capture
+        self._frame=-2
+        self._subframe=0
+        self._running = True
+
+    def work(self) -> bool:
+        if self._subframe == 0:
+            # Set light values on first subframe
+            if self._frame == -2:
+                # One blackframe
+                self.lights.reset()
+            elif self._frame == -1:
+                # One mask frame
+                self.lights.setList(self._mask_frame)
+            elif self._frame < len(self._lights):
+                if self._single_lights:
+                    # Set lights for next frame
+                    self.lights.setList([self._lights[self._frame]])
+                else:
+                    self.lights.setDict(self._lights[self._frame])
+            else:
+                # Another mask frame
+                self.lights.setList(self._mask_frame)
+                self._running = False
+            
+            # Increment frame count
+            self._frame += 1
+        
+        # Write DMX value (every subframe)
+        self.lights.write()
+        self._subframe = (self._subframe+1) % self._subframe_count
+
+        return self._running
+
+
+### For more complex animations ###
 class LightFnWorker(Worker):
+    """For more complex animations, lets callable function set light values each frame"""
     def __init__(self, hw, lights_fn: Callable[[Lights, int, Any], bool], trigger_capture=False, parameter=None):
         Worker.__init__(self, hw)
         self._lights_fn = lights_fn
@@ -64,90 +133,3 @@ class LightFnWorker(Worker):
         self._i += 1
         return ret_val
 
-    
-class VideoListWorker(Worker):
-    def __init__(self, hw, lights: list[int], silhouette: list[int]=None, subframe_count=3):
-        Worker.__init__(self, hw)
-        self._lightList = lights
-        self._allOnList = silhouette if silhouette is not None else lights
-        self._subframe_count=subframe_count
-        
-    def init(self):
-        # Setup video capture
-        self._frame=-2
-        self._subframe=0
-        self._running = True
-    
-    def exit(self):
-        # Stop video capture
-        pass
-
-    def work(self) -> bool:
-        if self._subframe == 0:
-            # Set light values
-            # One blackframe
-            if self._frame == -2:
-                self.lights.reset()
-            elif self._frame == -1:
-                # One frame all on/silhouette
-                self.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
-            elif self._frame < len(self._lightList):
-                # Go through IDs
-                light_id = self._lightList[self._frame]
-                self.lights.setList([light_id])
-            else:
-                # Another frame all on/silhouette
-                self.lights.setList(self._allOnList, int(SILHOUETTE_LIMITER/4))
-                self._running = False
-            
-            # Increment frame count
-            # Write DMX value
-            self._frame += 1
-            self.lights.write()
-
-        self._subframe = (self._subframe+1) % self._subframe_count
-
-        return self._running
-
-class VideoSampleWorker(Worker):
-    def __init__(self, hw, light_dict: dict, silhouette: list[int]=None, subframe_count=3):
-        Worker.__init__(self, hw)
-        self._samples = light_dict
-        self._allOnList = silhouette if silhouette is not None else hw.config.getIds()
-        self._subframe_count=subframe_count
-        
-    def init(self):
-        # Setup video capture
-        self._frame=-2
-        self._subframe=0
-        self._running = True
-    
-    def exit(self):
-        # Stop video capture
-        pass
-
-    def work(self) -> bool:
-        if True:#self._subframe == 0:
-            # Set light values
-            # One blackframe
-            if self._frame == -2:
-                self.lights.reset()
-            elif self._frame == -1:
-                # One frame all on/silhouette
-                self.lights.setList(self._allOnList, SILHOUETTE_LIMITER)
-            elif self._frame < 3:
-                # Go through IDs
-                self.lights.setLights(self._samples, self._frame)
-            else:
-                # Another frame all on/silhouette
-                self.lights.setList(self._allOnList, int(SILHOUETTE_LIMITER/4))
-                self._running = False
-            
-            # Increment frame count
-            # Write DMX value
-            self._frame += 1
-            self.lights.write()
-
-        #self._subframe = (self._subframe+1) % self._subframe_count
-
-        return self._running

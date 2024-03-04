@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--capture", "--seq_type=lights"],
+            "args": ["--loglevel=DEBUG", "--capture", "--seq_type=lights", "--seq_convert"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -198,7 +198,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--mode=cam_stopvideo"],
+            "args": ["--camctl=stop"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -207,7 +207,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--mode=cam_deleteall"],
+            "args": ["--camctl=erase"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

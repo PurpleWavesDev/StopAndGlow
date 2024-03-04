@@ -2,7 +2,6 @@
 from dmx import DMXInterface, DMXUniverse
 import dmx.constants
 from typing import List
-import random
 
 from src.imgdata import *
 
@@ -28,12 +27,17 @@ class Lights:
     def setSingle(self, id, value):
         self.frame[id] = value
         
-    def setList(self, list, value: int=DMX_MAX_VALUE):
+    def setList(self, lights, value: int=DMX_MAX_VALUE):
         self.reset()
-        for light in list:
+        for light in lights:
             self.frame[light] = value
 
-    def setLights(self, light_dict, channel=-1, exp_corr=0.5):
+    def setDict(self, lights):
+        self.reset()
+        for id, value in lights:
+            self.frame[id] = value 
+
+    def setLights(self, light_dict, channel=-1, exp_corr=1):
         for id, light in light_dict.items():
             if len(light.get().shape) == 2: # Single channel buffer
                 self.frame[id] = int(light.asDomain(ImgDomain.Lin).asInt().get()[0][0]*exp_corr)
@@ -41,13 +45,6 @@ class Lights:
                 self.frame[id] = int(light.RGB2Gray().asDomain(ImgDomain.Lin).asInt().get()[0][0]*exp_corr)
             else:
                 self.frame[id] = int(light.asDomain(ImgDomain.Lin).asInt().get()[0][0][channel]*exp_corr)
-
-    def setNth(self, nth, config=None, value = DMX_MAX_VALUE):
-        random.seed()
-        self.reset()
-        for i in range(len(self.frame)):
-            if random.randrange(0, nth) == 0:
-                self.frame[i] = value
         
 
     def write(self):

@@ -20,12 +20,10 @@ import logging as log
 from src.camera import *
 from src.lights import Lights
 from src.config import Config
-# Timer and worker
-from src.timer import Timer, Worker
-import src.worker as worker
 # Image and dome data, evaluation
 from src.imgdata import *
 from src.sequence import Sequence
+from src.capture import Capture
 from src.lightdome import Lightdome
 from src.calibrate import Calibrate
 from src.img_op import *
@@ -55,12 +53,13 @@ DEBUG = hasattr(sys, 'gettrace') and sys.gettrace() is not None
 ### Global flag defines ###
 # General
 flags.DEFINE_enum('loglevel', 'INFO', ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'], 'Level of logging.')
-# Capture
+# Capture Settings
 flags.DEFINE_bool('capture', False, "Set this flag to capture footage instead of loading it from disk.")
 flags.DEFINE_bool('hdr', False, "If set, capture will be either raw images or multiple videos for exposure stacking, depending on the camera mode.")
-flags.DEFINE_integer('vid_frames_skip', 2, 'Frames to skip between valid frames in video sequence', lower_bound=0)
-flags.DEFINE_float('vid_fps', 25, 'Frame rate for the video capture.')
-flags.DEFINE_boolean('vid_safe', True, "Captures two pictures for the same frame and discharges the first one.")
+flags.DEFINE_float('capture_fps', 25, 'Frame rate for the video capture.')
+flags.DEFINE_integer('capture_frames_skip', 1, 'Frames to skip before and after valid frame in video sequence', lower_bound=0)
+flags.DEFINE_integer('capture_dmx_repeat', 1, "How many signals should be sent before an image is captured or extracted from video.")
+flags.DEFINE_integer('capture_max_addr', 512, "Max address to be used for generating calibrations.")
 # Sequence settings
 flags.DEFINE_enum('seq_type', 'lights', ["lights", "hdri", "fullrun"], "Sequence consists of images from all lights of the current config, three images for RGB channel stacking or a full run for all light IDs without config.")
 flags.DEFINE_enum('seq_domain', 'keep', ['keep', 'lin', 'srgb'], 'Domain of sequence, default for EXR is linear, sRGB for PNGs and JPGs.')
@@ -90,8 +89,7 @@ flags.DEFINE_string('rec_name', '', 'Name of video output of recorded rendering.
 # Camera control
 flags.DEFINE_enum('camctl', 'none', ["none", "stop", "erase"], "")
 # Light control
-flags.DEFINE_enum('lightctl', 'none', ["none", "on", "off", "run", "anim_latlong", "anim_hdri"], "How the sequence should be processed or interpreted by the viewer.")
-
+flags.DEFINE_enum('lightctl', 'none', ["none", "on", "top", "off", "run", "anim_latlong", "anim_hdri"], "How the sequence should be processed or interpreted by the viewer.")
 
 
 
@@ -113,18 +111,12 @@ def main(argv):
         seq_name = FLAGS.seq_name if FLAGS.seq_name != '' else datetime_now + '_' + FLAGS.seq_type # 240116_2333_lights
 
         capture = Capture(hw, FLAGS)
-        if not hw.cam.isVideoMode():
-            capture.captureSequence(seq_name)
-        else:
-            capture.captureVideo(seq_name)
-        
+        capture.captureSequence(hw.config)
         
         # Sequence download, evaluation of video not necessary for capture only
-        sequence = download(hw, name, keep=FLAGS.sequence_keep, save=FLAGS.sequence_save)
-        FLAGS.sequence_name = name
-        if FLAGS.capture_mode == 'quick':
-            FLAGS.sequence_name+=".MP4"
-        
+        sequence = capture.downloadSequence(seq_name, keep=False, save=FLAGS.seq_save)
+    
+    # If not captured, load sequences
     elif FLAGS.process or FLAGS.viewer:
         # Load from disk
         sequence = load(FLAGS.seq_name, hw.config)
@@ -213,141 +205,46 @@ def main(argv):
     
     ### Light modes after capturing and processing ###
     if FLAGS.lightctl != 'none':
-        # Init lights
+        # Init lights and dome
         hw.lights.getInterface()
+        dome = Lightdome(hw)
 
         match FLAGS.lightctl:
             case 'on':
-                hw.lights.setNth(6, value=100)
-                hw.lights.write()
-                #lightsTop(hw, brightness=80)
+                dome.setNth(6, 50)
+            case 'top':
+                dome.setTop(60, 50)
             case 'off':
                 hw.lights.off()
             case 'run':
                 lightsConfigRun(hw)
+                dome.setTop(60, 50)
             case 'anim_latlong':
                 lightsAnimate(hw)
+                dome.setTop(60, 50)
             case 'anim_hdri':
                 lightsHdriRotate(hw)
+                dome.setTop(60, 50)
 
-        # Default light
-        if FLAGS.lightctl != 'off':
-            lightsTop(hw, brightness=80)
-
-
-                    
-
-#################### CAPTURE MODES ####################
-
-def capture(hw):
-    if FLAGS.capture_mode == 'quick':
-        captureVideo(hw)
-    else:
-        captureImg(hw)
-    
-def captureImg(hw):
-    log.info("Starting image capture")
-    t = Timer(worker.LightListWorker(hw, hw.config.getIds(), trigger_capture=True))
-    t.start(0)
-    t.join()
-
-def captureVideo(hw):
-    # TODO: Silhouette
-
-    log.info("Starting quick capture (video)")
-    # Worker & Timer
-    if FLAGS.video_safe_rec:
-        ids = []
-        for id in hw.config.getIds():
-            ids.append(id)
-            ids.append(id)
-    else:
-        ids = hw.config.getIds()
-    t = Timer(worker.VideoListWorker(hw, ids, subframe_count=1)) # TODO: Subframe count right? Should be FLAGS.video_frames_skip probably?
-
-    # Capture
-    hw.cam.triggerVideoStart()
-    time.sleep(1)
-    t.start((1+FLAGS.video_frames_skip) / FLAGS.video_fps)
-    t.join()
-    time.sleep(0.5)
-    lightsTop(hw, brightness=80)
-    hw.cam.triggerVideoEnd()
-
-    
-def captureHdri(hw):
-    # Load HDRI
-    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
-    
-    # Sample domelights
-    dome = Lightdome(hw.config)
-    dome.processHdri(hdri)
-    dome.sampleLightsForHdri(longitude_offset=FLAGS.hdri_rotation)
-    rgb = dome.getLights()
-
-    if 'quick' in FLAGS.capture_mode:
-        captureHdriVideo(hw, rgb)
-    else:
-        captureHdriImg(hw, rgb)
-
-
-def captureHdriVideo(hw, rgb):
-    log.info("Starting quick HDRI capture (video)")
-    # Worker & Timer
-    t = Timer(worker.VideoSampleWorker(hw, rgb))
-
-    # Capture
-    hw.cam.triggerVideoStart()
-    time.sleep(1)
-    t.start((1+FLAGS.video_frames_skip) / FLAGS.video_fps)
-    t.join()
-    time.sleep(0.5)
-    hw.cam.triggerVideoEnd()
-
-
-def captureHdriImg(hw, rgb):
-    log.info("Starting HDRI capture")
-    # R
-    hw.lights.setLights(rgb, 0)
-    hw.lights.write()
-    hw.cam.capturePhoto(0)
-    # G
-    hw.lights.setLights(rgb, 1)
-    hw.lights.write()
-    hw.cam.capturePhoto(1)
-    # B
-    hw.lights.setLights(rgb, 2)
-    hw.lights.write()
-    hw.cam.capturePhoto(2)
+    # Default lights after image capture
+    elif FLAGS.capture and FLAGS.lightctl == 'none':
+        hw.lights.setTop(60, 50)
+        hw.lights.write()
 
 
 
 #################### Light MODES ####################
-    
-def lightsTop(hw, latitude=60, brightness: int = 255):
-    dome = Lightdome(hw.config)
-    # Sample top lights
-    dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > latitude else ImgBuffer.FromPix(0))
-    # Save images
-    img = dome.generateLatLong()
-    ImgOp.SaveEval(img.get(), "top_latlong")
-    img = dome.generateUV()
-    ImgOp.SaveEval(img.get(), "top_uv")
-    # Show on dome
-    hw.lights.setLights(dome.getLights(), 0)
-    hw.lights.write()
-
 
 def lightsAnimate(hw):
     # Function for
-    dome = Lightdome(hw.config)
+    dome = Lightdome(hw)
     def fn_lat(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[0] > 90-(i*2) else ImgBuffer.FromPix(0))
-        lights.setLights(dome.getLights())
+        dome.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[0] > 90-(i*2) else ImgBuffer.FromPix(0))
+        dome.writeLights()
         return i<60 # i<45
     def fn_long(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleLatLong(lambda latlong: ImgBuffer.FromPix(80 * max(0, 1 - (i*8-latlong[1])/90)) if latlong[1] < i*8 else ImgBuffer.FromPix(0))
-        lights.setLights(dome.getLights())
+        dome.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(80 * max(0, 1 - (i*8-latlong[1])/90)) if latlong[1] < i*8 else ImgBuffer.FromPix(0))
+        dome.writeLights()
         return i<60 # i<45
 
     for _ in range(3):
@@ -360,19 +257,19 @@ def lightsAnimate(hw):
         t.join()
 
 def lightsHdriRotate(hw):
-    dome = Lightdome(hw.config)
-    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    dome = Lightdome(hw)
+    hdri = ImgBuffer(os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
     dome.processHdri(hdri)
-    dome.sampleLightsForHdri(0)
-    img = dome.generateLatLong(hdri)
+    dome.sampleHdri(0)
+    img = dome.generateLatLongMapping(hdri)
     ImgOp.SaveEval(img.get(), "hdri_latlong")
-    img = dome.generateUV()
+    img = dome.generateUVMapping()
     ImgOp.SaveEval(img.get(), "hdri_uv")
     
     # Function for
     def fn(lights: Lights, i: int, dome: Any) -> bool:
-        dome.sampleLightsForHdri(i*3) # 10 degree / second
-        lights.setLights(dome.getLights())
+        dome.sampleHdri(i*3) # 10 degree / second
+        dome.writeLights()
         return i<360
     
     t = Timer(worker.LightFnWorker(hw, fn, parameter=dome))
@@ -382,7 +279,7 @@ def lightsHdriRotate(hw):
 
 def lightsConfigRun(hw):
     log.info(f"Running through {len(hw.config)} lights with IDs {hw.config.getIdBounds()}")
-    t = Timer(worker.LightListWorker(hw, hw.config.getIds()))
+    t = Timer(worker.LightWorker(hw, hw.config.getIds()))
     t.start(1/15)
     t.join()
 
@@ -412,7 +309,7 @@ def evalStack(sequences, output_name, cam_response=None):
         frames = [seq.getMaskFrame() for seq in sequences]
         cam_response = ImgOp.CameraResponse(frames) # TODO Stuck
         for i in range(len(frames)):
-            frames[i].setPath(os.path.join(FLAGS.sequence_path, output_name, f"mask_{i:03d}"))
+            frames[i].setPath(os.path.join(FLAGS.seq_folder, output_name, f"mask_{i:03d}"))
             frames[i].save(ImgFormat.JPG)
     
     # Iterate over frames
@@ -424,7 +321,7 @@ def evalStack(sequences, output_name, cam_response=None):
         if cam_response is None:
             cam_response = ImgOp.CameraResponse(frames) # TODO Stuck
             for i in range(len(frames)):
-                frames[i].setPath(os.path.join(FLAGS.sequence_path, output_name, f"first_{i:03d}"))
+                frames[i].setPath(os.path.join(FLAGS.seq_folder, output_name, f"first_{i:03d}"))
                 frames[i].save(ImgFormat.JPG)
         
         path = os.path.join(FLAGS.seq_folder, output_name, f"{output_name}_{id:03d}")
@@ -454,13 +351,13 @@ def relightSimple(img_seq, config, output_name):
     log.info(f"Generate HDRI Lighting from Sequence")
 
     dome = Lightdome(config)
-    hdri = ImgBuffer(os.path.join(FLAGS.sequence_path, FLAGS.input_hdri), domain=ImgDomain.Lin)
+    hdri = ImgBuffer(os.path.join(FLAGS.seq_folder, FLAGS.input_hdri), domain=ImgDomain.Lin)
     dome.processHdri(hdri)
 
     # Sequence generator
     for i in range(72):
         lighting = dome.generateLightingFromSequence(img_seq, longitude_offset=i*5)
-        lighting.setPath(os.path.join(FLAGS.sequence_path, output_name, f"{output_name}_{i:03d}"))
+        lighting.setPath(os.path.join(FLAGS.seq_folder, output_name, f"{output_name}_{i:03d}"))
         lighting.set(lighting.get()*40)
         lighting = lighting.asDomain(ImgDomain.sRGB)
         lighting.setFormat(ImgFormat.JPG)
@@ -470,7 +367,7 @@ def relightSimple(img_seq, config, output_name):
     # Generate scene with HDRI lighting 
     lighting = dome.generateLightingFromSequence(img_seq, longitude_offset=FLAGS.hdri_rotation)
 
-    lighting.setPath(os.path.join(FLAGS.sequence_path, output_name, output_name))
+    lighting.setPath(os.path.join(FLAGS.seq_folder, output_name, output_name))
     lighting.setFormat(ImgFormat.EXR)
     lighting.save()
 
@@ -496,26 +393,11 @@ def LaunchViewer(renderer):
 
 
 #################### CAMERA SETTINGS & DOWNLOAD HELPERS ####################
-
-def download(hw, name, keep=False, save=False):
-    """Download from camera"""
-    log.debug(f"Downloading sequence '{name}' to {FLAGS.seq_folder}")
-    sequence = Sequence()
-    if hw.cam.isVideoMode():
-        sequence = hw.cam.getVideoSequence(FLAGS.seq_folder, name, hw.config.getIds(), keep=keep)
-    else:
-        sequence = hw.cam.getSequence(FLAGS.seq_folder, name, keep=keep)
-        img_format = ImgFormat.EXR if FLAGS.hdr else ImgFormat.JPG
-        if save:
-            for _, img in sequence:
-                img.save(img_format)
-    return sequence
     
 def load(seq_name, config):
     """Load from disk"""
     sequence = Sequence()
     
-    # TODO: Metadata?
     if seq_name != '':
         path = os.path.join(FLAGS.seq_folder, seq_name)
         if os.path.splitext(seq_name)[1] == '':

@@ -37,7 +37,7 @@ class Sequence():
             # Save metadata
             self.writeMeta()
 
-    def load(self, path, domain=ImgDomain.Keep, video_frame_list=range(0)):
+    def load(self, path, domain=ImgDomain.Keep):
         # TODO Metadata!!
         match (os.path.splitext(path)[1]).lower():
             case '':
@@ -45,7 +45,7 @@ class Sequence():
                 self.loadFolder(path, domain)
             case '.mov' | '.mp4':
                 # Video
-                self.loadVideo(path, video_frame_list)
+                raise NotImplementedError("Load video via LoadVideo function")
             case _:
                 log.error(f"Can't load file {path}")
                 
@@ -57,9 +57,12 @@ class Sequence():
             if os.path.isfile(p):
                 # Extract frame number, add buffer to dict
                 match = re.search("[\.|_](\d+)\.[a-zA-Z]+$", f)
+                mask_match = re.search("[\.|_]mask\.[a-zA-Z]+$", f)
                 if match is not None:
                     id = int(match.group(1))
                     self.append(ImgBuffer(p, domain=domain), id)
+                elif mask_match is not None:
+                    self.setMaskFrame(ImgBuffer(p, domain=domain))
                 elif 'meta.json' in f:
                     self.loadMeta()
                 else:
@@ -71,10 +74,11 @@ class Sequence():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def loadVideo(self, path, frame_list, video_frames_skip=1, lazy=True):
+    def loadVideo(self, path, frame_list, frames_skip, dmx_repeat, lazy=True):
         # Setup variables
         self._is_video = True
-        self._vid_frames_skip = video_frames_skip
+        self._frames_skip = frames_skip
+        self._dmx_repeat = dmx_repeat
         
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
@@ -116,20 +120,24 @@ class Sequence():
                     # Wait for black frame
                     if ImgOp.blackframe(self._vid_frame):
                         log.debug(f"Found blackframe at frame {self._vid_frame_count}")
-                        self._vid_state = VidParseState.Black
+                        if self._dmx_repeat > 0:
+                            self._vid_state = VidParseState.Black
+                        else:
+                            self._vid_state = VidParseState.Skip
+                        self._skip_count = 0
 
                         # Save max value of blackframe
                         black_val = np.max(self._vid_frame)
 
                 case VidParseState.Black:
-                    # TODO: Skip first black frame if second one is also black
-
-                    self._skip_count = (self._skip_count+1) % self._vid_frames_skip
+                    # Wait for dmx_repeat
+                    self._skip_count = (self._skip_count+1) % self._dmx_repeat
                     if self._skip_count == 0:
-                        self._vid_state = VidParseState.Valid
+                        self._vid_state = VidParseState.Skip
                                         
                 case VidParseState.Skip:
-                    self._skip_count = (self._skip_count+1) % self._vid_frames_skip
+                    # Wait for frames_skip+dmx_repeat
+                    self._skip_count = (self._skip_count+1) % (self._frames_skip+self._dmx_repeat)
                     if self._skip_count == 0:
                         self._vid_state = VidParseState.Valid
 
@@ -162,7 +170,10 @@ class Sequence():
         # Set min & max values
         self._min = id if self._min == -1 else min(self._min, id)
         self._max = id if self._max == -1 else max(self._max, id)
-            
+
+    def setMaskFrame(self, img: ImgBuffer):
+        self._maskFrame = img
+
     def getMaskFrame(self) -> ImgBuffer:
         return self._maskFrame
         
@@ -185,6 +196,9 @@ class Sequence():
         path = os.path.join(base_path, name, name)
         for id, img in self:
             img.setPath(f"{path}_{id:03d}")
+            img.save(format=format)
+        if _maskFrame is not None:
+            img.setPath(f"{path}_mask")
             img.save(format=format)
         # Metadata
         self._metafile_name = os.path.join(base_path, name, 'meta.json')

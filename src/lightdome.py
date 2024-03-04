@@ -1,4 +1,5 @@
 import logging as log
+import random
 import numpy as np
 import math
 
@@ -7,19 +8,23 @@ import cv2 as cv
 from src.imgdata import *
 from src.sequence import Sequence
 from src.config import *
+from src.lights import *
+
+DMX_MAX_VALUE = 255
 
 
 class Lightdome:
-    def __init__(self, config: Config = None):
+    def __init__(self, hw = None):
         self.img_res_base = 1000
         self.img_background = 10
         self.blur_size = 15
         self._lightVals = dict()
-        if config is not None:
-            self.setConfig(config)
-        
-    def setConfig(self, config: Config):
-        self._config = config
+        if hw is not None:
+            self.setHw(hw)
+    
+    def setHw(self, hw):
+        self._config = hw.config
+        self._lights = hw.lights
         self._lightVals.clear()
     
     def processHdri(self, hdri: ImgBuffer, exposure_correction=1):
@@ -33,8 +38,10 @@ class Lightdome:
         self._processed_hdri = ImgBuffer(img=cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
         #hdri = hdri.asDomain(ImgDomain.Lin) # Conversion back
         
-    
-    def sampleLightsForHdri(self, longitude_offset=0):
+
+    ### Functions for samling light values ###
+
+    def sampleHdri(self, longitude_offset=0):
         res_y, res_x = self._processed_hdri.get().shape[:2]
         for light in self._config:
             # Sample point in HDRI
@@ -43,12 +50,12 @@ class Lightdome:
             y = int(round(res_y/2 - res_y * latlong[0]/180.0))
             self._lightVals[light['id']] = self._processed_hdri[x, y]
     
-    def sampleUV(self, f):
+    def sampleWithUV(self, f):
         for light in self._config:
             sample = f(light['uv'])
             self._lightVals[light['id']] = sample
     
-    def sampleLatLong(self, f):
+    def sampleWithLatLong(self, f):
         for light in self._config:
             sample = f(light['latlong'])
             self._lightVals[light['id']] = sample
@@ -56,7 +63,29 @@ class Lightdome:
     def getLights(self, domain=ImgDomain.Lin, type='uint8'):
         return self._lightVals
 
+    def writeLights(self):
+        self._lights.setLights(self._lightVals)
+        self._lights.write()
 
+    ### Light functions ###
+
+    def setTop(self, latitude = 60, brightness = DMX_MAX_VALUE):
+        # Sample lights
+        self.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > latitude else ImgBuffer.FromPix(0))
+
+        # Write DMX values
+        self.writeLights()
+    
+    def setNth(self, nth, brightness = DMX_MAX_VALUE):
+        random.seed()
+        self._lights.reset()
+        for light in self._config:
+            if random.randrange(0, nth) == 0:
+                self._lightVals[light['id']] = brightness
+        self.writeLights()
+        #self._mask = [light['id'] for i, light in enumerate(self._config) if i % nth == 0] # TODO: This way every nth is lit and not random
+    
+    #TODO: Move to renderer
     def generateLightingFromSequence(self, img_seq: Sequence, longitude_offset=0) -> ImgBuffer:
         # Hier kannst du einsteigen, Iris :)
         # img_seq: Alle Bilder der einzelnen Lampen
@@ -87,8 +116,9 @@ class Lightdome:
         return generated # Frame wird returned und in domectl.py gespeichert
 
 
+    ### Functions to generate images with mapping of sampled lights ###
     
-    def generateUV(self, image=None):
+    def generateUVMapping(self, image=None) -> ImgBuffer:
         # Generate RGB image and draw blue circle for sphere
         res = self.img_res_base
         if image is None:
@@ -113,7 +143,7 @@ class Lightdome:
             
         return image
         
-    def generateLatLong(self, image=None):
+    def generateLatLongMapping(self, image=None) -> ImgBuffer:
         # Generate RGB image with aspect ratio 2:1
         res_x, res_y = (self.img_res_base * 2, self.img_res_base)
         if image is None:
