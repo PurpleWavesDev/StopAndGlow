@@ -126,7 +126,7 @@ class Viewer:
             
             # General inputs for renderer
             if self._render_settings.req_inputs:
-                self._renderer.inputs(window)
+                self._renderer.inputs(window, time_frame)
             
             ### Rendering ###
             self._renderer.render(self._mode, pixels)

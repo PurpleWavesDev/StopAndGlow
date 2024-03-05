@@ -35,7 +35,7 @@ class Renderer:
         pass
     def keypressEvent(self, event_key):
         pass
-    def inputs(self, window):
+    def inputs(self, window, time_frame):
         pass
     
 

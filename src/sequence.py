@@ -156,7 +156,7 @@ class Sequence():
                         id = self.getKeys()[self._vid_frame_number]
                         self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}", img=self._vid_frame, domain=ImgDomain.sRGB)
                         if ImgOp.blackframe(self._vid_frame):
-                            log.warn(f"Black frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
+                            log.warning(f"Black frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                         else:
                             log.debug(f"Valid sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                     # Skip every other frame
@@ -166,6 +166,9 @@ class Sequence():
             # Next iteration
             self._vid_frame = self._readVideoFrame()
             self._vid_frame_count +=1
+
+        if self._vid_frame is None:
+            log.error("Not enough frames in video or sync blackframe hasn't been registered correctly")
             
     def append(self, img: ImgBuffer, id):
         self._frames[id] = img

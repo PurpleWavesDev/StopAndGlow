@@ -1,6 +1,7 @@
 import logging as log
 import numpy as np
 import math
+from copy import copy, deepcopy
 
 import cv2 as cv
 import taichi as ti
@@ -16,7 +17,7 @@ from src.renderer.renderer import *
 
 class Calibrate(Renderer):
     def __init__(self):
-        pass
+        self._rect_mask_offset = 0.85
         
     def load(self, img_seq: Sequence):
         pass
@@ -49,9 +50,11 @@ class Calibrate(Renderer):
 
     # Render settings
     def getRenderModes(self) -> list:
-        return ["Sequence", "Chromeball", "Threshold", "Result"]
+        return ["EdgeFilter", "ReflectionThreshold", "Result", "Sequence"]
     def getRenderSettings(self, render_mode) -> RenderSettings:
+        self._render_mode = render_mode
         return RenderSettings(as_int=True, req_keypress_events=True)
+
     def keypressEvent(self, event_key):
         if event_key in ['a']: # Left
             self._view_idx = (len(self._sequence)+self._view_idx-1) % len(self._sequence)
@@ -62,25 +65,36 @@ class Calibrate(Renderer):
         elif event_key in ['s']:
             pass
 
+    def inputs(self, window, time_frame):
+        if window.is_pressed('a'):
+            pass
+        if window.is_pressed('d'):
+            pass
+        if window.is_pressed('s'):
+            self._rect_mask_offset += (0.05 * time_frame)
+        if window.is_pressed('w'):
+            self._rect_mask_offset -= (0.05 * time_frame)
+        
+
     # Rendering
     def render(self, render_mode, buffer, hdri=None):
         match render_mode:
-            case 0: # Sequence
-                #buffer.from_numpy(self._sequence.getMaskFrame().get())
-                buffer.from_numpy(self._sequence.get(self._view_idx).get())
+            case 0: # EdgeFilter
+                buffer.from_numpy(np.dstack([self._cb_edges, self._cb_edges, self._cb_edges]))
             case 1: # Chromeball
                 buffer.from_numpy(self._mask_rgb.get())
-            case 2: # Threshold
+            case 2: # Result
                 buffer.from_numpy(np.dstack([self.cb_mask, self.cb_mask, self.cb_mask]))
-            case 3: # Result
                 buffer.from_numpy(self._reflections)
+            case 3: # Sequence
+                buffer.from_numpy(self._sequence.get(self._view_idx).get())
 
 
     # Find center and radius of chromeball
     # TODO: cv.bilateralFilter respects edges, could be used here
     def findCenter(self):
         # Frames
-        self._mask_rgb = self._sequence.getMaskFrame().asInt()
+        self._mask_rgb = copy(self._sequence.getMaskFrame().asInt())
         cb_filtered = self._mask_rgb.r().get()
         res_x, res_y = self._mask_rgb.resolution()
         
@@ -111,20 +125,20 @@ class Calibrate(Renderer):
         # Masking
         grey = np.full(cb_filtered.shape[:2], 0, dtype='uint8')
         alpha = np.zeros(cb_filtered.shape[:2], dtype='uint8')
-        cv.rectangle(alpha, (0, int(res_y*0.85)), (res_x, res_y), 255, -1)
+        cv.rectangle(alpha, (0, int(res_y*self._rect_mask_offset)), (res_x, res_y), 255, -1)
         alpha = colour.io.convert_bit_depth(cv.GaussianBlur(alpha, (55,55), 200), 'float32')
         beta = (1-alpha)
         # Apply mask
         cb_filtered = cv.blendLinear(cb_filtered, grey, beta, alpha)
         # Binary Filter
-        thresh = cv.threshold(cb_filtered, 100, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
+        self._cb_edges = cv.threshold(cb_filtered, 100, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
         
         # Save image if not in interactive mode
         if not self._interactive:
-            ImgOp.SaveEval(thresh, 'chromeball_filtered')
+            ImgOp.SaveEval(self._cb_edges, 'chromeball_filtered')
         
         # Find circle contours
-        cnts = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        cnts = cv.findContours(self._cb_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         cnts = cnts[0] if len(cnts) == 2 else cnts[1]
         all_cnts = None
         for i, cnt in enumerate(cnts):

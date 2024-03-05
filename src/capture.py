@@ -92,7 +92,6 @@ class Capture:
 
         sequence = Sequence()
         if self._cam.isVideoMode():
-             # TODO: Empty images in sequence
             sequence = self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip*2+1, self._flags.capture_dmx_repeat*2, keep=keep)
 
             if self._flags.seq_convert:
