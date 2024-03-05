@@ -18,6 +18,7 @@ from src.camera import *
 class LiveView(Renderer):
     def __init__(self, hw):
         self.hw = hw
+        self._live_dummy = ImgBuffer(path="../HdM_BA/data/live_dummy.JPG")
         
     def load(self, img_seq: Sequence):
         pass
@@ -50,10 +51,17 @@ class LiveView(Renderer):
     def render(self, render_mode, buffer, hdri=None):
         match render_mode:
             case 0: # Live
-                self.hw.cam.capturePreview().rescale((buffer.shape[1], buffer.shape[0]))
+                frame = self.getLiveImage().rescale((buffer.shape[1], buffer.shape[0]))
+                buffer.from_numpy(frame.get())
             case 1: # Onionskin
                 buffer.from_numpy(self._mask_rgb.get())
             case 2: # Animation
                 buffer.from_numpy(np.dstack([self.cb_mask, self.cb_mask, self.cb_mask]))
+
+    def getLiveImage(self):
+        try:
+            return self.hw.cam.capturePreview()
+        except:
+            return self._live_dummy
 
 

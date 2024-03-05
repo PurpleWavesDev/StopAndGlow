@@ -113,11 +113,11 @@
             "justMyCode": true
         },
         {
-            "name": "Viewer (Live) - not implemented",
+            "name": "Viewer (Live)",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer", "--live"],
+            "args": ["--loglevel=DEBUG", "--viewer", "--live", "--seq_name=onionskins"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
