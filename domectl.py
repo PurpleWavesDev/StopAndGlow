@@ -35,6 +35,7 @@ from src.renderer.renderer import Renderer
 from src.renderer.rti import RtiRenderer
 from src.renderer.rgbstack import RgbStacker
 from src.renderer.lightstack import LightStacker
+from src.renderer.live import LiveView
 
 # Types
 HW = namedtuple("HW", ["cam", "lights", "config"])
@@ -167,7 +168,7 @@ def main(argv):
         tib.TIBase.init()
 
         if FLAGS.live:
-            renderer = LiveViewer() # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
+            renderer = LiveView(hw) # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
             renderer.setSequence(sequence)
 
         elif renderer is None and FLAGS.eval_name != '':

@@ -214,6 +214,11 @@ class ImgBuffer:
         interpol = cv.INTER_NEAREST if not high_qual else cv.INTER_AREA if factor < 1 else cv.INTER_LINEAR
         img = cv.resize(self.get(), dsize=None, fx=factor, fy=factor, interpolation=interpol)
         return ImgBuffer(path=self._path, img=img, domain=self._domain)
+
+    def rescale(self, resolution, high_qual=True) :
+        interpol = cv.INTER_NEAREST if not high_qual else cv.INTER_LINEAR
+        img = cv.resize(self.get(), dsize=resolution, interpolation=interpol)
+        return ImgBuffer(path=self._path, img=img, domain=self._domain)
     
     ### Operators ###
     def __getitem__(self, coord) -> ImgBuffer:
