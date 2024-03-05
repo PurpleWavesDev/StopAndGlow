@@ -37,7 +37,7 @@ class PolyFitter(PseudoinverseFitter):
         sampleLight(buffer, self._coefficients, u, v)
     
     def renderHdri(self, buffer, hdri, rotation, slices=1):
-        sampleHdri(buffer, inverse, hdri, rotation)
+        sampleHdri(buffer, self._coefficients, hdri, rotation)
 
 
 @ti.kernel

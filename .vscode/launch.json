@@ -117,7 +117,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer"],
+            "args": ["--loglevel=DEBUG", "--viewer", "--live"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

@@ -83,6 +83,7 @@ flags.DEFINE_string('eval_folder', '../HdM_BA/data/processed', 'Folder for HDRI 
 flags.DEFINE_string('eval_name', '', 'Name of HDRI image to be used for processing.')
 # Viewer
 flags.DEFINE_bool('viewer', False, "Set this flag to launch the viewer with the loaded or processed data.")
+flags.DEFINE_bool('live', False, "Starting the viewer in live mode.")
 flags.DEFINE_bool('record', False, "Set this flag to record a 360° environment turn in headless mode.")
 flags.DEFINE_string('rec_folder', '../HdM_BA/data/rec', 'Folder for recorded renderings.')
 flags.DEFINE_string('rec_name', '', 'Name of video output of recorded rendering.')
@@ -165,7 +166,11 @@ def main(argv):
     if FLAGS.viewer:
         tib.TIBase.init()
 
-        if renderer is None and FLAGS.eval_name != '':
+        if FLAGS.live:
+            renderer = LiveViewer() # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
+            renderer.setSequence(sequence)
+
+        elif renderer is None and FLAGS.eval_name != '':
             # Load renderer with eval data
             eval_seq = Sequence()
             eval_seq.load(os.path.join(FLAGS.eval_folder, FLAGS.eval_name))
