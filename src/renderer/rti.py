@@ -34,16 +34,16 @@ class RtiRenderer(Renderer):
     # Loading, processing etc.
     def load(self, rti_seq: Sequence):
         # Load metadata, get fitter
-        self._u_min, self._v_min = coefficient_seq.getMeta('latlong_min', (0, 0))
-        self._u_max, self._v_max = coefficient_seq.getMeta('latlong_max', (1, 1))
+        self._u_min, self._v_min = rti_seq.getMeta('latlong_min', (0, 0))
+        self._u_max, self._v_max = rti_seq.getMeta('latlong_max', (1, 1))
         fitter = rti_seq.getMeta('fitter', '')
         if fitter == '':
-            log.error("Can't load fitter without metadata which fitter has to be used, aborting.")
-            return
+            log.warning(f"No metadata provided which fitter has to be used, defaulting to '{PolyFitter.__name__}'.")
+            fitter = PolyFitter.__name__
         self.initFitter(fitter, {})
         
         # Load data
-        self._fitter.load(rti_seq)
+        self._fitter.loadCoefficients(rti_seq)
     
     def get(self) -> Sequence:
         if self._fitter:

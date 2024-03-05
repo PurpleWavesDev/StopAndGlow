@@ -169,7 +169,6 @@ def main(argv):
             # Load renderer with eval data
             eval_seq = Sequence()
             eval_seq.load(os.path.join(FLAGS.eval_folder, FLAGS.eval_name))
-            renderer = None
             match FLAGS.eval_type:
                 case 'rgbstack':
                     renderer = RgbStacker()

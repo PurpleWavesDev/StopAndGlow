@@ -51,7 +51,7 @@ class Calibrate(Renderer):
     def getRenderModes(self) -> list:
         return ["Sequence", "Chromeball", "Threshold", "Result"]
     def getRenderSettings(self, render_mode) -> RenderSettings:
-        return RenderSettings(req_keypress_events=True)
+        return RenderSettings(as_int=True, req_keypress_events=True)
     def keypressEvent(self, event_key):
         if event_key in ['a']: # Left
             self._view_idx = (len(self._sequence)+self._view_idx-1) % len(self._sequence)

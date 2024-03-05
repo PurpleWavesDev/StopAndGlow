@@ -28,7 +28,6 @@ class Viewer:
         self._res = res
         # column-major but with changed x/y coordinates
         ti.root.dense(ti.j, self._res[1]).dense(ti.i, self._res[0]).place(self._framebuf)
-        #self._framebuf = ti.VectorType
         
     def setSequences(self, image_sequence = None, rti_factors = None):
         if image_sequence is not None:
@@ -82,8 +81,9 @@ class Viewer:
         u: np.float32 = 0.75
         v: np.float32 = 0.5
         
-        #pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(self._res[1], self._res[0]))
-        pixels = ti.ndarray(ti.types.vector(3, ti.f32), (self._res[1], self._res[0]))
+        buffer_float = ti.ndarray(ti.types.vector(3, ti.f32), (self._res[1], self._res[0]))
+        buffer_int = ti.ndarray(ti.types.vector(3, ti.u8), (self._res[1], self._res[0]))
+        pixels = buffer_int if self._render_settings.as_int else buffer_float
         while window.running:
             # Frame times
             time_cur = time.time()
@@ -101,8 +101,10 @@ class Viewer:
                 # Arrows for mode changes
                 elif window.event.key in [ti.ui.RIGHT]:
                     self.cycleMode()
+                    pixels = buffer_int if self._render_settings.as_int else buffer_float
                 elif window.event.key in [ti.ui.LEFT]:
                     self.cycleMode(left=True)
+                    pixels = buffer_int if self._render_settings.as_int else buffer_float
                 elif self._render_settings.req_keypress_events:
                     self._renderer.keypressEvent(window.event.key)
             
@@ -137,7 +139,7 @@ class Viewer:
                 tib.lin2sRGB(pixels, exposure)
             elif self._render_settings.with_exposure:
                 tib.exposure(pixels, exposure)
-            copy_framebuf(pixels, self._framebuf)
+            copy_framebuf8(pixels, self._framebuf) if self._render_settings.as_int else copy_framebuf(pixels, self._framebuf)
             canvas.set_image(self._framebuf)
             window.show()
     
@@ -148,4 +150,10 @@ class Viewer:
 def copy_framebuf(pixel: tib.pixarr, framebuf: ti.template()):
     for y, x in pixel:
         framebuf[x, framebuf.shape[1]-1 -y] = pixel[y, x]
+   
+# Kernels
+@ti.kernel
+def copy_framebuf8(pixel: tib.pixarr8, framebuf: ti.template()):
+    for y, x in pixel:
+        framebuf[x, framebuf.shape[1]-1 -y] = pixel[y, x]/255
    

@@ -99,25 +99,25 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer", "--eval_name=rti", "--eval_type=rti", "--hdri_name=pretville_cinema_1k.exr"],
+            "args": ["--loglevel=DEBUG", "--viewer", "--eval_type=rti", "--eval_name=rti", "--hdri_name=pretville_cinema_1k.exr"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
         {
-            "name": "Relight ML",
+            "name": "Viewer ML",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=relight_ml", "--sequence_name=2024_ml", "--hdri_rotation=0"],
+            "args": ["--loglevel=DEBUG", "--viewer", "--eval_type=ml", "--eval_name=ml", "--hdri_name=pretville_cinema_1k.exr"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
         {
-            "name": "RTI Viewer",
+            "name": "Viewer (Live) - not implemented",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer", "--eval_name=rti"],
+            "args": ["--loglevel=DEBUG", "--viewer"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
