@@ -13,3 +13,6 @@
 
 # Logs etc
 *.log
+
+# Ini file from Taichi GUI
+imgui.ini

@@ -1,4 +1,5 @@
 from enum import Enum
+import logging as log
 import time
 
 import taichi as ti
@@ -65,6 +66,7 @@ class Viewer:
     def setMode(self, mode):
         self._mode = mode
         self._render_settings = self._renderer.getRenderSettings(mode)
+        log.info(f"Renderer switched to mode {self._renderer.getRenderModes()[mode]}")
 
     def launch(self):
         if self._renderer == None:
@@ -101,6 +103,8 @@ class Viewer:
                     self.cycleMode()
                 elif window.event.key in [ti.ui.LEFT]:
                     self.cycleMode(left=True)
+                elif self._render_settings.req_keypress_events:
+                    self._renderer.keypressEvent(window.event.key)
             
             # Exposure correction
             if window.is_pressed(ti.ui.UP):
@@ -117,6 +121,10 @@ class Viewer:
                 else:
                     v = (v+time_frame/5) % 1
                 self._renderer.setCoords(u, v)
+            
+            # General inputs for renderer
+            if self._render_settings.req_inputs:
+                self._renderer.inputs(window)
             
             ### Rendering ###
             self._renderer.render(self._mode, pixels)

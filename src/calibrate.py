@@ -3,6 +3,7 @@ import numpy as np
 import math
 
 import cv2 as cv
+import taichi as ti
 
 from src.imgdata import *
 from src.sequence import Sequence
@@ -26,6 +27,7 @@ class Calibrate(Renderer):
         return self._config
     
     def process(self, img_seq: Sequence, config: Config, settings={'threshold': 245, 'min_size_ratio': 0.011, 'interactive': False}):
+        self._view_idx = 0
         # Settings
         self._threshold = settings['threshold'] if 'threshold' in settings else 245
         self._min_size_ratio = settings['min_size_ratio'] if 'min_size_ratio' in settings else 0.011
@@ -49,16 +51,23 @@ class Calibrate(Renderer):
     def getRenderModes(self) -> list:
         return ["Sequence", "Chromeball", "Threshold", "Result"]
     def getRenderSettings(self, render_mode) -> RenderSettings:
-        return RenderSettings()
-    def setCoords(self, u, v):
-        pass
+        return RenderSettings(req_keypress_events=True)
+    def keypressEvent(self, event_key):
+        if event_key in ['a']: # Left
+            self._view_idx = (len(self._sequence)+self._view_idx-1) % len(self._sequence)
+        elif event_key in ['d']: # Right
+            self._view_idx = (self._view_idx+1) % len(self._sequence)
+        elif event_key in ['w']:
+            pass
+        elif event_key in ['s']:
+            pass
 
     # Rendering
     def render(self, render_mode, buffer, hdri=None):
         match render_mode:
             case 0: # Sequence
-                buffer.from_numpy(self._sequence.getMaskFrame().get())
-                #buffer.from_numpy(self._sequence.get(0).get())
+                #buffer.from_numpy(self._sequence.getMaskFrame().get())
+                buffer.from_numpy(self._sequence.get(self._view_idx).get())
             case 1: # Chromeball
                 buffer.from_numpy(self._mask_rgb.get())
             case 2: # Threshold
@@ -181,10 +190,10 @@ class Calibrate(Renderer):
                 uv = self.findReflection(img, id)
                 if uv is not None:
                     self._config.addLight(id, uv, Calibrate.SphericalToLatlong(uv))
-                img.unload()
+                #img.unload()
             else:
                 log.debug(f"Found blackframe '{id}'")
-                img.unload()
+                #img.unload()
         
         # Save debug image
         if not self._interactive:
