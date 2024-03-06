@@ -71,6 +71,7 @@ flags.DEFINE_bool('seq_convert', False, "Convert to image files if a video was c
 # Calibration
 flags.DEFINE_string('cal_folder', '../HdM_BA/data/config', 'Folder for light calibration.')
 flags.DEFINE_string('cal_name', 'lightdome.json', 'Name of calibration file to be loaded or generated.')
+flags.DEFINE_list('cal_stack_names', [], 'List of calibration file names to be stacked to the main calibration file.')
 flags.DEFINE_string('new_cal_name', 'lightdome_new.json', 'Name of calibration file to be loaded or generated.')
 # HDRI
 flags.DEFINE_string('hdri_folder', '../HdM_BA/data/hdri', 'Folder for HDRI environment maps.')
@@ -78,7 +79,7 @@ flags.DEFINE_string('hdri_name', '', 'Name of HDRI image to be used for processi
 flags.DEFINE_float('hdri_rotation', 0.0, 'Rotation of HDRI in degrees.', lower_bound=0, upper_bound=360)
 # Processing
 flags.DEFINE_bool('process', False, "Set this flag to enable processing of recorded footage.")
-flags.DEFINE_enum('eval_type', 'pass', ["cal", "rgbstack", "lightstack", "rti", "expostack", "convert", 'pass'], "How the sequence should be processed or interpreted by the viewer.")
+flags.DEFINE_enum('eval_type', 'pass', ["cal", "calstack", "rgbstack", "lightstack", "rti", "expostack", "convert", 'pass'], "How the sequence should be processed or interpreted by the viewer.")
 flags.DEFINE_bool('eval_dontsave', False, "Set this flag to discard evaluation data after processing.")
 flags.DEFINE_string('eval_folder', '../HdM_BA/data/processed', 'Folder for HDRI environment maps.')
 flags.DEFINE_string('eval_name', '', 'Name of HDRI image to be used for processing.')
@@ -147,7 +148,10 @@ def main(argv):
                 #calibrate(sequence)
                 settings = {'interactive': FLAGS.viewer}
                 renderer = Calibrate()
-                
+            case 'calstack':
+                # Load configs
+                stack_cals = [Config(os.path.join(FLAGS.cal_folder, name)) for name in FLAGS.cal_stack_names]
+                hw.config.stitch(stack_cals)
             case 'rgbstack':
                 renderer = RgbStacker()
             case 'lightstack':

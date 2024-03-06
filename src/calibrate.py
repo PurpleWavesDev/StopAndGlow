@@ -25,6 +25,7 @@ class Calibrate(Renderer):
     
     def get(self) -> Sequence:
         return Sequence()
+    
     def getCalibration(self) -> Config:
         return self._config
     
@@ -34,20 +35,23 @@ class Calibrate(Renderer):
         self._rect_mask_offset = 0.85
         self._mask_threshold = 100
         self._mask_blur_size = 1
+        if img_seq.getMeta('focal_length') is None:
+            log.warning("Can't do perspective correction without focal_length metadata")
         self._refl_threshold = settings['threshold'] if 'threshold' in settings else 245
         self._min_size_ratio = settings['min_size_ratio'] if 'min_size_ratio' in settings else 0.011
         
         self._interactive = settings['interactive'] if 'interactive' in settings else False
+        
         
         log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
         
         # Save members
         self._sequence = img_seq
         
-        # Find center of chrome ball
+        # Find center of chrome ball and all reflections
         self.findCenter()
-        # Find reflections
         self.findReflections()
+        self._recalc = False
                 
     def setSequence(self, img_seq: Sequence):
         pass
@@ -211,8 +215,6 @@ class Calibrate(Renderer):
                 f = self._sequence.getMeta('focal_length')
                 size_on_sensor = sensor[0] / (res_x/size_chromeball)
                 self._viewing_angle_by2 = arctan(size_on_sensor/2*f)
-            else:
-                log.warning("Can't do perspective correction without focal_length metadata")
         else:
             log.error("Did not find chrome ball")
 

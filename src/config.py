@@ -99,3 +99,18 @@ class Config:
         min_val = new_val if cur_val_min == -1 else min(cur_val_min, new_val)
         max_val = new_val if cur_val_max == -1 else max(cur_val_max, new_val)
         return (min_val, max_val)
+
+    def stitch(self, other_configs):
+        for stitch_conf in other_configs:
+            # Find lights that have a similar longitude and low latitude
+            for light in self:
+                id = light['id']
+                if stitch_conf[id] is not None:
+                    # This light exists in other config as well
+                    #dist = abs(light['uv'][0])-abs(stitch_conf[id]['uv'][0])
+                    dist = light['uv'][0] + stitch_conf[id]['uv'][0]
+                    if abs(dist) < 0.1:
+                        # The lights with similar u distance on reflection we want to match first
+                        print(f"Matching light ID {id} with coords {light['latlong']}, {stitch_conf[id]['latlong']}, distance {dist}")
+                        
+                        
