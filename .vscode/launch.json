@@ -131,38 +131,20 @@
             "justMyCode": true
         },
         {
-            "name": "Lights HDRI",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_hdri", "--input_hdri=HDRIs/pretville_cinema_1k.exr"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Lights Animate",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=20240125_1627_calibration.json"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Lights Run",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_run"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
             "name": "Lights On",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
             "args": ["--lightctl=on"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Lights Top",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--lightctl=top"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -180,25 +162,25 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--lightctl=run"],
+            "args": ["--lightctl=run", "--seq_type=fullrun"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
         {
-            "name": "Lights LatLong_Animate",
+            "name": "Lights HDRI",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=20240125_1627_calibration.json"],
+            "args": ["--lightctl=anim_hdri", "--hdri_name=HDRIs/pretville_cinema_1k.exr"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
         {
-            "name": "Lights HDRI_Animate",
+            "name": "Lights Animation",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--mode=lights_animate", "--config_name=20240125_1627_calibration.json"],
+            "args": ["--lightctl=anim_latlong"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

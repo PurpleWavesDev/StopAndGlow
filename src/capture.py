@@ -1,4 +1,5 @@
 import logging as log
+import math
 
 # HW
 from src.camera import *
@@ -70,7 +71,8 @@ class Capture:
         log.info(f"Starting video capture for {len(self._id_list)} frames")
 
         # Worker & Timer
-        subframes = 1 + self._flags.capture_frames_skip + self._flags.capture_dmx_repeat
+        # One subframe for recording, another one for dmx repeat + half of the skip frames because of half frequency
+        subframes = 1 + self._flags.capture_dmx_repeat + math.ceil(self._flags.capture_frames_skip/2)
         t = Timer(worker.LightVideoWorker(self._hw, lights, self._id_list, self._mask_frame, subframe_count=subframes))
 
         # Capture
@@ -92,7 +94,7 @@ class Capture:
 
         sequence = Sequence()
         if self._cam.isVideoMode():
-            sequence = self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip*2+1, self._flags.capture_dmx_repeat*2, keep=keep)
+            sequence = self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep)
 
             if self._flags.seq_convert:
                 sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.JPG)

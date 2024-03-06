@@ -98,9 +98,42 @@ class Cam:
         widget = self.getCam().get_single_config('iso') # String, e.g. '1000', type Radio
         return widget.get_value()
 
+    # More useful values: colortemperature
+
+    # Read only
+
+    def getBattery(self): # Untested
+        widget = self.getCam().get_single_config('batterylevel')
+        return widget.get_value()
 
     ### Capture & Trigger methodes ###
+
+    def waitForTrigger(self, timeout=0):
+        listen_timeout = timeout*100 if timeout != 0 else 1000
+        time_start = time.time()
+        while time.time() - time_start < timeout if timeout != 0 else True:
+            event_type, event_data = self.getCam().wait_for_event(listen_timeout)      
+            if event_type == 0 and event_data == 'PTP Property d1b8 changed, "movierecordtarget" to "Card"':
+                # Video captured
+                return True
+            elif False: # event_type == 0:
+                # 0 Button 2 -> focus button (oder button 3/1? Wahrscheinlich unterschiedliche zustände)
+                return True
     
+    def focus(self, steps=1):
+        """steps from -3 to +3 to select different step sizes"""
+        steps = min(3, max(-3, steps))
+        widget = self.getCam().get_single_config('manualfocusdrive')
+        if steps < 0:
+            widget.set_value(widget.get_choice(abs(steps)-1))
+            self.getCam().set_single_config('manualfocusdrive', widget)
+        elif steps > 0:
+            widget.set_value(widget.get_choice(3+steps))
+            self.getCam().set_single_config('manualfocusdrive', widget)
+        # TODO: Another 0 value to "apply" settings to allow another step afterwards. Might be necessary depending on the camera?
+        widget.set_value(widget.get_choice(3))
+        self.getCam().set_single_config('manualfocusdrive', widget)
+
     def capturePhoto(self, id):
         """Captures image and saves camera file path"""
         file = self.getCam().capture(gp.GP_CAPTURE_IMAGE)
@@ -180,7 +213,6 @@ class Cam:
         #exif_data = exiv_image.exifData()
         #print(exif_data)
 
-
         if not keep:
             self.getCam().file_delete(file[0], file[1])
             if id != -1:
@@ -207,6 +239,13 @@ class Cam:
             seq.setMaskFrame(img)
         if not keep:
             self.deleteFiles()
+        
+        # Metadata from camera TODO: could be extracted from EXIF per file but settings propably won't change
+        seq.setMeta('aperture', self.getAperture())
+        seq.setMeta('iso', self.getIso())
+        seq.setMeta('exposure', self.getExposure())
+        # TODO: Metadata for focal length and sensor size, gphoto does not have interface for that
+
         return seq
     
     def downloadImages(self, path, name, keep=False):

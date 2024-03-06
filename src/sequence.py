@@ -77,8 +77,9 @@ class Sequence():
     def loadVideo(self, path, frame_list, frames_skip, dmx_repeat, lazy=True):
         # Setup variables
         self._is_video = True
-        self._frames_skip = frames_skip
-        self._dmx_repeat = dmx_repeat
+        self._frames_offset = dmx_repeat * 2 # Could add here one for safety (?)
+        # Always skip one frame because of double frequency of recording; frames_skip must be even -> round up
+        self._frames_skip = 1 + math.ceil(frames_skip/2)*2 + dmx_repeat*2
         
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
@@ -92,8 +93,8 @@ class Sequence():
         # Change file name to folder path
         self._metafile_name = os.path.join(base_dir, seq_name, 'meta.json')
         # Set metadata
-        self.setMeta('video_frames_skip', frames_skip)
-        self.setMeta('video_dmx_repeat', dmx_repeat)
+        self.setMeta('video_frames_skip', self._frames_skip)
+        self.setMeta('video_frames_offset', self._frames_offset)
             
         # Load video
         self._vidcap = cv.VideoCapture(path)
@@ -122,7 +123,7 @@ class Sequence():
                     # Wait for black frame
                     if ImgOp.blackframe(self._vid_frame):
                         log.debug(f"Found blackframe at frame {self._vid_frame_count}")
-                        if self._dmx_repeat > 0:
+                        if self._frames_offset > 0:
                             self._vid_state = VidParseState.Black
                         else:
                             self._vid_state = VidParseState.Skip
@@ -132,14 +133,14 @@ class Sequence():
                         black_val = np.max(self._vid_frame)
 
                 case VidParseState.Black:
-                    # Wait for dmx_repeat
-                    self._skip_count = (self._skip_count+1) % self._dmx_repeat
+                    # Wait for capture offset
+                    self._skip_count = (self._skip_count+1) % self._frames_offset
                     if self._skip_count == 0:
                         self._vid_state = VidParseState.Skip
                                         
                 case VidParseState.Skip:
-                    # Wait for frames_skip+dmx_repeat
-                    self._skip_count = (self._skip_count+1) % (self._frames_skip+self._dmx_repeat)
+                    # Wait for skip frames
+                    self._skip_count = (self._skip_count+1) % (self._frames_skip)
                     if self._skip_count == 0:
                         self._vid_state = VidParseState.Valid
 

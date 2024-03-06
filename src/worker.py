@@ -24,10 +24,10 @@ class Worker:
 
 class LightWorker(Worker):
     """Writes single light per frame from list"""
-    def __init__(self, hw, lights: list[int]|dict, id_list, mask_frame: list[int]=None, trigger_capture=False, repeat_dmx=0):
+    def __init__(self, hw, lights: list[int]|dict, id_list=None, mask_frame: list[int]=None, trigger_capture=False, repeat_dmx=0):
         Worker.__init__(self, hw)
         self._lights = lights
-        self._id_list = id_list
+        self._id_list = id_list if id_list is not None else lights
         self._single_lights = isinstance(lights, list)
         self._i = 0
         self._repeat_dmx = repeat_dmx

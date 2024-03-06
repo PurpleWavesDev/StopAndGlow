@@ -20,6 +20,8 @@ import logging as log
 from src.camera import *
 from src.lights import Lights
 from src.config import Config
+from src.timer import Timer
+from src.worker import *
 # Image and dome data, evaluation
 from src.imgdata import *
 from src.sequence import Sequence
@@ -60,7 +62,7 @@ flags.DEFINE_bool('hdr', False, "If set, capture will be either raw images or mu
 flags.DEFINE_float('capture_fps', 25, 'Frame rate for the video capture.')
 flags.DEFINE_integer('capture_frames_skip', 1, 'Frames to skip before and after valid frame in video sequence', lower_bound=0)
 flags.DEFINE_integer('capture_dmx_repeat', 1, "How many signals should be sent before an image is captured or extracted from video.")
-flags.DEFINE_integer('capture_max_addr', 512, "Max address to be used for generating calibrations.")
+flags.DEFINE_integer('capture_max_addr', 310, "Max address to be used for generating calibrations.")
 # Sequence settings
 flags.DEFINE_enum('seq_type', 'lights', ["lights", "hdri", "fullrun"], "Sequence consists of images from all lights of the current config, three images for RGB channel stacking or a full run for all light IDs without config.")
 flags.DEFINE_enum('seq_domain', 'keep', ['keep', 'lin', 'srgb'], 'Domain of sequence, default for EXR is linear, sRGB for PNGs and JPGs.')
@@ -233,7 +235,8 @@ def main(argv):
             case 'off':
                 hw.lights.off()
             case 'run':
-                lightsConfigRun(hw)
+                ids = hw.config.getIds() if FLAGS.seq_type == "seq_type" else range(FLAGS.capture_max_addr)
+                lightsRun(hw, ids)
                 dome.setTop(60, 50)
             case 'anim_latlong':
                 lightsAnimate(hw)
@@ -264,11 +267,11 @@ def lightsAnimate(hw):
         return i<60 # i<45
 
     for _ in range(3):
-        t = Timer(worker.LightFnWorker(hw, fn_lat, parameter=dome))
+        t = Timer(LightFnWorker(hw, fn_lat, parameter=dome))
         t.start(1/10)
         t.join()
 
-        t = Timer(worker.LightFnWorker(hw, fn_long, parameter=dome))
+        t = Timer(LightFnWorker(hw, fn_long, parameter=dome))
         t.start(1/10)
         t.join()
 
@@ -288,15 +291,17 @@ def lightsHdriRotate(hw):
         dome.writeLights()
         return i<360
     
-    t = Timer(worker.LightFnWorker(hw, fn, parameter=dome))
+    t = Timer(LightFnWorker(hw, fn, parameter=dome))
     t.start(1/10)
     t.join()
 
 
-def lightsConfigRun(hw):
-    log.info(f"Running through {len(hw.config)} lights with IDs {hw.config.getIdBounds()}")
-    t = Timer(worker.LightWorker(hw, hw.config.getIds()))
-    t.start(1/15)
+def lightsRun(hw, ids=None):
+    if ids is None:
+        ids = hw.config.getIds()
+    log.info(f"Running through {len(ids)} lights with IDs {ids[0]}-{ids[-1]}")
+    t = Timer(LightWorker(hw, hw.config.getIds()))
+    t.start(2/25) # 1/20 is max with occational overruns
     t.join()
 
 
@@ -436,7 +441,7 @@ def load(seq_name, config):
                     ids = [0, 1, 2]
                 case 'fullrun':
                     ids = range(FLAGS.capture_max_addr)
-            sequence.loadVideo(path, ids, FLAGS.capture_frames_skip*2+1, FLAGS.capture_dmx_repeat*2) 
+            sequence.loadVideo(path, ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat) 
     
     return sequence
 
