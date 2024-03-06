@@ -60,8 +60,8 @@ flags.DEFINE_enum('loglevel', 'INFO', ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRA
 flags.DEFINE_bool('capture', False, "Set this flag to capture footage instead of loading it from disk.")
 flags.DEFINE_bool('hdr', False, "If set, capture will be either raw images or multiple videos for exposure stacking, depending on the camera mode.")
 flags.DEFINE_float('capture_fps', 25, 'Frame rate for the video capture.')
-flags.DEFINE_integer('capture_frames_skip', 1, 'Frames to skip before and after valid frame in video sequence', lower_bound=0)
-flags.DEFINE_integer('capture_dmx_repeat', 1, "How many signals should be sent before an image is captured or extracted from video.")
+flags.DEFINE_integer('capture_frames_skip', 3, 'Frames to skip between frames in video sequence, has to be odd or will be incremented to next odd value.', lower_bound=0)
+flags.DEFINE_integer('capture_dmx_repeat', 0, "How many signals should be sent before an image is captured or extracted from video.")
 flags.DEFINE_integer('capture_max_addr', 310, "Max address to be used for generating calibrations.")
 # Sequence settings
 flags.DEFINE_enum('seq_type', 'lights', ["lights", "hdri", "fullrun"], "Sequence consists of images from all lights of the current config, three images for RGB channel stacking or a full run for all light IDs without config.")
@@ -103,7 +103,9 @@ def main(argv):
     reload(log)
     log.basicConfig(level=log._nameToLevel[FLAGS.loglevel], format='[%(levelname)s] %(message)s')
     datetime_now = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-
+    # Make capture_frames_skip odd, increment if necessary
+    if FLAGS.capture_frames_skip % 2 == 0:
+        FLAGS.capture_frames_skip += 1
     # Prepare hardware for tasks
     hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)))
     tib.TIBase.gpu = True
@@ -260,11 +262,11 @@ def lightsAnimate(hw):
     def fn_lat(lights: Lights, i: int, dome: Any) -> bool:
         dome.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[0] > 90-(i*2) else ImgBuffer.FromPix(0))
         dome.writeLights()
-        return i<60 # i<45
+        return i<70 # i<45
     def fn_long(lights: Lights, i: int, dome: Any) -> bool:
         dome.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(80 * max(0, 1 - (i*8-latlong[1])/90)) if latlong[1] < i*8 else ImgBuffer.FromPix(0))
         dome.writeLights()
-        return i<60 # i<45
+        return i<70 # i<45
 
     for _ in range(3):
         t = Timer(LightFnWorker(hw, fn_lat, parameter=dome))

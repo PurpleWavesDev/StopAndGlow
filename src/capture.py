@@ -1,5 +1,4 @@
 import logging as log
-import math
 
 # HW
 from src.camera import *
@@ -27,8 +26,11 @@ class Capture:
         hw.lights.getInterface()
 
         # Generate mask frame
-        nth = 6
-        self._mask_frame = [light['id'] for i, light in enumerate(hw.config) if i % nth == 0]
+        nth = 4
+        if hw.config is not None:
+            self._mask_frame = [light['id'] for i, light in enumerate(hw.config) if light['latlong'][0] > 45]
+        else:
+            self._mask_frame = list(range(0, flags.capture_max_addr, step=nth))
 
     def captureSequence(self, config: Config = None, hdri: ImgBuffer = None):
         # Get frames for all capture modes
@@ -36,7 +38,7 @@ class Capture:
             lights = config.getIds()
             self._id_list = lights
         elif self._flags.seq_type == 'fullrun':
-            lights = range(self._flags.capture_max_addr)
+            lights = list(range(self._flags.capture_max_addr))
             self._id_list = lights
         elif self._flags.seq_type == 'hdri':
             self._dome.processHdri(hdri)
@@ -71,8 +73,8 @@ class Capture:
         log.info(f"Starting video capture for {len(self._id_list)} frames")
 
         # Worker & Timer
-        # One subframe for recording, another one for dmx repeat + half of the skip frames because of half frequency
-        subframes = 1 + self._flags.capture_dmx_repeat + math.ceil(self._flags.capture_frames_skip/2)
+        # Half a subframe for recording + odd number of half skip frames, add another one for each dmx repeat
+        subframes = (1+self._flags.capture_frames_skip) / 2 + self._flags.capture_dmx_repeat
         t = Timer(worker.LightVideoWorker(self._hw, lights, self._id_list, self._mask_frame, subframe_count=subframes))
 
         # Capture

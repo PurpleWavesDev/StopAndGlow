@@ -130,7 +130,7 @@ class Calibrate(Renderer):
             case 0: # EdgeFilter
                 buffer.from_numpy(np.dstack([self._cb_edges, self._cb_edges, self._cb_edges]))
             case 1: # Chromeball
-                buffer.from_numpy(self._mask_rgb)
+                buffer.from_numpy(cv.bitwise_and(self._mask_rgb, self._mask_rgb, mask=self.cb_mask))
             case 2: # Reflections
                 buffer.from_numpy(self._reflections)
             case 3: # Sequence
@@ -201,7 +201,9 @@ class Calibrate(Renderer):
             self.cb_center = np.array([x, y])
             self.cb_radius = r
             cv.circle(self.cb_mask, (int(x+0.5),int(y+0.5)), int(r), 255, -1)
-            
+            # Add linear mask at bottom
+            self.cb_mask = cv.blendLinear(self.cb_mask, grey, beta, alpha)
+
             # Draw circle in RGB image
             cv.circle(self._mask_rgb, (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
             # Save image if not in interactive mode
@@ -210,11 +212,11 @@ class Calibrate(Renderer):
                 log.info(f"Found chrome ball at ({self.cb_center[0]:5.2f}, {self.cb_center[1]:5.2f}), radius {self.cb_radius:5.2f}")
                 
             # Calculate viewing angle
-            if self._sequence.getMeta('focal_length') is not None:
-                sensor = self._sequence.getMeta('sensor_size', (22.0, 15.0)) # APS-C is default
-                f = self._sequence.getMeta('focal_length')
-                size_on_sensor = sensor[0] / (res_x/size_chromeball)
-                self._viewing_angle_by2 = arctan(size_on_sensor/2*f)
+            if self._sequence.getMeta('focal_length', 135) is not None: # TODO: Remove default as soon as metadata works
+                sensor = self._sequence.getMeta('sensor_size', (22.0, 15.0)) # APS-C is default, only works without cropping
+                f = self._sequence.getMeta('focal_length', 135) # TODO
+                size_on_sensor = sensor[0] / (res_x/(self.cb_radius*2))
+                self._viewing_angle_by2 = math.atan(size_on_sensor/(2*f))
         else:
             log.error("Did not find chrome ball")
 

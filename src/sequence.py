@@ -77,9 +77,10 @@ class Sequence():
     def loadVideo(self, path, frame_list, frames_skip, dmx_repeat, lazy=True):
         # Setup variables
         self._is_video = True
-        self._frames_offset = dmx_repeat * 2 # Could add here one for safety (?)
-        # Always skip one frame because of double frequency of recording; frames_skip must be even -> round up
-        self._frames_skip = 1 + math.ceil(frames_skip/2)*2 + dmx_repeat*2
+         # Delay for DMX repeat signals (two frames per signal) and half of the skipped frames (round down)
+        self._frames_offset = dmx_repeat * 2 + frames_skip // 2
+        # frames_skip is odd to mach together with valid frame double the lights frequency
+        self._frames_skip = frames_skip + dmx_repeat*2
         
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
@@ -103,7 +104,7 @@ class Sequence():
             log.error(f"Could not load video file '{path}'")
             return False
             
-        self._frames = {key: None for key in frame_list}        
+        self._frames = {key: ImgBuffer() for key in frame_list}        
         self._vid_state = VidParseState.PreBlack
         self._vid_frame_number = -1
         self._vid_frame_count = self._skip_count = 0
