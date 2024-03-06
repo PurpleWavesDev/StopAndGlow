@@ -49,16 +49,31 @@ class LiveView(Renderer):
 
     # Rendering
     def render(self, render_mode, buffer, hdri=None):
+        liveFrame = self.getLiveImage().rescale((buffer.shape[1], buffer.shape[0]))
         match render_mode:
-            case 1: # Live
-                self.getLiveImage().rescale((buffer.shape[1], buffer.shape[0]))
-                buffer.from_numpy(frame.get())
-            case 0: # Onionskin
-             self.sequence.get(5)         
+            case 0: # Live
+                buffer.from_numpy(liveFrame.get())
+            case 1: # Onionskin
+                idx = len(self.sequence)-1
+                prevImg = self.sequence.get(idx).rescale((buffer.shape[1], buffer.shape[0]))
+                blendedLayer = cv.addWeighted(prevImg.get(), 0.65, prevImg.get(),0.25,0)
+                idx = idx-1
+
+                for id, img in self.sequence:
+                    if img.hasImg :
+                        img = img.rescale((buffer.shape[1], buffer.shape[0]))
+                        idx = idx-1
+                        nextLayer = self.sequence.get(idx).rescale((buffer.shape[1], buffer.shape[0]))
+                        blendedLayer = cv.addWeighted(blendedLayer, 0.65, img.get(),0.25,0)
+
+                blendedLayer = cv.addWeighted(liveFrame.get(), 0.65, blendedLayer,0.25,0)
+                buffer.from_numpy(blendedLayer)
                 
+
             case 2: # Animation
                 for id, img in self.sequence:
-                    self.sequence[id]
+                    anim= self.sequence[id].rescale((buffer.shape[1], buffer.shape[0]))
+                    buffer.from_numpy(anim.get())
 
     def getLiveImage(self):
         try:
