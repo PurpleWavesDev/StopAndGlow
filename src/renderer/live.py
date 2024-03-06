@@ -50,18 +50,21 @@ class LiveView(Renderer):
     # Rendering
     def render(self, render_mode, buffer, hdri=None):
         match render_mode:
-            case 0: # Live
-                frame = self.getLiveImage().rescale((buffer.shape[1], buffer.shape[0]))
+            case 1: # Live
+                self.getLiveImage().rescale((buffer.shape[1], buffer.shape[0]))
                 buffer.from_numpy(frame.get())
-            case 1: # Onionskin
-                buffer.from_numpy(self._mask_rgb.get())
+            case 0: # Onionskin
+             self.sequence.get(5)         
+                
             case 2: # Animation
-                buffer.from_numpy(np.dstack([self.cb_mask, self.cb_mask, self.cb_mask]))
+                for id, img in self.sequence:
+                    self.sequence[id]
 
     def getLiveImage(self):
         try:
             return self.hw.cam.capturePreview()
         except:
             return self._live_dummy
+
 
 
