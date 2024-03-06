@@ -158,7 +158,8 @@ class Sequence():
                         if ImgOp.blackframe(self._vid_frame):
                             log.warning(f"Black frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                         else:
-                            log.debug(f"Valid sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
+                            #log.debug(f"Valid sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
+                            pass
                     # Skip every other frame
                     self._vid_state = VidParseState.Skip
                     self._vid_frame_number += 1

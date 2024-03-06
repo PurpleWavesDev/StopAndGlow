@@ -17,64 +17,112 @@ from src.renderer.renderer import *
 
 class Calibrate(Renderer):
     def __init__(self):
-        self._rect_mask_offset = 0.85
+        self._recalc = False
+        self._config = Config()
         
     def load(self, img_seq: Sequence):
         pass
     
     def get(self) -> Sequence:
         return Sequence()
+    
     def getCalibration(self) -> Config:
         return self._config
     
     def process(self, img_seq: Sequence, config: Config, settings={'threshold': 245, 'min_size_ratio': 0.011, 'interactive': False}):
         self._view_idx = 0
         # Settings
-        self._threshold = settings['threshold'] if 'threshold' in settings else 245
+        self._rect_mask_offset = 0.85
+        self._mask_threshold = 100
+        self._mask_blur_size = 1
+        if img_seq.getMeta('focal_length') is None:
+            log.warning("Can't do perspective correction without focal_length metadata")
+        self._refl_threshold = settings['threshold'] if 'threshold' in settings else 245
         self._min_size_ratio = settings['min_size_ratio'] if 'min_size_ratio' in settings else 0.011
+        
         self._interactive = settings['interactive'] if 'interactive' in settings else False
+        
+        
+        log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
         
         # Save members
         self._sequence = img_seq
-        self._config = Config()
         
-        log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
-
-        # Find center of chrome ball
+        # Find center of chrome ball and all reflections
         self.findCenter()
-        # Find reflections
         self.findReflections()
+        self._recalc = False
                 
     def setSequence(self, img_seq: Sequence):
         pass
 
     # Render settings
     def getRenderModes(self) -> list:
-        return ["EdgeFilter", "ReflectionThreshold", "Result", "Sequence"]
+        return ["EdgeFilter", "Chromeball", "Reflections", "Sequence"]
+    
     def getRenderSettings(self, render_mode) -> RenderSettings:
         self._render_mode = render_mode
-        return RenderSettings(as_int=True, req_keypress_events=True)
+        self.findCenter()
+        self.findReflections()
+        self._recalc = False
+        return RenderSettings(as_int=True, req_keypress_events=True, req_inputs=True)
 
     def keypressEvent(self, event_key):
-        if event_key in ['a']: # Left
-            self._view_idx = (len(self._sequence)+self._view_idx-1) % len(self._sequence)
-        elif event_key in ['d']: # Right
-            self._view_idx = (self._view_idx+1) % len(self._sequence)
-        elif event_key in ['w']:
-            pass
-        elif event_key in ['s']:
-            pass
+        if self._render_mode <=1:
+            if event_key in ['a']: # Left
+                self._mask_blur_size = max(0, self._mask_blur_size-1)
+                self._recalc = True
+            elif event_key in ['d']: # Right
+                self._mask_blur_size += 1
+                self._recalc = True
+        elif self._render_mode == 2:
+            # Inputs for reflections
+            if event_key in [ti.ui.UP]:
+                self._refl_threshold += 1
+                self._recalc = True
+            elif event_key in [ti.ui.DOWN]:
+                self._refl_threshold = max(0, self._refl_threshold-1)
+                self._recalc = True
+            if event_key in ['w']:
+                self._min_size_ratio *= 1.1
+                self._recalc = True
+            elif event_key in ['s']:
+                self._min_size_ratio /= 1.1
+                self._recalc = True
+
+        else:
+            if event_key in ['a']: # Left
+                self._view_idx = (len(self._sequence)+self._view_idx-1) % len(self._sequence)
+            elif event_key in ['d']: # Right
+                self._view_idx = (self._view_idx+1) % len(self._sequence)
+            elif event_key in ['w']:
+                pass
+            elif event_key in ['s']:
+                pass
 
     def inputs(self, window, time_frame):
-        if window.is_pressed('a'):
-            pass
-        if window.is_pressed('d'):
-            pass
-        if window.is_pressed('s'):
-            self._rect_mask_offset += (0.05 * time_frame)
-        if window.is_pressed('w'):
-            self._rect_mask_offset -= (0.05 * time_frame)
-        
+        if self._render_mode <=1:
+        # Inputs for EdgeFilter
+            if window.is_pressed(ti.ui.UP):
+                self._mask_threshold += int(20*time_frame)
+                self._recalc = True
+            if window.is_pressed(ti.ui.DOWN):
+                self._mask_threshold -= int(20*time_frame)
+                self._recalc = True
+            if window.is_pressed('s'):
+                self._rect_mask_offset += (0.05 * time_frame)
+                self._recalc = True
+            if window.is_pressed('w'):
+                self._rect_mask_offset -= (0.05 * time_frame)
+                self._recalc = True
+                
+        if self._recalc:
+            if self._render_mode <= 1:
+                self.findCenter()
+            elif self._render_mode == 2:
+                self.findReflections()
+            self._recalc = False
+                    
 
     # Rendering
     def render(self, render_mode, buffer, hdri=None):
@@ -82,9 +130,8 @@ class Calibrate(Renderer):
             case 0: # EdgeFilter
                 buffer.from_numpy(np.dstack([self._cb_edges, self._cb_edges, self._cb_edges]))
             case 1: # Chromeball
-                buffer.from_numpy(self._mask_rgb.get())
-            case 2: # Result
-                buffer.from_numpy(np.dstack([self.cb_mask, self.cb_mask, self.cb_mask]))
+                buffer.from_numpy(self._mask_rgb)
+            case 2: # Reflections
                 buffer.from_numpy(self._reflections)
             case 3: # Sequence
                 buffer.from_numpy(self._sequence.get(self._view_idx).get())
@@ -93,15 +140,17 @@ class Calibrate(Renderer):
     # Find center and radius of chromeball
     # TODO: cv.bilateralFilter respects edges, could be used here
     def findCenter(self):
-        # Frames
-        self._mask_rgb = copy(self._sequence.getMaskFrame().asInt())
-        cb_filtered = self._mask_rgb.r().get()
-        res_x, res_y = self._mask_rgb.resolution()
+        # Copy Frames
+        mask_frame = self._sequence.getMaskFrame().asInt()
+        self._mask_rgb = np.copy(mask_frame.get())
+        cb_filtered = np.copy(mask_frame.r().get())
+        res_x, res_y = mask_frame.resolution()
         
         # Calibration values and fields
         self.cb_mask = np.zeros(cb_filtered.shape[:2], dtype="uint8")
         self.cb_center = np.array([0,0])
         self.cb_radius = 0
+        self._viewing_angle_by2 = 0
         
         # Reduce noise and blend features
         cb_filtered = cv.medianBlur(cb_filtered, 5)
@@ -116,13 +165,12 @@ class Calibrate(Renderer):
         
         # Dilate and smooth edge
         erosion_size = 1
-        blur_size = 1
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (2 * erosion_size + 1, 2 * erosion_size + 1), (erosion_size, erosion_size))
         cb_filtered = cv.dilate(cb_filtered, kernel)
-        cb_filtered = cv.GaussianBlur(cb_filtered, (blur_size*2+1,blur_size*2+1), blur_size)
+        cb_filtered = cv.GaussianBlur(cb_filtered, (self._mask_blur_size*2+1,self._mask_blur_size*2+1), self._mask_blur_size)
         cb_filtered = cv.erode(cb_filtered, kernel)
         
-        # Masking
+        # Masking bottom part of the image
         grey = np.full(cb_filtered.shape[:2], 0, dtype='uint8')
         alpha = np.zeros(cb_filtered.shape[:2], dtype='uint8')
         cv.rectangle(alpha, (0, int(res_y*self._rect_mask_offset)), (res_x, res_y), 255, -1)
@@ -131,7 +179,7 @@ class Calibrate(Renderer):
         # Apply mask
         cb_filtered = cv.blendLinear(cb_filtered, grey, beta, alpha)
         # Binary Filter
-        self._cb_edges = cv.threshold(cb_filtered, 100, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
+        self._cb_edges = cv.threshold(cb_filtered, self._mask_threshold, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
         
         # Save image if not in interactive mode
         if not self._interactive:
@@ -155,59 +203,43 @@ class Calibrate(Renderer):
             cv.circle(self.cb_mask, (int(x+0.5),int(y+0.5)), int(r), 255, -1)
             
             # Draw circle in RGB image
-            cv.circle(self._mask_rgb.get(), (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
+            cv.circle(self._mask_rgb, (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
             # Save image if not in interactive mode
             if not self._interactive:
-                ImgOp.SaveEval(self._mask_rgb.get(), 'chromeball_center')
+                ImgOp.SaveEval(self._mask_rgb, 'chromeball_center')
+                log.info(f"Found chrome ball at ({self.cb_center[0]:5.2f}, {self.cb_center[1]:5.2f}), radius {self.cb_radius:5.2f}")
                 
-            log.info(f"Found chrome ball at ({self.cb_center[0]:5.2f}, {self.cb_center[1]:5.2f}), radius {self.cb_radius:5.2f}")
+            # Calculate viewing angle
+            if self._sequence.getMeta('focal_length') is not None:
+                sensor = self._sequence.getMeta('sensor_size', (22.0, 15.0)) # APS-C is default
+                f = self._sequence.getMeta('focal_length')
+                size_on_sensor = sensor[0] / (res_x/size_chromeball)
+                self._viewing_angle_by2 = arctan(size_on_sensor/2*f)
         else:
             log.error("Did not find chrome ball")
-        
-        
-        # Don't need full resolution
-        #scale=0.5
-        #cb_mask = cv.resize(cb_mask, None, fx=scale, fy=scale)# (int(cb_mask.shape[1]/scale_div), int(cb_mask.shape[0]/scale_div)), interpolation=cv.INTER_NEAREST)
 
         # High pass
         #intensity=15
         #cb_mask = np.abs(cb_mask - cv.GaussianBlur(cb_mask, (intensity*2+1,intensity*2+1), 50).astype('int16')).astype('uint8')
         #cb_mask = cb_mask - cv.GaussianBlur(cb_mask, (intensity*2+1,intensity*2+1), intensity) + 127
         
-        
-        
-        
-        # Detect circles
-        #circles = cv.HoughCircles(cb_mask, cv.HOUGH_GRADIENT,
-        #                            dp=1, # Resolution
-        #                            minDist=1,
-        #                            param1=50, # Higher threshold for threshold detection
-        #                            param2=110, # Accumulator threshold for centers, Higher=Less circles
-        #                            minRadius=int(x/6), maxRadius=int(y/2))
-        
-        #if circles is not None:
-        #    log.debug(f"Found {len(circles[0])} circles!")
-        #    circles = np.uint16(np.around(circles))
-        #    for i in circles[0, :]:
-        #        cb_center = np.array((i[0], i[1]))
-        #        cb_radius = i[2]
-        #        # Draw circle
-        #        cv.circle(mask_rgb,(i[0],i[1]),i[2],(0,255,0),2)
-        #        cv.circle(mask_rgb,(i[0],i[1]),2,(0,0,255),3)
-                            
+                                    
     def findReflections(self):
+        # Clear calibration
+        self._config = Config()
         # Loop through all calibration frames
-        self._reflections = self._mask_rgb.get()
+        self._reflections = copy(self._mask_rgb)
         for id, img in self._sequence:
+            img = np.copy(img.r().asInt().get())
             if not self.filterBlackframe(img):
                 # Process frame
                 uv = self.findReflection(img, id)
                 if uv is not None:
-                    self._config.addLight(id, uv, Calibrate.SphericalToLatlong(uv))
-                #img.unload()
-            else:
+                    self._config.addLight(id, uv, Calibrate.SphericalToLatlong(uv, self._viewing_angle_by2))
+            elif not self._interactive:
                 log.debug(f"Found blackframe '{id}'")
-                #img.unload()
+            if not self._interactive:
+                img.unload()
         
         # Save debug image
         if not self._interactive:
@@ -216,18 +248,16 @@ class Calibrate(Renderer):
 
     ### Helpers ###
     
-    def filterBlackframe(self, imgbuf):
-        frame = imgbuf.r().get()
-        return ImgOp.blackframe(frame, threshold=self._threshold, mask=self.cb_mask)
+    def filterBlackframe(self, frame):
+        return ImgOp.blackframe(frame, threshold=self._refl_threshold, mask=self.cb_mask)
 
-    def findReflection(self, imgdata, id):
+    def findReflection(self, frame, id):
         # Find reflections in each image
         # Locals
-        frame = imgdata.r().asInt().get()
         reflection_min_size = self._min_size_ratio*self.cb_radius
         # Binary filter and mask
         frame = cv.bitwise_and(frame, frame, mask=self.cb_mask)
-        frame = cv.threshold(frame, self._threshold, 255, cv.THRESH_BINARY)[1]
+        frame = cv.threshold(frame, self._refl_threshold, 255, cv.THRESH_BINARY)[1]
     
         # Find circle contours
         cnts = cv.findContours(frame, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
@@ -254,7 +284,8 @@ class Calibrate(Renderer):
                 # Calculate spherical coordinates (O = cb_center, I = center reflection)
                 OI = (np.asarray(refl_center) - self.cb_center) / self.cb_radius
                 OI[1] *= -1
-                log.debug(f"Found reflection for frame {id:3d}: ({OI[0]:5.2f}, {OI[1]:5.2f}), radius {refl_r:5.2f}")
+                if not self._interactive:
+                    log.debug(f"Found reflection for frame {id:3d}: ({OI[0]:5.2f}, {OI[1]:5.2f}), radius {refl_r:5.2f}")
                 # Draw valid reflection
                 cv.circle(self._reflections, (int(refl_center[0]+0.5),int(refl_center[1]+0.5)), int(refl_r), (0, 255, 0), 3)
                 return tuple(OI) # UV value
@@ -262,8 +293,9 @@ class Calibrate(Renderer):
             else:
                 # Draw too-small reflection
                 cv.circle(self._reflections, (int(refl_center[0]+0.5),int(refl_center[1]+0.5)), int(refl_r), (255, 0, 0), 3)
-                log.warning(f"Radius of found reflection too small ({refl_r:.2f}<{reflection_min_size:.2f}), ignoring.")
-        else:
+                if not self._interactive:
+                    log.warning(f"Radius of found reflection too small ({refl_r:.2f}<{reflection_min_size:.2f}), ignoring.")
+        elif not self._interactive:
             log.warning(f"Frame {id} has no detected reflection.")
         
         return None
@@ -271,7 +303,7 @@ class Calibrate(Renderer):
 
     ### Static functions ###
     
-    def SphericalToLatlong(uv, perspective_distortion=1):
+    def SphericalToLatlong(uv, viewing_angle_by_2=0):
         uv=np.array(uv)
         # First get the length of the UV coordinates
         length = np.linalg.norm(uv)
@@ -281,7 +313,8 @@ class Calibrate(Renderer):
         vec = np.array([0,0,1]) # Vector pointing into camera
         axis = np.array([-uv_norm[1],uv_norm[0],0]) # Rotation axis that is the direction of the reflection rotated 90° on Z
         theta = math.asin(length)*2 # Calculate the angle to the reflection which is two times the angle of the normal on the sphere
-        vec = np.dot(rotationMatrix(axis, theta), vec) # Rotate vector to light source
+        theta_corrected = theta / np.pi * (np.pi-viewing_angle_by_2) # Perspective correction: New range is to 180° - viewing_angle/2
+        vec = np.dot(rotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
         
         # Calculate Latitude and Longitude
         latitude = math.asin(vec[1])

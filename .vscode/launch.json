@@ -41,11 +41,20 @@
             "justMyCode": true
         },
         {
-            "name": "Process Calibrations",
+            "name": "Process Calibration",
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--process", "--eval_type=cal", "--seq_name=20240223_1637_cal.MP4", "--viewer"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Process Calibration Stacking",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=calstack", "--cal_name=lightdome.json", "--cal_stack_names=20240125_1627_calibration.json"]
             "console": "integratedTerminal",
             "justMyCode": true
         },
