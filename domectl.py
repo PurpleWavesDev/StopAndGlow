@@ -180,7 +180,7 @@ def main(argv):
         if FLAGS.live:
             live_renderer = LiveView(hw) # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
             live_renderer.setSequence(sequence)
-            viewer = Viewer((1920//2,1080//2))
+            viewer = Viewer((1920,1080))
             viewer.setRenderer(live_renderer)
             viewer.launch()
 

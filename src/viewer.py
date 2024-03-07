@@ -129,7 +129,7 @@ class Viewer:
                 self._renderer.inputs(window, time_frame)
             
             ### Rendering ###
-            self._renderer.render(self._mode, pixels)
+            self._renderer.render(self._mode, pixels, time_frame)
             
             ### Draw GUI ###
             #canvas.
