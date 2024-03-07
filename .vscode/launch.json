@@ -54,7 +54,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=calstack", "--cal_name=lightdome.json", "--cal_stack_names=20240125_1627_calibration.json"]
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=calstack", "--cal_name=lightdome.json", "--cal_stack_names=20240125_1627_calibration.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -72,7 +72,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rti", "--seq_name=20240127_1511_lights_linear", "--eval_dontsave", "--viewer"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rti", "--seq_name=20240306_2006_lights", "--eval_dontsave", "--viewer"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
