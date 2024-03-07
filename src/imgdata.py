@@ -13,10 +13,11 @@ import cv2 as cv
 import imageio
 import colour
 import colour.models as models
+import taichi as ti
+import src.ti_base as tib
 imageio.plugins.freeimage.download()
 
 from src.utils import logging_disabled
-
 
 IMAGE_DTYPE_FLOAT='float32'
 IMAGE_DTYPE_INT='uint8'
@@ -66,13 +67,13 @@ class ImgBuffer:
                 self._format=ImgFormat.EXR
     
     def getFormat(self) -> ImgFormat:
-        return _format           
+        return self._format           
     def setFormat(self, format: ImgFormat):
         root, ext = os.path.splitext(self._path)
         if format != ImgFormat.Keep:
             self._format=format
         if self._format != ImgFormat.Keep:
-            match format:
+            match self._format:
                 case ImgFormat.PNG:
                     self._path = root+".png"
                 case ImgFormat.JPG:
@@ -80,9 +81,9 @@ class ImgBuffer:
                 case ImgFormat.EXR:
                     self._path = root+".exr"
         else:
-            log.warn("No valid format specified, defaulting to PNG")
-            self._format = ImgFormat.PNG
-            self._path = root+".png"
+            log.warning("No valid format specified, defaulting to JPG")
+            self._format = ImgFormat.JPG
+            self._path = root+".jpg"
 
     def hasImg(self) -> bool:
         return self._img is not None
@@ -130,9 +131,8 @@ class ImgBuffer:
         
     def save(self, format: ImgFormat = ImgFormat.Keep):
         if self._path is not None and self.get() is not None:
-            if format != ImgFormat.Keep:
-                # Update path for different format
-                self.setFormat(format)
+            # Update path for format
+            self.setFormat(format)
                 
             # Create folder
             Path(os.path.split(self._path)[0]).mkdir(parents=True, exist_ok=True)
@@ -141,7 +141,8 @@ class ImgBuffer:
             with logging_disabled():
                 match self._format:
                     case ImgFormat.EXR:
-                        colour.write_image(self.asFloat().get(), self._path, bit_depth=IMAGE_DTYPE_FLOAT, method='Imageio')
+                        img = self.asFloat().get()
+                        colour.write_image(img, self._path, bit_depth=IMAGE_DTYPE_FLOAT, method='Imageio')
                     case _: # PNG and JPG
                         colour.write_image(self.asDomain(ImgDomain.sRGB).asInt().get(), self._path, bit_depth=IMAGE_DTYPE_INT, method='Imageio')
             log.debug(f"Saved image {self._path}")
@@ -151,13 +152,19 @@ class ImgBuffer:
     
     def domain(self):
         return self._domain
-    def asDomain(self, domain: ImgDomain, as_float=False) -> ImgBuffer:
+    def asDomain(self, domain: ImgDomain, as_float=True, ti_buffer: tib.pixarr|None = None) -> ImgBuffer:
+        """ti_buffer as GPU memory buffer to accelerate conversion"""
         if domain != ImgDomain.Keep and domain != self._domain:
             # Convert to optical/neutral
             img = self.get() if as_float is False else self.asFloat().get()
             match self._domain:
                 case ImgDomain.sRGB:
-                    img = colour.cctf_decoding(img, 'sRGB')
+                    if ti_buffer is not None:
+                        ti_buffer.from_numpy(img)
+                        tib.sRGB2Lin(ti_buffer)
+                        img = ti_buffer.to_numpy()
+                    else:
+                        img = colour.cctf_decoding(img, 'sRGB')
                 case ImgDomain.Rec709:
                     img = colour.cctf_decoding(img, 'ITU-R BT.709')
                 case _: # Raw/Linear
@@ -165,7 +172,12 @@ class ImgBuffer:
                     
             match domain:
                 case ImgDomain.sRGB:
-                    img = colour.cctf_encoding(img, 'sRGB')
+                    if ti_buffer is not None:
+                        ti_buffer.from_numpy(img)
+                        tib.lin2sRGB(ti_buffer, 1)
+                        img = ti_buffer.to_numpy()
+                    else:
+                        img = colour.cctf_encoding(img, 'sRGB')
                 case ImgDomain.Rec709:
                     img = colour.cctf_encoding(img, 'ITU-R BT.709')
                 case _: # Raw/Linear
@@ -219,6 +231,14 @@ class ImgBuffer:
         interpol = cv.INTER_NEAREST if not high_qual else cv.INTER_LINEAR
         img = cv.resize(self.get(), dsize=resolution, interpolation=interpol)
         return ImgBuffer(path=self._path, img=img, domain=self._domain)
+
+    def crop(self, resolution):
+        old_res = self.resolution()
+        crop = np.array(old_res) - np.array(resolution)
+        crop_from = crop // 2
+        crop_to = (crop+np.array([1,1])) // 2
+        img_cropped = self.get()[crop_from[1]:old_res[1]-crop_to[1], crop_from[0]:old_res[0]-crop_to[0]]
+        return ImgBuffer(path=self._path, img=img_cropped, domain=self._domain)
     
     ### Operators ###
     def __getitem__(self, coord) -> ImgBuffer:

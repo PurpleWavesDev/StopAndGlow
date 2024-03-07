@@ -37,15 +37,22 @@ class Sequence():
             # Save metadata
             self.writeMeta()
 
-    def load(self, path, domain=ImgDomain.Keep):
-        # TODO Metadata!!
+    def load(self, path, frame_list=None, frames_skip=-1, dmx_repeat=-1, domain=ImgDomain.Keep):
         match (os.path.splitext(path)[1]).lower():
             case '':
                 # Path, load folder
                 self.loadFolder(path, domain)
             case '.mov' | '.mp4':
                 # Video
-                raise NotImplementedError("Load video via LoadVideo function")
+                if frame_list != None and frames_skip != -1 and dmx_repeat != -1:
+                    # Delay for DMX repeat signals (two frames per signal) and half of the skipped frames (round down)
+                    frames_offset = dmx_repeat * 2 + frames_skip // 2
+                    # frames_skip is odd to mach together with valid frame double the lights frequency
+                    frames_skip = frames_skip + dmx_repeat*2
+                    self.loadVideo(path, frame_list, frames_skip, frames_offset)
+                else:
+                    raise NotImplementedError("Load video parameters via metadata")
+                    # Load frame_list, frames_skip, dmx_repeat from metadata
             case _:
                 log.error(f"Can't load file {path}")
                 
@@ -74,13 +81,11 @@ class Sequence():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def loadVideo(self, path, frame_list, frames_skip, dmx_repeat, lazy=True):
+    def loadVideo(self, path, frame_list, frames_skip, frames_offset, lazy=True):
         # Setup variables
         self._is_video = True
-         # Delay for DMX repeat signals (two frames per signal) and half of the skipped frames (round down)
-        self._frames_offset = dmx_repeat * 2 + frames_skip // 2
-        # frames_skip is odd to mach together with valid frame double the lights frequency
-        self._frames_skip = frames_skip + dmx_repeat*2
+        self._frames_skip = frames_skip
+        self._frames_offset = frames_offset
         
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
@@ -200,18 +205,63 @@ class Sequence():
         # TODO: Gets overwritten when using a video that is not loaded yet
         self[self.getKeys()[index]] = img
     
-    def saveSequence(self, name: str, base_path: str, format: ImgFormat = ImgFormat.JPG):
+    def saveSequence(self, name: str, base_path: str, format: ImgFormat = ImgFormat.Keep):
         path = os.path.join(base_path, name, name)
-        for id, img in self:
-            img.setPath(f"{path}_{id:03d}")
-            img.save(format=format)
+        for id in self.getKeys():
+            # Get image to load old path
+            self[id].get()
+            self[id].setPath(f"{path}_{id:03d}")
+            self[id].save(format=format)
         if self._maskFrame is not None:
+            self._maskFrame.get()
             self._maskFrame.setPath(f"{path}_mask")
             self._maskFrame.save(format=format)
         # Metadata
         self._metafile_name = os.path.join(base_path, name, 'meta.json')
         if self._meta:
             self.writeMeta()
+    
+    def convertSequence(self, convert_to_flag, crop=True):
+        # Scale
+        rescale = None
+        factor = 1
+        if 'hd' in convert_to_flag:
+            rescale = (1920, 1080)
+        elif '4k' in convert_to_flag:
+            rescale = (3840, 2160)
+        if rescale is not None and crop:
+            original = self.get(0).resolution()
+            factor = rescale[0] / original[0]
+        
+        # Format
+        new_format = ImgFormat.Keep
+        if 'jpg' in convert_to_flag:
+            new_format = ImgFormat.JPG
+        elif 'exr' in convert_to_flag:
+            new_format = ImgFormat.EXR
+        
+        def convert(img, rescale, factor, crop, new_format):
+            # Rescale
+            if rescale is not None:
+                if crop:
+                    # Keep pixel ratio, crop to right format
+                    img = img.scale(factor).crop(rescale)
+                else:
+                    img = img.rescale(rescale)
+            if new_format != ImgFormat.Keep:
+                # Change to linear domain for EXR files
+                if new_format == ImgFormat.EXR:
+                    img = img.asDomain(ImgDomain.Lin)
+                img.setFormat(new_format)
+            return img
+                
+        # Iterate over frames and convert
+        for id in self.getKeys():
+            self[id] = convert(self[id], rescale, factor, crop, new_format)
+        # Don't forget mask frame 
+        if self._maskFrame is not None:
+            self._maskFrame = convert(self._maskFrame, rescale, factor, crop, new_format)
+        return self
     
     ### Metadata ###
     

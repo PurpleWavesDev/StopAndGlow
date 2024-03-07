@@ -85,6 +85,7 @@ flags.DEFINE_enum('eval_type', 'pass', ["cal", "calstack", "rgbstack", "lightsta
 flags.DEFINE_bool('eval_dontsave', False, "Set this flag to discard evaluation data after processing.")
 flags.DEFINE_string('eval_folder', '../HdM_BA/data/processed', 'Folder for HDRI environment maps.')
 flags.DEFINE_string('eval_name', '', 'Name of HDRI image to be used for processing.')
+flags.DEFINE_enum('convert_to', 'exr_hd', ['jpg', 'exr', 'jpg_hd', 'exr_hd', 'jpg_4k', 'exr_4k', 'scale_hd', 'scale_4k'], "Convert images / video to JPGs as sRGB or EXRs as linear domain, keeping resoultion or scaling to HD or 4K.")
 # Viewer
 flags.DEFINE_bool('viewer', False, "Set this flag to launch the viewer with the loaded or processed data.")
 flags.DEFINE_bool('live', False, "Starting the viewer in live mode.")
@@ -115,7 +116,7 @@ def main(argv):
     sequence = None
     if FLAGS.capture:
         # Set name
-        seq_name = FLAGS.seq_name if FLAGS.seq_name != '' else datetime_now + '_' + FLAGS.seq_type # 240116_2333_lights
+        FLAGS.seq_name = FLAGS.seq_name if FLAGS.seq_name != '' else datetime_now + '_' + FLAGS.seq_type # 240116_2333_lights
 
         capture = Capture(hw, FLAGS)
         hdri = None
@@ -125,7 +126,7 @@ def main(argv):
         capture.captureSequence(hw.config, hdri)
         
         # Sequence download, evaluation of video not necessary for capture only
-        sequence = capture.downloadSequence(seq_name, keep=False, save=FLAGS.seq_save)
+        sequence = capture.downloadSequence(FLAGS.seq_name, keep=False, save=FLAGS.seq_save)
     
     # If not captured, load sequences
     elif FLAGS.process or FLAGS.viewer:
@@ -146,7 +147,7 @@ def main(argv):
         tib.TIBase.init()
 
         settings = dict()
-        name = FLAGS.eval_name if FLAGS.eval_name != '' else datetime_now + '_' + FLAGS.eval_type
+        name = FLAGS.eval_name if FLAGS.eval_name != '' else FLAGS.seq_name + '_' + FLAGS.eval_type
         match FLAGS.eval_type:
             case 'cal':
                 #calibrate(sequence)
@@ -154,7 +155,7 @@ def main(argv):
                 renderer = Calibrate()
             case 'calstack':
                 # Load configs
-                stack_cals = [Config(os.path.join(FLAGS.cal_folder, name)) for name in FLAGS.cal_stack_names]
+                stack_cals = [Config(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
                 hw.config.stitch(stack_cals)
             case 'rgbstack':
                 renderer = RgbStacker()
@@ -166,7 +167,8 @@ def main(argv):
             case 'expostack':
                 evalStack(sequence, name)
             case 'convert':
-                Convert(sequence, name)
+                sequence.convertSequence(FLAGS.convert_to)
+                sequence.saveSequence(name, FLAGS.seq_folder)
             
         if renderer is not None:
             Process(renderer, sequence, hw.config, name, settings)
@@ -220,7 +222,6 @@ def main(argv):
         #CamOp.FindMaxExposure(hw.cam)
         #hw.cam.setIso('100')
         #hw.cam.setAperture('8')
-        # All done, return
     
     
     ### Light modes after capturing and processing ###
@@ -318,8 +319,8 @@ def Process(renderer, img_seq, config, name, settings):
     # Save data
     seq_out = renderer.get()
     if (len(seq_out) > 0):
-        domain = seq_out.get(0).domain()
         if not FLAGS.eval_dontsave:
+            domain = seq_out.get(0).domain()
             seq_out.saveSequence(name, FLAGS.eval_folder, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
 
 
@@ -355,15 +356,6 @@ def evalStack(sequences, output_name, cam_response=None):
     
     # Return sequence with stacked images       
     return stacked_seq
-
-def Convert(img_seq, output_name):
-    for i in range(len(img_seq)):
-        img = img_seq.get(i).asDomain(ImgDomain.Lin, as_float=True)
-        id = img_seq.getKeys()[i]
-        img.setPath(os.path.join(FLAGS.seq_folder, output_name, f"{output_name}_{id:03d}"))
-        img.setFormat(ImgFormat.EXR)
-        #img = img.scale(0.5) # TODO
-        img.unload(save=True)
 
 
 
@@ -443,7 +435,8 @@ def load(seq_name, config):
                     ids = [0, 1, 2]
                 case 'fullrun':
                     ids = range(FLAGS.capture_max_addr)
-            sequence.loadVideo(path, ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat) 
+            # TODO: Video parameters via metadata?
+            sequence.load(path, ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat) 
     
     return sequence
 

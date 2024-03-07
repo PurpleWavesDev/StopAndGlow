@@ -23,13 +23,15 @@ class RgbStacker(Renderer):
     def __init__(self):
         self._stacked = ImgBuffer()
         self._domain = ImgDomain.Keep
+        self._rescaled = None
             
     # Loading, processing etc.
-    def load(self, rti_seq: Sequence):
+    def load(self, sequence: Sequence):
         # Copy frame
-        if len(rti_seq) == 1:
-            self._stacked = rti_seq.get(0)
+        if len(sequence) == 1:
+            self._stacked = sequence.get(0)
             self._domain = self._stacked.domain()
+            self._rescaled = None
     
     def get(self) -> Sequence:
         seq = Sequence()
@@ -46,7 +48,8 @@ class RgbStacker(Renderer):
         b = img_seq[2].asDomain(self._domain).b()
         
         # Stacking
-        self._stacked = ImgOp.StackChannels([r, g, b])        
+        self._stacked = ImgOp.StackChannels([r, g, b])
+        self._rescaled = None
     
     # Render settings
     def getRenderModes(self) -> list:
@@ -57,6 +60,9 @@ class RgbStacker(Renderer):
     
     def render(self, render_mode, buffer, hdri=None):
         # Return stacked image
-        y, x = buffer.shape
-        buffer.from_numpy(self._stacked.get()[0:y, 0:x, :]) # TODO: Proper rescaling
+        if self._rescaled is None:
+            y, x = buffer.shape
+            factor = x / self._stacked.resolution()[0]
+            self._rescaled = self._stacked.scale(factor).crop((x, y)).get()
+        buffer.from_numpy(self._rescaled)
         

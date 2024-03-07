@@ -54,7 +54,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=calstack", "--cal_name=lightdome.json", "--cal_stack_names=20240125_1627_calibration.json"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=calstack", "--cal_name=lightdome.json", "--cal_stack_names=lightdome_pos2.json,lightdome_pos3.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -63,7 +63,16 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=lightstack", "--seq_name=20240127_1511_lights_linear"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=lightstack", "--seq_name=20240127_1511_lights_linear", "--viewer"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Process RGB Stack",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rgbstack", "--seq_name=20240129_1016_hdri", "--seq_type=hdri", "--viewer"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -81,16 +90,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=convert", "--seq_name="],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Viewer RGB Stack",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer", "--eval_type=rgbstack", "--seq_name=20240129_1016_hdri"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=convert", "--convert_to=exr", "--seq_name=20240304_1914_hdri"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

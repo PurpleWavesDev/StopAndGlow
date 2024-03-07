@@ -261,7 +261,7 @@ class Cam:
             file_path = os.path.join(path, name+os.path.splitext(self._videoCameraPath[1])[1])
             log.debug("Video is being saved to {}".format(file_path))
             self._videoFile.save(file_path)
-            seq.loadVideo(file_path, frame_list, frames_skip, dmx_repeat)
+            seq.load(file_path, frame_list, frames_skip, dmx_repeat)
             seq.setMeta('video_file', file_path)
 
             if not keep:

@@ -98,8 +98,21 @@ class Capture:
         if self._cam.isVideoMode():
             sequence = self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep)
 
+            # Rescale and apply 
             if self._flags.seq_convert:
-                sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.JPG)
+                rescale = None
+                if 'hd' in self._flags.convert_to:
+                    rescale = (1920, 1080)
+                elif '4k' in self._flags.convert_to:
+                    rescale = (3840, 2160)
+                if rescale is not None:
+                    for id, img in sequence:
+                        sequence[id] = img.rescale(rescale)
+                # Save as JPG in sRGB or EXR in linear
+                if 'jpg' in self._flags.convert_to:
+                    sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.JPG)
+                else:
+                    sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.EXR)
         else:
             sequence = self._cam.getSequence(self._flags.seq_folder, name, keep=keep)
             if save:
