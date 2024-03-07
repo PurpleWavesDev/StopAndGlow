@@ -53,6 +53,11 @@ class Cam:
     def isVideoMode(self) -> bool:
         widget = self.getCam().get_single_config('eosmovieswitch')
         return widget.get_value() == '1'
+    
+    def setVideoResolution(self, resolution): # TODO
+        widget = self.getCam().get_single_config('videoresolution') # Find config parameter
+        widget.set_value(widget.get_choice(resolution.value)) # ?
+        self.getCam().set_single_config('videoresolution', widget)
 
     def isRaw(self) -> bool:
         img_format = self.getImgFormat()
