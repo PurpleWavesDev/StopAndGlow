@@ -77,15 +77,18 @@ class Capture:
         subframes = (1+self._flags.capture_frames_skip) / 2 + self._flags.capture_dmx_repeat
         t = Timer(worker.LightVideoWorker(self._hw, lights, self._id_list, self._mask_frame, subframe_count=subframes))
 
-        # Capture
-        if trigger_start:
-            self._cam.triggerVideoStart()
-            time.sleep(1)
-        t.start(2/self._flags.capture_fps)
-        t.join()
-        time.sleep(0.5)
-        self._dome.setTop(brightness=50)
-        self._cam.triggerVideoEnd()
+        for i in range(3 if self._flags.hdr else 1):
+            self._cam.setExposure(f"1/{int(50*2**i)}") # 50, 100, 200
+
+            # Capture
+            if trigger_start:
+                self._cam.triggerVideoStart()
+                time.sleep(1)
+            t.start(2/self._flags.capture_fps)
+            t.join()
+            time.sleep(0.5)
+            self._dome.setTop(brightness=50)
+            self._cam.triggerVideoEnd()
 
 
     ### Downloading captured data ###
@@ -98,24 +101,18 @@ class Capture:
         if self._cam.isVideoMode():
             sequence = self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep)
 
-            # Rescale and apply 
+            # Convert if flag is set 
             if self._flags.seq_convert:
-                rescale = None
-                if 'hd' in self._flags.convert_to:
-                    rescale = (1920, 1080)
-                elif '4k' in self._flags.convert_to:
-                    rescale = (3840, 2160)
-                if rescale is not None:
-                    for id, img in sequence:
-                        sequence[id] = img.rescale(rescale)
-                # Save as JPG in sRGB or EXR in linear
-                if 'jpg' in self._flags.convert_to:
-                    sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.JPG)
-                else:
-                    sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.EXR)
+                sequence.convertSequence(self._flags.convert_to)
+                sequence.saveSequence(name, self._flags.seq_folder)
+
         else:
             sequence = self._cam.getSequence(self._flags.seq_folder, name, keep=keep)
-            if save:
+            if self._flags.seq_convert:
+                sequence.convertSequence(self._flags.convert_to)
+                sequence.saveSequence(name, self._flags.seq_folder)
+            elif save:
+                # Save as EXR / JPG depending on capture HDR mode. Only safe if sequence has not been converted
                 sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.EXR if self._flags.hdr else ImgFormat.JPG)
         
         return sequence

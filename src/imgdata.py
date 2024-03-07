@@ -69,21 +69,23 @@ class ImgBuffer:
     def getFormat(self) -> ImgFormat:
         return self._format           
     def setFormat(self, format: ImgFormat):
-        root, ext = os.path.splitext(self._path)
         if format != ImgFormat.Keep:
             self._format=format
-        if self._format != ImgFormat.Keep:
-            match self._format:
-                case ImgFormat.PNG:
-                    self._path = root+".png"
-                case ImgFormat.JPG:
-                    self._path = root+".jpg"
-                case ImgFormat.EXR:
-                    self._path = root+".exr"
-        else:
-            log.warning("No valid format specified, defaulting to JPG")
-            self._format = ImgFormat.JPG
-            self._path = root+".jpg"
+        if self._path is not None:
+            root, ext = os.path.splitext(self._path)
+            if self._format != ImgFormat.Keep:
+                match self._format:
+                    case ImgFormat.PNG:
+                        self._path = root+".png"
+                    case ImgFormat.JPG:
+                        self._path = root+".jpg"
+                    case ImgFormat.EXR:
+                        self._path = root+".exr"
+            else:
+                log.warning("No valid format specified, defaulting to JPG")
+                self._format = ImgFormat.JPG
+                self._path = root+".jpg"
+
 
     def hasImg(self) -> bool:
         return self._img is not None

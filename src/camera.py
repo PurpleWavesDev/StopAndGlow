@@ -6,6 +6,7 @@ import os
 import time
 import pathlib
 import logging as log
+from queue import Queue
 
 # Camera & image imports
 from PIL import Image
@@ -23,6 +24,14 @@ try:
 except:
     log.warning("GPhoto2 not available")
 
+class VideoCapture:
+    def __init__(self, camera_file, camera_path, exposure="", aperture="", iso=""):
+        self.camera_file = camera_file
+        self.camera_path = camera_path
+        self.exposure = exposure
+        self.aperture = aperture
+        self.iso = iso
+
 class Cam:
     def __init__(self):
         # Lets kill any gphoto process that blocks the ressource
@@ -34,8 +43,7 @@ class Cam:
         self._cam = None
         self._files = dict()
         self._mask_file = None
-        self._videoFile = None
-        self._videoCameraPath = ('', '')
+        self._video_capture = Queue()
 
     def __del__(self):
         if self._cam is not None:
@@ -176,8 +184,11 @@ class Cam:
         while time.time() - time_start < timeout:
             event_type, event_data = self.getCam().wait_for_event(int(timeout*1000))        
             if event_type == gp.GP_EVENT_FILE_ADDED:
-                self._videoFile = self.getCam().file_get(event_data.folder, event_data.name, gp.GP_FILE_TYPE_NORMAL)
-                self._videoCameraPath = (event_data.folder, event_data.name)
+                capture = VideoCapture(self.getCam().file_get(event_data.folder, event_data.name, gp.GP_FILE_TYPE_NORMAL), (event_data.folder, event_data.name))
+                capture.exposure = self.getExposure()
+                capture.aperture = self.getAperture()
+                capture.iso = self.getIso()
+                self._video_capture.put(capture)
                 break
 
     ### Image & Download methodes ###
@@ -262,15 +273,19 @@ class Cam:
     def getVideoSequence(self, path, name, frame_list, frames_skip, dmx_repeat, keep=False) -> Sequence:
         """Downloads video file and returns sequence referencing it"""
         seq = Sequence()
-        if self._videoFile is not None:
-            file_path = os.path.join(path, name+os.path.splitext(self._videoCameraPath[1])[1])
+        if not self._video_capture.empty():
+            capture = self._video_capture.get()
+            file_path = os.path.join(path, name+os.path.splitext(capture.camera_path[1])[1])
             log.debug("Video is being saved to {}".format(file_path))
-            self._videoFile.save(file_path)
+            capture.camera_file.save(file_path)
             seq.load(file_path, frame_list, frames_skip, dmx_repeat)
             seq.setMeta('video_file', file_path)
+            seq.setMeta('exposure', capture.exposure)
+            seq.setMeta('aperture', capture.aperture)
+            seq.setMeta('iso', capture.iso)
 
             if not keep:
-                self.getCam().file_delete(self._videoCameraPath[0], self._videoCameraPath[1])
+                self.getCam().file_delete(capture.camera_path[0], capture.camera_path[1])
         
         return seq
 

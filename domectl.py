@@ -52,6 +52,8 @@ DEBUG = hasattr(sys, 'gettrace') and sys.gettrace() is not None
 # domectl --viewer --headless --record --record-folder="" --record-name="" --hdri-folder="" --hdri-name=""
 # domectl --camctl=none|stop|erase
 # domectl --lightctl=none|on|off|run|anim-latlong|hdri --brightness=0-255 --limiter=0-255
+# Command chaining (can't be done with abseil)
+# domectl capture --hdr --type=lights convert --scale=hd process --type=rti --option=setting:value save --type=processed --viewer
 
 ### Global flag defines ###
 # General
@@ -126,20 +128,21 @@ def main(argv):
         capture.captureSequence(hw.config, hdri)
         
         # Sequence download, evaluation of video not necessary for capture only
-        sequence = capture.downloadSequence(FLAGS.seq_name, keep=False, save=FLAGS.seq_save)
-    
+        sequence = capture.downloadSequence(FLAGS.seq_name+'-1', keep=False, save=FLAGS.seq_save)
+        sequence2 = capture.downloadSequence(FLAGS.seq_name+'-2', keep=False, save=FLAGS.seq_save)
+        sequence3 = capture.downloadSequence(FLAGS.seq_name+'-3', keep=False, save=FLAGS.seq_save)
+        exposure_times = [int(sequence.getMeta('exposure').split("/")[1]), int(sequence2.getMeta('exposure').split("/")[1]), int(sequence3.getMeta('exposure').split("/")[1])]
+        response = ImgOp.CameraResponse([sequence.getMaskFrame(), sequence.getMaskFrame(), sequence.getMaskFrame()], exposure_times)
+        stacked = ImgOp.ExposureStacking([sequence.getMaskFrame(), sequence.getMaskFrame(), sequence.getMaskFrame()], exposure_times, response)
+        stacked.setPath(os.path.join(FLAGS.eval_folder, "expo_stack"))
+        stacked.save(ImgFormat.EXR)
+
     # If not captured, load sequences
     elif FLAGS.process or FLAGS.viewer:
         # Load from disk
         sequence = load(FLAGS.seq_name, hw.config)
         if len(sequence) == 0:
             log.warning("Empty sequence loaded")
-        
-            # TODO: Possible scale
-        #for id, img in img_seq:
-        #    img = img.scale(0.5, False)
-        #    img_seq[id] = img
-
     
     ### Process sequence ###
     renderer = None

@@ -19,22 +19,22 @@ class ImgOp:
         return ImgBuffer(path=path, img=np.dstack(channels_get), domain=channels[0].domain())
 
     ### HDRI Exposure stacking and helpers ###
-    def CameraResponse(exposure_stack: list[ImgBuffer]) -> ArrayLike:
+    def CameraResponse(exposure_stack: list[ImgBuffer], exposure_times: list) -> ArrayLike:
         """Calculate the camera response curve from a sequence of images with different exposures"""
         # Estimate camera response
         calibrate = cv.createCalibrateDebevec()
-        times = np.array([1/100, 1/50, 1/25], dtype='float32') # [img.getMeta().exposure for img in exposure_stack]
-        return calibrate.process([img.get() for img in exposure_stack], times)
+        times = np.array([1/time for time in exposure_times], dtype='float32') # [img.getMeta().exposure for img in exposure_stack]
+        return calibrate.process([img.asDomain(ImgDomain.sRGB).asInt().get() for img in exposure_stack], times)
 
-    def ExposureStacking(exposure_stack: list[ImgBuffer], camera_response: ArrayLike = None, path=None) -> ImgBuffer:
+    def ExposureStacking(exposure_stack: list[ImgBuffer], exposure_times: list, camera_response: ArrayLike = None, path=None) -> ImgBuffer:
         """Generate an HDR image out of a stack of SDR images"""
         # Get Camera response if not provided
-        camera_response = ImgOp.CameraResponse(exposure_stack) if camera_response is None else camera_response
+        camera_response = ImgOp.CameraResponse(exposure_stack, exposure_times) if camera_response is None else camera_response
         
         # Make HDR image
         merge_debevec = cv.createMergeDebevec()
-        times = np.array([1/100, 1/50, 1/25], dtype='float32')
-        hdr = merge_debevec.process([img.get() for img in exposure_stack], times, camera_response)
+        times = np.array([1/time for time in exposure_times], dtype='float32')
+        hdr = merge_debevec.process([img.asDomain(ImgDomain.sRGB).asInt().get() for img in exposure_stack], times, camera_response)
         buffer = ImgBuffer(path, hdr, domain=ImgDomain.Lin)
         buffer.setFormat(ImgFormat.EXR)
         return buffer
