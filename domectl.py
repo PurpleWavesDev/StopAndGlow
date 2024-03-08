@@ -114,35 +114,17 @@ def main(argv):
     tib.TIBase.gpu = True
     tib.TIBase.debug = DEBUG
     
-    seq1 = Sequence()
-    seq2 = Sequence()
-    seq3 = Sequence()
-    seq1.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-1"))
-    seq2.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-2"))
-    seq3.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-3"))
-    exposure_times = [int(seq1.getMeta('exposure').split("/")[1]), int(seq2.getMeta('exposure').split("/")[1]), int(seq3.getMeta('exposure').split("/")[1])]
-    img1 = seq1.getMaskFrame().asDomain(ImgDomain.Lin).get()
-    img2 = seq2.getMaskFrame().asDomain(ImgDomain.Lin).get()
-    img3 = seq3.getMaskFrame().asDomain(ImgDomain.Lin).get()
-    ImgOp.SaveEval(seq1.getMaskFrame().asDomain(ImgDomain.sRGB).get(), "expostack_orig1")
-    ImgOp.SaveEval(seq2.getMaskFrame().asDomain(ImgDomain.sRGB).get(), "expostack_orig2")
-    ImgOp.SaveEval(seq3.getMaskFrame().asDomain(ImgDomain.sRGB).get(), "expostack_orig3")
-    
-    ImgOp.SaveEval(img1 * (1/exposure_times[2])/(1/exposure_times[0]), "expostack_merge0", ImgFormat.EXR)
-    # To exposure of img 2
-    img1 = img1 * (1/exposure_times[1])/(1/exposure_times[0])
-    alpha = np.clip((img1-0.3) * 2, 0, 1)
-    ImgOp.SaveEval(alpha, "exposurestack_alpha1")
-    # Merge
-    img_merge = img1 * (1-alpha) + img2 * alpha 
-    
-    ImgOp.SaveEval(img_merge * (1/exposure_times[2])/(1/exposure_times[1]), "expostack_merge1", ImgFormat.EXR)
-    # To exposure of img 3
-    img_merge = img_merge * (1/exposure_times[2])/(1/exposure_times[1])
-    alpha = np.clip((img_merge-0.2) * 4, 0, 1)
-    ImgOp.SaveEval(alpha, "exposurestack_alpha2")
-    img_merge = img_merge * (1-alpha) + img3 * alpha
-    ImgOp.SaveEval(img_merge, "expostack_merge2", ImgFormat.EXR)
+    #seq1 = Sequence()
+    #seq2 = Sequence()
+    #seq3 = Sequence()
+    #seq1.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-1"))
+    #seq2.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-2"))
+    #seq3.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-3"))
+    #exposure_times = [int(seq1.getMeta('exposure').split("/")[1]), int(seq2.getMeta('exposure').split("/")[1]), int(seq3.getMeta('exposure').split("/")[1])]
+    #img1 = seq1.getMaskFrame().asDomain(ImgDomain.Lin).get()
+    #img2 = seq2.getMaskFrame().asDomain(ImgDomain.Lin).get()
+    #img3 = seq3.getMaskFrame().asDomain(ImgDomain.Lin).get()
+    #ImgOp.SaveEval(img_merge, "expostack_merge2", ImgFormat.EXR)
 
     ### Load image sequence, either by capturing or loading sequence from disk ###
     sequence = None
