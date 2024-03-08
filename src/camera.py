@@ -121,7 +121,7 @@ class Cam:
 
     ### Capture & Trigger methodes ###
 
-    def waitForTrigger(self, timeout=0):
+    def waitForVideo(self, timeout=0):
         listen_timeout = timeout*100 if timeout != 0 else 1000
         time_start = time.time()
         while time.time() - time_start < timeout if timeout != 0 else True:
@@ -132,6 +132,37 @@ class Cam:
             elif False: # event_type == 0:
                 # 0 Button 2 -> focus button (oder button 3/1? Wahrscheinlich unterschiedliche zustände)
                 return True
+
+    def waitForPhoto(self, timeout=1000, blocking=False):
+        listen_timeout = timeout*1000
+        time_start = time.time()
+        while time.time() - time_start < timeout if timeout != 0 else True:
+            event_type, event_data = self.getCam().wait_for_event(listen_timeout)      
+            if event_type == 0 and event_data == '0 Button 2':
+                # Video captured
+                return True
+            if not blocking:
+                return False
+
+        #listen_timeout = timeout*1000
+        #time_start = time.time()
+        #while time.time() - time_start < timeout or timeout == 0:
+        #    event_type, event_data = self.getCam().wait_for_event(int(listen_timeout))        
+        #    if event_type == gp.GP_EVENT_FILE_ADDED:
+        #        sequence = Sequence()
+        #        # Load and delete file from camera
+        #        img = self.getCam().file_get(event_data.folder, event_data.name, gp.GP_FILE_TYPE_NORMAL)
+        #        self.getCam().file_delete(event_data.folder, event_data.name)
+        #        # Append and set metadata
+        #        sequence.append(img, 0)
+        #        sequence.setMeta("exposure", self.getExposure())
+        #        sequence.setMeta("aperture", self.getAperture())
+        #        sequence.setMeta("iso", self.getIso())
+        #        return sequence
+        #    elif not blocking:
+        #        return None
+        #    # Sleep and return to wait for event
+        #    sleep(0.1)
     
     def focus(self, steps=1):
         """steps from -3 to +3 to select different step sizes"""
