@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--capture", "--seq_type=lights", "--seq_convert"],
+            "args": ["--loglevel=DEBUG", "--capture", "--seq_type=lights"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -18,7 +18,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--capture", "--hdr", "--seq_type=lights"],
+            "args": ["--loglevel=DEBUG", "--capture", "--hdr", "--seq_type=lights", "--seq_convert", "--convert_to=exr_hd"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -81,7 +81,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rti", "--seq_name=20240306_2006_lights", "--eval_dontsave", "--viewer"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rti", "--seq_name=expoblend", "--eval_dontsave", "--viewer"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

@@ -40,24 +40,30 @@ class ExpoBlender(Renderer):
             log.error("Must provide at least two sequences for stacking, aborting.")
             return
         # Settings
-        exposure_times = np.array(settings['exposure'] if 'exposure' in settings else list())
+        exposure_times = np.array(settings['exposure'] if 'exposure' in settings else [], dtype='float32')
         if len(exposure_times) != len(seq_list):
             log.error(f"Must provide exposure time list with 'exposure' key in settings dict with same length as sequence list ({len(seq_list)}), aborting.")
             return
-        blend_threshold = 0.3
-        blend_factor = 3.0
+        
+        blend_threshold = settings['blend_threshold'] if 'blend_threshold' in settings else 0.1
+        blend_factor = settings['blend_factor'] if 'blend_factor' in settings else 2.0
         self._view_idx = 0
         
         # Prepare Taichi buffer
         res_x, res_y = seq_list[0].get(0).resolution()
-        buffer = ti.ndarray(tib.pixvec, (len(seq_list), rex_y, res_x))
+        buffer = ti.ndarray(tib.pixvec, (len(seq_list), res_y, res_x))
         
         # Merge each frame
-        for i in range(len(seq_list[0])):
+        for id, _ in seq_list[0]:
             # Stack images to prepare input buffer
-            buffer_in.from_numpy(np.stack([seq.get(i).asDomain(ImgDomain.Lin).get() for seq in seq_list]))
-            # Blend
-            exposure_blending(buffer_in, exposure_times, blend_threshold, blend_factor)
+            buffer.from_numpy(np.stack([seq[id].asDomain(ImgDomain.Lin).get() for seq in seq_list], dtype='float32'))
+            # Blend and append
+            exposure_blending(buffer, exposure_times, blend_threshold, blend_factor)
+            self._blended.append(ImgBuffer(img=buffer.to_numpy()[0, :], domain=ImgDomain.Lin), id)
+        # Don't forget mask frame
+        buffer.from_numpy(np.stack([seq.getMaskFrame().asDomain(ImgDomain.Lin).get() for seq in seq_list], dtype='float32'))
+        exposure_blending(buffer, exposure_times, blend_threshold, blend_factor)
+        self._blended.setMaskFrame(ImgBuffer(img=buffer.to_numpy()[0, :], domain=ImgDomain.Lin))
     
     # Render settings
     def getRenderModes(self) -> list:
@@ -88,13 +94,24 @@ def exposure_blending(images: tt.ndarray(tib.pixvec, 3), exposure_values: tt.nda
     for y, x in ti.ndrange(images.shape[1], images.shape[2]):
         # Iterate over pairs of images
         for n in range(1, images.shape[0]):
-            # blend images[n] to images[0]
-            # Adjust exposure of new image
-            images[n] *= exposure_values[0] / exposure_values[n]
-            # Get alpha mask from brightness values of brighter image 
+            # blend images[n] to images[0] with exposure of darkest frame
+
             if exposure_values[0] > exposure_values[n]:
-                alpha = tm.clamp((exposure_values[0]-blend_threshold) * blend_factor, 0, 1)
-                images[0] = images[0] * (1-alpha) + images[n] * alpha 
+                # Next frame was darker, adjust exposure of first image
+                images[0, y, x] *= exposure_values[n] / exposure_values[0]
+                # Alpha is brightest parts of next image -> parts that have more information than merged frame
+                alpha = tm.clamp((images[n, y, x]-blend_threshold) * blend_factor, 0, 1)
+                # Take values from new frame where alpha is high
+                images[0, y, x] = images[0, y, x] * (1-alpha) + images[n, y, x] * alpha 
             else:
-                alpha = tm.clamp((exposure_values[1]-blend_threshold) * blend_factor, 0, 1)
-                images[0] = images[0] * alpha + images[n] * (1-alpha) 
+                # TODO Doesn't have much contrast? Not great
+
+                # Next frame was brighter
+                # Alpha is brightest parts of next image -> those parts are too bright and contain less information
+                alpha = tm.clamp((images[n, y, x]-blend_threshold) * blend_factor, 0, 1)
+                
+                # adjust exposure of next image
+                images[n, y, x] *= exposure_values[0] / exposure_values[n]
+
+                # Take values from new frame where alpha is low (dark parts with more information)
+                images[0, y, x] = images[0, y, x] * alpha + images[n, y, x] * (1-alpha)

@@ -12,7 +12,7 @@ from src.imgdata import *
 from src.sequence import Sequence
 from src.lightdome import Lightdome
 from src.calibrate import Calibrate
-
+from src.renderer.exposureblend import ExpoBlender
 
 class Capture:
     def __init__(self, hw, flags):
@@ -71,14 +71,18 @@ class Capture:
 
     def captureVideo(self, lights, trigger_start=True):
         log.info(f"Starting video capture for {len(self._id_list)} frames")
-
+        # Settings
+        base_exposure = 50 # TODO
+        stops_increase = self._flags.hdr_bracket_stops
+        hdr_captures = self._flags.hdr_bracket_num if self._flags.hdr else 1
+        
         # Worker & Timer
         # Half a subframe for recording + odd number of half skip frames, add another one for each dmx repeat
         subframes = (1+self._flags.capture_frames_skip) / 2 + self._flags.capture_dmx_repeat
         t = Timer(worker.LightVideoWorker(self._hw, lights, self._id_list, self._mask_frame, subframe_count=subframes))
 
-        for i in range(3 if self._flags.hdr else 1):
-            self._cam.setExposure(f"1/{int(50*2**i)}") # 50, 100, 200
+        for i in range(hdr_captures):
+            self._cam.setExposure(f"1/{[50, 200, 800][i]}") # TODO: {int(base_exposure * stops_increase**i)} Must match camera setting, maybe try to find closest setting in camera config
 
             # Capture
             if trigger_start:
@@ -99,21 +103,38 @@ class Capture:
 
         sequence = Sequence()
         if self._cam.isVideoMode():
-            sequence = self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep)
+            # For HDR, download all sequences with sequence number attached and convert those to a single merged EXR sequence
+            if self._flags.hdr:
+                sequences = []
+                for i in range(self._flags.hdr_bracket_num):
+                    sequences.append(self._cam.getVideoSequence(self._flags.seq_folder, name+f"_{i}", self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep))
+                
+                # Only scale images, will write out as EXRs anyway
+                if self._flags.seq_convert and '_' in self._flags.convert_to:
+                    sequence.convertSequence(self._flags.convert_to.split('_')[1])
 
-            # Convert if flag is set 
-            if self._flags.seq_convert:
-                sequence.convertSequence(self._flags.convert_to)
-                sequence.saveSequence(name, self._flags.seq_folder)
+                # Get exposure times and merge
+                exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]
+                blender = ExpoBlender()
+                blender.process(sequences, self._hw.config, {'exposure': exposure_times})
+                sequence = blender.get()
+            
+            # For SDR sequence, download video file
+            else:
+                sequence = self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep)
+
+                # Convert if flag is set 
+                if self._flags.seq_convert:
+                    sequence.convertSequence(self._flags.convert_to)
 
         else:
             sequence = self._cam.getSequence(self._flags.seq_folder, name, keep=keep)
             if self._flags.seq_convert:
                 sequence.convertSequence(self._flags.convert_to)
-                sequence.saveSequence(name, self._flags.seq_folder)
-            elif save:
-                # Save as EXR / JPG depending on capture HDR mode. Only safe if sequence has not been converted
-                sequence.saveSequence(name, self._flags.seq_folder, ImgFormat.EXR if self._flags.hdr else ImgFormat.JPG)
+
+        # Save sequence
+        if save:
+            sequence.saveSequence(name, self._flags.seq_folder)
         
         return sequence
 

@@ -81,6 +81,10 @@ class ImgBuffer:
                         self._path = root+".jpg"
                     case ImgFormat.EXR:
                         self._path = root+".exr"
+            elif self.isFloat():
+                log.warning("No valid format specified, defaulting to EXR for floating point data")
+                self._format = ImgFormat.EXR
+                self._path = root+".exr"
             else:
                 log.warning("No valid format specified, defaulting to JPG")
                 self._format = ImgFormat.JPG

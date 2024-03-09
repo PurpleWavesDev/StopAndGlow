@@ -38,6 +38,7 @@ from src.renderer.rti import RtiRenderer
 from src.renderer.rgbstack import RgbStacker
 from src.renderer.lightstack import LightStacker
 from src.renderer.live import LiveView
+from src.renderer.exposureblend import ExpoBlender
 
 # Types
 HW = namedtuple("HW", ["cam", "lights", "config"])
@@ -61,6 +62,8 @@ flags.DEFINE_enum('loglevel', 'INFO', ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRA
 # Capture Settings
 flags.DEFINE_bool('capture', False, "Set this flag to capture footage instead of loading it from disk.")
 flags.DEFINE_bool('hdr', False, "If set, capture will be either raw images or multiple videos for exposure stacking, depending on the camera mode.")
+flags.DEFINE_integer('hdr_bracket_num', 3, 'Number of videos to capture for exposure blending in HDR mode.')
+flags.DEFINE_integer('hdr_bracket_stops', 4, 'Stops increase for each capture for HDR blending.')
 flags.DEFINE_float('capture_fps', 25, 'Frame rate for the video capture.')
 flags.DEFINE_integer('capture_frames_skip', 3, 'Frames to skip between frames in video sequence, has to be odd or will be incremented to next odd value.', lower_bound=0)
 flags.DEFINE_integer('capture_dmx_repeat', 0, "How many signals should be sent before an image is captured or extracted from video.")
@@ -113,19 +116,26 @@ def main(argv):
     hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)))
     tib.TIBase.gpu = True
     tib.TIBase.debug = DEBUG
-    
+    tib.TIBase.init()
+
     #seq1 = Sequence()
     #seq2 = Sequence()
     #seq3 = Sequence()
-    #seq1.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-1"))
-    #seq2.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-2"))
-    #seq3.loadFolder(os.path.join(FLAGS.seq_folder, "20240307_1819_hdri-3"))
-    #exposure_times = [int(seq1.getMeta('exposure').split("/")[1]), int(seq2.getMeta('exposure').split("/")[1]), int(seq3.getMeta('exposure').split("/")[1])]
-    #img1 = seq1.getMaskFrame().asDomain(ImgDomain.Lin).get()
-    #img2 = seq2.getMaskFrame().asDomain(ImgDomain.Lin).get()
-    #img3 = seq3.getMaskFrame().asDomain(ImgDomain.Lin).get()
-    #ImgOp.SaveEval(img_merge, "expostack_merge2", ImgFormat.EXR)
-
+    #ids = hw.config.getIds()
+    #seq1.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_0.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
+    #seq2.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_1.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
+    #seq3.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_2.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
+    #sequences = [seq1, seq2, seq3]
+    #if FLAGS.seq_convert and '_' in FLAGS.convert_to:
+    #    for seq in sequences:
+    #        seq.convertSequence(FLAGS.convert_to.split('_')[1])
+    #
+    #exposure_times = [1/50, 1/200, 1/800]#[1/float(seq1.getMeta('exposure').split("/")[1]), 1/float(seq2.getMeta('exposure').split("/")[1]), 1/float(seq3.getMeta('exposure').split("/")[1])]
+    #blender = ExpoBlender()
+    #blender.process([seq1, seq2, seq3], hw.config, {'exposure': exposure_times})
+    #seq_stacked = blender.get()
+    #seq_stacked.saveSequence("expoblend", FLAGS.eval_folder)
+    
     ### Load image sequence, either by capturing or loading sequence from disk ###
     sequence = None
     if FLAGS.capture:
@@ -140,14 +150,7 @@ def main(argv):
         capture.captureSequence(hw.config, hdri)
         
         # Sequence download, evaluation of video not necessary for capture only
-        sequence = capture.downloadSequence(FLAGS.seq_name+'-1', keep=False, save=FLAGS.seq_save)
-        sequence2 = capture.downloadSequence(FLAGS.seq_name+'-2', keep=False, save=FLAGS.seq_save)
-        sequence3 = capture.downloadSequence(FLAGS.seq_name+'-3', keep=False, save=FLAGS.seq_save)
-        exposure_times = [int(sequence.getMeta('exposure').split("/")[1]), int(sequence2.getMeta('exposure').split("/")[1]), int(sequence3.getMeta('exposure').split("/")[1])]
-        response = ImgOp.CameraResponse([sequence.getMaskFrame(), sequence.getMaskFrame(), sequence.getMaskFrame()], exposure_times)
-        stacked = ImgOp.ExposureStacking([sequence.getMaskFrame(), sequence.getMaskFrame(), sequence.getMaskFrame()], exposure_times, response)
-        stacked.setPath(os.path.join(FLAGS.eval_folder, "expo_stack"))
-        stacked.save(ImgFormat.EXR)
+        sequence = capture.downloadSequence(FLAGS.seq_name, keep=False, save=FLAGS.seq_save)
 
     # If not captured, load sequences
     elif FLAGS.process or FLAGS.viewer:
@@ -159,8 +162,6 @@ def main(argv):
     ### Process sequence ###
     renderer = None
     if FLAGS.process:
-        tib.TIBase.init()
-
         settings = dict()
         name = FLAGS.eval_name if FLAGS.eval_name != '' else FLAGS.seq_name + '_' + FLAGS.eval_type
         match FLAGS.eval_type:
@@ -177,7 +178,7 @@ def main(argv):
             case 'lightstack':
                 renderer = LightStacker()
             case 'rti':
-                settings = {'order': 2}
+                settings = {'order': 4}
                 renderer = RtiRenderer()
             case 'expostack':
                 evalStack(sequence, name)
@@ -190,8 +191,6 @@ def main(argv):
             
     ### Launch viewer ###
     if FLAGS.viewer:
-        tib.TIBase.init()
-
         if FLAGS.live:
             live_renderer = LiveView(hw) # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
             live_renderer.setSequence(sequence)
