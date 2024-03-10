@@ -26,6 +26,93 @@ class Lightdome:
         self._config = hw.config
         self._lights = hw.lights
         self._lightVals.clear()
+        return # TODO
+        
+        # Init (ti?) fields
+        light_count = len(self._config)
+        
+        # Light info: idx, id, latlong, 6x (neighbour idx, neighbour distance), distance_from_sample
+        self._light_ids = []
+        section_begin = [0] * Lightdome.GetSectionCount()+1
+        for section in range(Lightdome.GetSectionCount()):
+            section_begin[section] = len(self._light_ids)
+            for light in self._config:
+                if GetSection(light['latlong']) == section:
+                    self._light_ids.append(light['id'])
+        # Last section begin is end of array
+        section_begin[-1] = len(self._light_ids)
+        
+        # Find 6 closest neighbours and assign IDs (2 above, 2 even, 2 below)
+        for id in self._light_ids:
+            latlong = self._config[id]['latlong']
+            section = Lightdome.GetSection(latlong)
+            # Check lights in section and neigbouring sections for distances
+            for neigbour_section in Lightdome.GetNeigbouringSections():
+                for neighbour_light in self.getLightsInSection(neigbour_section):
+                    neigh_latlong = 0
+                    dist = Lightdome.GetDistanceOnSphere()
+                    latlong_diff = latlong-neigh_latlong
+                    if latlong_diff[0] > 10: # Above
+                        pass
+                    elif latlong_diff[0] < -10: # Below
+                        pass
+                    else: # Same height
+                        pass
+    
+    def getLightsInSection(self, section):
+        return self._light_ids[range(section_begin[section], section_begin[section+1])]
+            
+    # Divide and conquer - Sort lights into sections of dome
+    def GetSection(latlong) -> int:
+        # 0: lat > 60°; 1-4: lat > 30°, long in 90° steps; 5-12: lat > 0°, long in 45° steps; 13-20: lat <= 0°, long in 45° steps
+        # Section for latitude
+        section = [0, 1, 5, 13][max(90-latlong[0]//30, 3)] 
+        # Add sections for latitude rings that are separated
+        if section == 1:
+            section += latlong[0] // 90
+        elif section == 5 or section == 13:
+            section += latlong[0] // 45
+                
+    def GetSectionCount() -> int:
+        return 21
+        
+    def GetNeigbouringSections(section) -> list:
+        if section == 0:
+            return list(range(1, 5))
+        elif section <=4: # Section from 1-4
+            left = section-1 if section != 1 else 4
+            right = section+1 if section != 4 else 1
+            lower = 5+2*(section-1)
+            lower_left = lower-1 if section != 1 else 12
+            lower_right = lower+2 if section != 4 else 5
+            return (0, left, right, lower_left, lower, lower+1, lower_right)
+        elif section <= 12: # Section from 5-12
+            upper = (section-5)/2 + 1
+            upper_left = int(upper-0.5)
+            upper_right = int(upper+0.5)
+            if upper_left == 0: upper_left = 4
+            elif upper_right == 5: upper_right = 1
+            left = section-1 if section != 5 else 12
+            right = section+1 if section != 12 else 5
+            return (upper_left, upper_right, left, right, left+8, section+8, right+8)
+        else: # Section from 13-20
+            left = section-1 if section != 13 else 20
+            right = section+1 if section != 20 else 13
+            return (left-8, section-8, right-8, left, right)
+    
+    def GetDistanceDirect(latlong1, latlong2):
+        lat1 = math.radians(latlong1[0])
+        lat2 = math.radians(latlong2[0])
+        long_diff = math.radians(latlong1[1]-latlong2[1])
+        return math.sqrt(2 - 2 * (math.sin(lat1)*math.sin(lat2) * cos(long_diff) + math.cos(lat1)*math.cos(lat2)))
+    
+    def GetDistanceOnSphere(latlong1, latlong2):
+        lat1 = math.radians(latlong1[0])
+        lat2 = math.radians(latlong2[0])
+        long_diff = math.radians(latlong1[1]-latlong2[1])
+        
+        a = 0.5 - cos(lat2-lat1)/2 + cos(lat1)*cos(lat2) * (1-cos(long_diff))/2
+        return 2 * math.asin(math.sqrt(a))
     
     def processHdri(self, hdri: ImgBuffer, exposure_correction=1):
         res_y, res_x = hdri.get().shape[:2]

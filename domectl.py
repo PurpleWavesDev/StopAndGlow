@@ -117,24 +117,6 @@ def main(argv):
     tib.TIBase.gpu = True
     tib.TIBase.debug = DEBUG
     tib.TIBase.init()
-
-    #seq1 = Sequence()
-    #seq2 = Sequence()
-    #seq3 = Sequence()
-    #ids = hw.config.getIds()
-    #seq1.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_0.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
-    #seq2.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_1.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
-    #seq3.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_2.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
-    #sequences = [seq1, seq2, seq3]
-    #if FLAGS.seq_convert and '_' in FLAGS.convert_to:
-    #    for seq in sequences:
-    #        seq.convertSequence(FLAGS.convert_to.split('_')[1])
-    #
-    #exposure_times = [1/50, 1/200, 1/800]#[1/float(seq1.getMeta('exposure').split("/")[1]), 1/float(seq2.getMeta('exposure').split("/")[1]), 1/float(seq3.getMeta('exposure').split("/")[1])]
-    #blender = ExpoBlender()
-    #blender.process([seq1, seq2, seq3], hw.config, {'exposure': exposure_times})
-    #seq_stacked = blender.get()
-    #seq_stacked.saveSequence("expoblend", FLAGS.eval_folder)
     
     ### Load image sequence, either by capturing or loading sequence from disk ###
     sequence = None
@@ -154,6 +136,23 @@ def main(argv):
 
     # If not captured, load sequences
     elif FLAGS.process or FLAGS.viewer:
+        #seq1 = Sequence()
+        #seq2 = Sequence()
+        #seq3 = Sequence()
+        #ids = hw.config.getIds()
+        #seq1.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_0.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
+        #seq2.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_1.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
+        #seq3.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_2.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
+        #sequences = [seq1, seq2, seq3]
+        #if FLAGS.seq_convert and '_' in FLAGS.convert_to:
+        #    for seq in sequences:
+        #        seq.convertSequence(FLAGS.convert_to.split('_')[1])
+        #
+        #exposure_times = [1/50, 1/200, 1/800]#[1/float(seq1.getMeta('exposure').split("/")[1]), 1/float(seq2.getMeta('exposure').split("/")[1]), 1/float(seq3.getMeta('exposure').split("/")[1])]
+        #blender = ExpoBlender()
+        #blender.process([seq1, seq2, seq3], hw.config, {'exposure': exposure_times})
+        #seq_stacked = blender.get()
+
         # Load from disk
         sequence = load(FLAGS.seq_name, hw.config)
         if len(sequence) == 0:
