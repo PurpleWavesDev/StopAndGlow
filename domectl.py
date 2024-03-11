@@ -181,6 +181,7 @@ def main(argv):
                 # Load configs
                 stack_cals = [Config(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
                 hw.config.stitch(stack_cals)
+                hw.config.save(FLAGS.cal_folder, FLAGS.new_cal_name)
             case 'rgbstack':
                 renderer = RgbStacker()
             case 'lightstack':

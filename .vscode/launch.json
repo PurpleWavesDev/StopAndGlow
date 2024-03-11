@@ -180,7 +180,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--lightctl=anim_latlong"],
+            "args": ["--lightctl=anim_latlong", "--cal_name=lightdome_new.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

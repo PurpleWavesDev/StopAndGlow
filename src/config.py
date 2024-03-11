@@ -101,16 +101,36 @@ class Config:
         return (min_val, max_val)
 
     def stitch(self, other_configs):
+        add_dict = {}
         for stitch_conf in other_configs:
             # Find lights that have a similar longitude and low latitude
+            # TODO This code gets longitude dirfference and adds all lights from the other configs. Not great but better than nothing for now
+            long_diff = 0
             for light in self:
                 id = light['id']
                 if stitch_conf[id] is not None:
                     # This light exists in other config as well
+                    long_diff += stitch_conf[id]['latlong'][1] - light['latlong'][1]
+                    break
+
+            ids = self.getIds()
+            for light in stitch_conf:
+                if not light['id'] in ids:
+                    # This light does not exist, add to config
+                    light['latlong'][1] = (light['latlong'][1]-long_diff+360) % 360
+                    id = light['id']
+                    if not id in add_dict:
+                        add_dict[id] = (light['uv'], light['latlong'])
+                    else:
+                        pass
+                        #add_dict[id] = ((add_dict[id][0] + light['uv'])/2, (add_dict[id][0] + light['latlong'])/2)
+        for light_id, vals in add_dict.items():
+            self.addLight(light_id, vals[0], vals[1])
+
                     #dist = abs(light['uv'][0])-abs(stitch_conf[id]['uv'][0])
-                    dist = light['uv'][0] + stitch_conf[id]['uv'][0]
-                    if abs(dist) < 0.1:
-                        # The lights with similar u distance on reflection we want to match first
-                        print(f"Matching light ID {id} with coords {light['latlong']}, {stitch_conf[id]['latlong']}, distance {dist}")
+                    #dist = light['uv'][0] + stitch_conf[id]['uv'][0]
+                    #if abs(dist) < 0.1:
+                    #    # The lights with similar u distance on reflection we want to match first
+                    #    print(f"Matching light ID {id} with coords {light['latlong']}, {stitch_conf[id]['latlong']}, distance {dist}")
                         
                         
