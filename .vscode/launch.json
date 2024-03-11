@@ -81,7 +81,7 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rti", "--seq_name=expoblend", "--eval_dontsave", "--viewer"],
+            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rti", "--seq_name=20240311_1440_lights.MP4", "--hdr", "--eval_dontsave", "--viewer"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

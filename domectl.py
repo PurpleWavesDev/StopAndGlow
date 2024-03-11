@@ -65,7 +65,7 @@ flags.DEFINE_bool('hdr', False, "If set, capture will be either raw images or mu
 flags.DEFINE_integer('hdr_bracket_num', 3, 'Number of videos to capture for exposure blending in HDR mode.')
 flags.DEFINE_integer('hdr_bracket_stops', 4, 'Stops increase for each capture for HDR blending.')
 flags.DEFINE_float('capture_fps', 25, 'Frame rate for the video capture.')
-flags.DEFINE_integer('capture_frames_skip', 3, 'Frames to skip between frames in video sequence, has to be odd or will be incremented to next odd value.', lower_bound=0)
+flags.DEFINE_integer('capture_frames_skip', 1, 'Frames to skip between frames in video sequence, has to be odd or will be incremented to next odd value.', lower_bound=0)
 flags.DEFINE_integer('capture_dmx_repeat', 0, "How many signals should be sent before an image is captured or extracted from video.")
 flags.DEFINE_integer('capture_max_addr', 310, "Max address to be used for generating calibrations.")
 # Sequence settings
@@ -136,27 +136,36 @@ def main(argv):
 
     # If not captured, load sequences
     elif FLAGS.process or FLAGS.viewer:
-        #seq1 = Sequence()
-        #seq2 = Sequence()
-        #seq3 = Sequence()
-        #ids = hw.config.getIds()
-        #seq1.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_0.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
-        #seq2.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_1.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
-        #seq3.loadVideo(os.path.join(FLAGS.seq_folder, "20240309_1836_lights_2.MP4"), ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat)
-        #sequences = [seq1, seq2, seq3]
-        #if FLAGS.seq_convert and '_' in FLAGS.convert_to:
-        #    for seq in sequences:
-        #        seq.convertSequence(FLAGS.convert_to.split('_')[1])
-        #
-        #exposure_times = [1/50, 1/200, 1/800]#[1/float(seq1.getMeta('exposure').split("/")[1]), 1/float(seq2.getMeta('exposure').split("/")[1]), 1/float(seq3.getMeta('exposure').split("/")[1])]
-        #blender = ExpoBlender()
-        #blender.process([seq1, seq2, seq3], hw.config, {'exposure': exposure_times})
-        #seq_stacked = blender.get()
-
         # Load from disk
         sequence = load(FLAGS.seq_name, hw.config)
         if len(sequence) == 0:
             log.warning("Empty sequence loaded")
+
+        # For HDR Videos, convert to single sequence
+        elif FLAGS.hdr and sequence._is_video:
+            # Load first video completely and scale
+            sequence.loadFrames()
+            if True: #self._flags.video_downscale:
+                sequence.convertSequence('hd')
+            # Load other sequences from same video file
+            sequences = [sequence]
+            sequences[0].setMeta('exposure', f"1/50") # TODO
+            for i in range(1, FLAGS.hdr_bracket_num):
+                sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(FLAGS.seq_folder, FLAGS.seq_name+f"_{i}"), sequence.getKeys()))
+                sequences[i].setMeta('exposure', f"1/{[50, 200, 800][i]}") # TODO
+                # Scale images
+                if True: #self._flags.video_downscale:
+                    sequences[i].convertSequence('hd')
+
+            # Get exposure times and merge
+            exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]
+            blender = ExpoBlender()
+            blender.process(sequences, hw.config, {'exposure': exposure_times})
+            sequence = blender.get()
+
+        # Save videos?
+        if FLAGS.seq_convert:
+            sequence.saveSequence(FLAGS.seq_name, FLAGS.seq_folder)
     
     ### Process sequence ###
     renderer = None

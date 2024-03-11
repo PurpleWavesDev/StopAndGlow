@@ -72,27 +72,31 @@ class Capture:
     def captureVideo(self, lights, trigger_start=True):
         log.info(f"Starting video capture for {len(self._id_list)} frames")
         # Settings
-        base_exposure = 50 # TODO
+        base_exposure = 50 # TODO: {int(base_exposure * stops_increase**i)} Must match camera setting, maybe try to find closest setting in camera config
         stops_increase = self._flags.hdr_bracket_stops
         hdr_captures = self._flags.hdr_bracket_num if self._flags.hdr else 1
-        
+        self._hdr_exposures = [50, 200, 800] # TODO
+
         # Worker & Timer
         # Half a subframe for recording + odd number of half skip frames, add another one for each dmx repeat
         subframes = (1+self._flags.capture_frames_skip) / 2 + self._flags.capture_dmx_repeat
         t = Timer(worker.LightVideoWorker(self._hw, lights, self._id_list, self._mask_frame, subframe_count=subframes))
+        if self._flags.hdr:
+            self._cam.setExposure(f"1/{self._hdr_exposures[0]}")
 
+        # Start capture
+        if trigger_start:
+            self._cam.triggerVideoStart()
+            time.sleep(0.5)
         for i in range(hdr_captures):
-            self._cam.setExposure(f"1/{[50, 200, 800][i]}") # TODO: {int(base_exposure * stops_increase**i)} Must match camera setting, maybe try to find closest setting in camera config
-
-            # Capture
-            if trigger_start:
-                self._cam.triggerVideoStart()
-                time.sleep(1)
             t.start(2/self._flags.capture_fps)
             t.join()
+            if self._flags.hdr and i < hdr_captures-1:
+                self._cam.setExposure(f"1/{self._hdr_exposures[i+1]}")
             time.sleep(0.5)
-            self._dome.setTop(brightness=50)
-            self._cam.triggerVideoEnd()
+
+        self._dome.setTop(brightness=50)
+        self._cam.triggerVideoEnd()
 
 
     ### Downloading captured data ###
@@ -106,12 +110,16 @@ class Capture:
             # For HDR, download all sequences with sequence number attached and convert those to a single merged EXR sequence
             if self._flags.hdr:
                 sequences = []
-                for i in range(self._flags.hdr_bracket_num):
-                    sequences.append(self._cam.getVideoSequence(self._flags.seq_folder, name+f"_{i}", self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep))
-                
+                sequences.append(self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep))
+                sequences[0].setMeta('exposure', f"1/{self._hdr_exposures[0]}")
+                for i in range(1, self._flags.hdr_bracket_num):
+                    sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(self._flags.seq_folder, name+f"_{i}"), self._id_list))
+                    sequences[i].setMeta('exposure', f"1/{self._hdr_exposures[i]}")
+
                 # Only scale images, will write out as EXRs anyway
-                if self._flags.seq_convert and '_' in self._flags.convert_to:
-                    sequence.convertSequence(self._flags.convert_to.split('_')[1])
+                if True: #self._flags.seq_downscale:
+                    for seq in sequences:
+                        seq.convertSequence('hd')
 
                 # Get exposure times and merge
                 exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]

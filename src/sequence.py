@@ -94,8 +94,6 @@ class Sequence():
         # Load Metadata from video meta file
         self._metafile_name = os.path.join(base_dir, seq_name+'.json')
         self.loadMeta()
-        if self._meta:
-            self._meta_changed = True
         # Change file name to folder path
         self._metafile_name = os.path.join(base_dir, seq_name, 'meta.json')
         # Set metadata
@@ -109,7 +107,7 @@ class Sequence():
             log.error(f"Could not load video file '{path}'")
             return False
             
-        self._frames = {key: ImgBuffer() for key in frame_list}        
+        self._frames = {key: ImgBuffer() for key in frame_list}
         self._vid_state = VidParseState.PreBlack
         self._vid_frame_number = -1
         self._vid_frame_count = self._skip_count = 0
@@ -123,7 +121,7 @@ class Sequence():
         
     def loadFrames(self, until_frame=-1):
         # Iterate through frames until max
-        while self._vid_frame is not None and (until_frame == -1 or self._vid_frame_number <= until_frame):
+        while self._vid_frame is not None and (until_frame == -1 or self._vid_frame_number <= until_frame) and self._vid_frame_number < len(self._frames):
             match self._vid_state:
                 case VidParseState.PreBlack:
                     # Wait for black frame
@@ -164,9 +162,9 @@ class Sequence():
                         self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}", img=self._vid_frame, domain=ImgDomain.sRGB)
                         if ImgOp.blackframe(self._vid_frame):
                             log.warning(f"Black frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
-                        else:
-                            #log.debug(f"Valid sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
-                            pass
+                        elif self._vid_frame_number == len(self._frames)-1:
+                            log.debug(f"Last sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
+                            #pass
                     # Skip every other frame
                     self._vid_state = VidParseState.Skip
                     self._vid_frame_number += 1
@@ -257,7 +255,8 @@ class Sequence():
                 
         # Iterate over frames and convert
         for id in self.getKeys():
-            self[id] = convert(self[id], rescale, factor, crop, new_format)
+            if self[id].get() is not None:
+                self[id] = convert(self[id], rescale, factor, crop, new_format)
         # Don't forget mask frame 
         if self._maskFrame is not None:
             self._maskFrame = convert(self._maskFrame, rescale, factor, crop, new_format)
@@ -287,6 +286,42 @@ class Sequence():
     def setMeta(self, key: str, value):
         self._meta[key] = value
         self._meta_changed = True
+    
+    ### Factories ###
+    def ContinueVideoSequence(sequence, path, frame_list):
+        seq = Sequence()
+
+        # Setup variables
+        seq._is_video = True
+        seq._frames_offset = sequence._frames_offset
+        seq._frames_skip = sequence._frames_skip
+        seq._vidcap = sequence._vidcap
+        seq._frames = {key: ImgBuffer() for key in frame_list}
+        
+        # Define paths and sequence names
+        base_dir = os.path.dirname(path)
+        seq_name = os.path.splitext(os.path.basename(path))[0]                   
+        seq._img_name_base = os.path.join(base_dir, seq_name, seq_name)
+        # Get Metadata from other video sequence
+        seq._meta = sequence._meta
+        seq._meta_changed = True
+        # Set file name to folder path
+        seq._metafile_name = os.path.join(base_dir, seq_name, 'meta.json')
+            
+        # Check vidcap video
+        seq._vid_frame = seq._readVideoFrame()
+        if seq._vid_frame is None:
+            log.error(f"Could not load video file '{path}'")
+        
+        # Init video states
+        seq._vid_state = VidParseState.PreBlack
+        seq._vid_frame_number = -1
+        seq._vid_frame_count = seq._skip_count = 0
+        
+        # No lazy loading
+        seq.loadFrames()
+        return seq
+
     
     ### Operators / Attributes ###
         
