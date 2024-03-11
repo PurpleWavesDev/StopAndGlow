@@ -288,7 +288,7 @@ class Sequence():
         self._meta_changed = True
     
     ### Factories ###
-    def ContinueVideoSequence(sequence, path, frame_list):
+    def ContinueVideoSequence(sequence, path, frame_list, sequence_index):
         seq = Sequence()
 
         # Setup variables
@@ -304,6 +304,9 @@ class Sequence():
         seq._img_name_base = os.path.join(base_dir, seq_name, seq_name)
         # Get Metadata from other video sequence
         seq._meta = sequence._meta
+        expo_meta = seq.getMeta(f'exposure_{sequence_index}')
+        if expo_meta is not None:
+            seq.setMeta(f'exposure', expo_meta)
         seq._meta_changed = True
         # Set file name to folder path
         seq._metafile_name = os.path.join(base_dir, seq_name, 'meta.json')

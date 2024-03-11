@@ -301,7 +301,7 @@ class Cam:
             self.getImage(id, path, name, keep).unload(save=True)
 
 
-    def getVideoSequence(self, path, name, frame_list, frames_skip, dmx_repeat, keep=False) -> Sequence:
+    def getVideoSequence(self, path, name, frame_list, frames_skip, dmx_repeat, exposure_list=[], keep=False) -> Sequence:
         """Downloads video file and returns sequence referencing it"""
         seq = Sequence()
         if not self._video_capture.empty():
@@ -311,9 +311,15 @@ class Cam:
             capture.camera_file.save(file_path)
             seq.load(file_path, frame_list, frames_skip, dmx_repeat)
             seq.setMeta('video_file', file_path)
-            seq.setMeta('exposure', capture.exposure)
             seq.setMeta('aperture', capture.aperture)
             seq.setMeta('iso', capture.iso)
+            # Set exposure
+            if not exposure_list:
+                seq.setMeta('exposure', capture.exposure)
+            else:
+                seq.setMeta(f'exposure', exposure_list[0])
+                for i, expo in enumerate(exposure_list):
+                    seq.setMeta(f'exposure_{i}', expo)
 
             if not keep:
                 self.getCam().file_delete(capture.camera_path[0], capture.camera_path[1])

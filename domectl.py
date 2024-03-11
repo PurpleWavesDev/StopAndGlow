@@ -151,7 +151,7 @@ def main(argv):
             sequences = [sequence]
             sequences[0].setMeta('exposure', f"1/50") # TODO
             for i in range(1, FLAGS.hdr_bracket_num):
-                sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(FLAGS.seq_folder, FLAGS.seq_name+f"_{i}"), sequence.getKeys()))
+                sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(FLAGS.seq_folder, FLAGS.seq_name+f"_{i}"), sequence.getKeys(), i))
                 sequences[i].setMeta('exposure', f"1/{[50, 200, 800][i]}") # TODO
                 # Scale images
                 if True: #self._flags.video_downscale:

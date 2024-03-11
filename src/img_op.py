@@ -58,7 +58,7 @@ class ImgOp:
         argmax = np.argmax((img1-img2)>threshold)
         return argmax == 0
     
-    def blackframe(img, threshold=25, mask=None) -> bool:
+    def blackframe(img, threshold=50, mask=None) -> bool:
         if mask is not None:
             img = cv.bitwise_and(img, img, mask=mask)
         return np.argmax(img>threshold) == 0

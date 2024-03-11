@@ -109,12 +109,11 @@ class Capture:
         if self._cam.isVideoMode():
             # For HDR, download all sequences with sequence number attached and convert those to a single merged EXR sequence
             if self._flags.hdr:
-                sequences = []
-                sequences.append(self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, keep=keep))
-                sequences[0].setMeta('exposure', f"1/{self._hdr_exposures[0]}")
+                expo_list = [f"1/{expo}" for expo in self._hdr_exposures]
+                sequences = [(self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, exposure_list=expo_list, keep=keep))]
+                
                 for i in range(1, self._flags.hdr_bracket_num):
-                    sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(self._flags.seq_folder, name+f"_{i}"), self._id_list))
-                    sequences[i].setMeta('exposure', f"1/{self._hdr_exposures[i]}")
+                    sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(self._flags.seq_folder, name+f"_{i}"), self._id_list, i))
 
                 # Only scale images, will write out as EXRs anyway
                 if True: #self._flags.seq_downscale:
