@@ -18,6 +18,15 @@
             "type": "python",
             "request": "launch",
             "program": "domectl.py",
+            "args": ["--loglevel=DEBUG", "--capture", "--hdr", "--seq_type=lights", "--seq_folder=../HdM_BA/data/capture/0314_swimming"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Capture Lights HDR & Convert",
+            "type": "python",
+            "request": "launch",
+            "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--capture", "--hdr", "--seq_type=lights", "--seq_convert", "--convert_to=exr_hd"],
             "console": "integratedTerminal",
             "justMyCode": true

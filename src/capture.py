@@ -112,19 +112,24 @@ class Capture:
                 expo_list = [f"1/{expo}" for expo in self._hdr_exposures]
                 sequences = [(self._cam.getVideoSequence(self._flags.seq_folder, name, self._id_list, self._flags.capture_frames_skip, self._flags.capture_dmx_repeat, exposure_list=expo_list, keep=keep))]
                 
-                for i in range(1, self._flags.hdr_bracket_num):
-                    sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(self._flags.seq_folder, name+f"_{i}"), self._id_list, i))
+                if self._flags.seq_convert:
+                    for i in range(1, self._flags.hdr_bracket_num):
+                        sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(self._flags.seq_folder, name+f"_{i}"), self._id_list, i))
 
-                # Only scale images, will write out as EXRs anyway
-                if True: #self._flags.seq_downscale:
-                    for seq in sequences:
-                        seq.convertSequence('hd')
+                    # Only scale images, will write out as EXRs anyway
+                    if True: #self._flags.seq_downscale:
+                        for seq in sequences:
+                            seq.convertSequence('hd')
 
-                # Get exposure times and merge
-                exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]
-                blender = ExpoBlender()
-                blender.process(sequences, self._hw.config, {'exposure': exposure_times})
-                sequence = blender.get()
+                    # Get exposure times and merge
+                    exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]
+                    blender = ExpoBlender()
+                    blender.process(sequences, self._hw.config, {'exposure': exposure_times})
+                    sequence = blender.get()
+
+                # TODO!
+                else:
+                    sequence = sequences[0]
             
             # For SDR sequence, download video file
             else:
@@ -140,7 +145,7 @@ class Capture:
                 sequence.convertSequence(self._flags.convert_to)
 
         # Save sequence
-        if save:
+        if False: #save: # TODO
             sequence.saveSequence(name, self._flags.seq_folder)
         
         return sequence

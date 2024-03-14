@@ -65,7 +65,7 @@ flags.DEFINE_bool('hdr', False, "If set, capture will be either raw images or mu
 flags.DEFINE_integer('hdr_bracket_num', 3, 'Number of videos to capture for exposure blending in HDR mode.')
 flags.DEFINE_integer('hdr_bracket_stops', 4, 'Stops increase for each capture for HDR blending.')
 flags.DEFINE_float('capture_fps', 25, 'Frame rate for the video capture.')
-flags.DEFINE_integer('capture_frames_skip', 1, 'Frames to skip between frames in video sequence, has to be odd or will be incremented to next odd value.', lower_bound=0)
+flags.DEFINE_integer('capture_frames_skip', 3, 'Frames to skip between frames in video sequence, has to be odd or will be incremented to next odd value.', lower_bound=0)
 flags.DEFINE_integer('capture_dmx_repeat', 0, "How many signals should be sent before an image is captured or extracted from video.")
 flags.DEFINE_integer('capture_max_addr', 310, "Max address to be used for generating calibrations.")
 # Sequence settings
@@ -122,17 +122,54 @@ def main(argv):
     sequence = None
     if FLAGS.capture:
         # Set name
-        FLAGS.seq_name = FLAGS.seq_name if FLAGS.seq_name != '' else datetime_now + '_' + FLAGS.seq_type # 240116_2333_lights
+        ghosting_sequence = Sequence()
+        ghosting_sequence.loadFolder(os.path.join(FLAGS.seq_folder, "ghosting"))
+        i = len(ghosting_sequence)
+        #path=FLAGS.seq_folder
+        #for f in os.listdir(path):
+        #    p = os.path.join(path, f)
+        #    if os.path.isfile(p) and os.path.splitext(p)[1].lower() == '.mp4':
+        #        # Load video
+        #        sequence = Sequence()
+        #        sequence.load(p, frame_list=(0,1), frames_skip=FLAGS.capture_frames_skip, dmx_repeat=FLAGS.capture_dmx_repeat)
+        #        frame = sequence.get(0)
+        #        frame.setPath(os.path.join(FLAGS.seq_folder, "ghosting", f"ghosting_{i:04d}.jpg"))
+        #        frame.save(ImgFormat.JPG)
+        #        ghosting_sequence.append(frame, i)
+        #        i+=1
 
-        capture = Capture(hw, FLAGS)
-        hdri = None
-        if FLAGS.seq_type == 'hdri':
-            # Load hdri
-            hdri = ImgBuffer(path=os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
-        capture.captureSequence(hw.config, hdri)
-        
-        # Sequence download, evaluation of video not necessary for capture only
-        sequence = capture.downloadSequence(FLAGS.seq_name, keep=False, save=FLAGS.seq_save)
+        live_renderer = LiveView(hw) # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
+        live_renderer.setSequence(ghosting_sequence)
+        viewer = Viewer((1920,1080))
+        viewer.setRenderer(live_renderer)
+        viewer.launch()
+        while True:
+            datetime_now = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+            FLAGS.seq_name = datetime_now + '_' + FLAGS.seq_type
+
+            capture = Capture(hw, FLAGS)
+            hdri = None
+            if FLAGS.seq_type == 'hdri':
+                # Load hdri
+                hdri = ImgBuffer(path=os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
+            capture.captureSequence(hw.config, hdri)
+            
+            # Sequence download, evaluation of video not necessary for capture only
+            sequence = capture.downloadSequence(FLAGS.seq_name, keep=False, save=FLAGS.seq_save)
+            # Mask frame for ghosting
+            frame = sequence.get(0)
+            frame.setPath(os.path.join(FLAGS.seq_folder, "ghosting", f"ghosting_{i:04d}.jpg"))
+            frame.save(ImgFormat.JPG)
+            ghosting_sequence.append(frame, i)
+            i += 1
+
+            live_renderer = LiveView(hw) # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
+            live_renderer.setSequence(ghosting_sequence)
+            viewer = Viewer((1920,1080))
+            viewer.setRenderer(live_renderer)
+            viewer.launch()
+
+
 
     # If not captured, load sequences
     elif FLAGS.process or FLAGS.viewer:

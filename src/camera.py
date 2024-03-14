@@ -6,6 +6,7 @@ import os
 import time
 import pathlib
 import logging as log
+from pathlib import Path
 from queue import Queue
 
 # Camera & image imports
@@ -307,6 +308,7 @@ class Cam:
         if not self._video_capture.empty():
             capture = self._video_capture.get()
             file_path = os.path.join(path, name+os.path.splitext(capture.camera_path[1])[1])
+            Path(path).mkdir(parents=True, exist_ok=True)
             log.debug("Video is being saved to {}".format(file_path))
             capture.camera_file.save(file_path)
             seq.load(file_path, frame_list, frames_skip, dmx_repeat)
