@@ -6,11 +6,6 @@ context = zmq.Context()
 socket = None
 connected = False
 
-# Properties
-class ConnectionProperties(bpy.types.PropertyGroup):
-    connected: bpy.props.BoolProperty()
-    #socket: bpy.props.GenericType
-
 # Operator functions
 def connect(address, port):
     global socket
@@ -39,7 +34,7 @@ def disconnect():
         connected = False
 
 class WM_OT_smvp_connect(bpy.types.Operator):
-    """Create a new monkey mesh object with a subdivision surf modifier and shaded smooth"""
+    """To open an connection to the Stop Motion VP server for accessing pre-rendered or captured frames"""
 
     bl_idname = "wm.smvp_connect"
     bl_label = "Connect to Stop Motion VP Server"
@@ -63,15 +58,10 @@ class WM_OT_smvp_connect(bpy.types.Operator):
 
 # register operators
 def register():
-    # Properties
-    bpy.utils.register_class(ConnectionProperties)
-    #bpy.types.plugins. = bpy.props.PointerProperty(type=ConnectionProperties)
     # Operators
     bpy.utils.register_class(WM_OT_smvp_connect)
 
 
 def unregister():
-    # Properties
-    bpy.utils.unregister_class(ConnectionProperties)
     # Operators
     bpy.utils.unregister_class(WM_OT_smvp_connect)

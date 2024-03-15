@@ -15,12 +15,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 bl_info = {
-        "name": "Lightdome",
-        "description": "Control lightdomes, capture footage and load it into your scene.",
+        "name": "Stop Motion VP",
+        "description": "Control VP hardware and cameras, capture footage and load it into your scene.",
         "author": "Kira Vogt, Iris Sipka",
-        "version": (1, 0),
+        "version": (0, 1, 0),
         "blender": (4, 0, 0),
-        "location": "Properties > Render > Lightdome Panel",
+        "location": "3D View > Sidebar > Stop Motion VP Panel",
         "warning": "", # used for warning icon and text in add-ons panel
         "wiki_url": "https://blender.org",
         "tracker_url": "http://my.bugtracker.url",
@@ -32,6 +32,7 @@ import bpy
 
 from . import properties
 from . import client
+from . import canvas
 from . import ui
 
 #
@@ -41,11 +42,13 @@ from . import ui
 def register():
     properties.register()
     client.register()
+    canvas.register()
     ui.register()
 
 def unregister():
     properties.unregister()
     client.unregister()
+    canvas.unregister()
     ui.unregister()
 
 if __name__ == '__main__':
