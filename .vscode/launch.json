@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "server.py",
+            "args": [],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Capture Lights",
             "type": "python",
             "request": "launch",
