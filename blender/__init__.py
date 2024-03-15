@@ -30,20 +30,22 @@ bl_info = {
 
 import bpy
 
+from . import properties
+from . import client
+from . import ui
+
 #
 # Add additional functions here
 #
 
 def register():
-    from . import properties
-    from . import ui
     properties.register()
+    client.register()
     ui.register()
 
 def unregister():
-    from . import properties
-    from . import ui
     properties.unregister()
+    client.unregister()
     ui.unregister()
 
 if __name__ == '__main__':
