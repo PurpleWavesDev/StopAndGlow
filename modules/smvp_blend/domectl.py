@@ -18,7 +18,7 @@ class WM_OT_domectl_lights_on(bpy.types.Operator):
 class WM_OT_domectl_lights_off(bpy.types.Operator):
     """To open an connection to the Stop Motion VP server for accessing pre-rendered or captured frames"""
 
-    bl_idname = "wm.smvp_lightctl_on"
+    bl_idname = "wm.smvp_lightctl_off"
     bl_label = "Connect to Stop Motion VP Server"
     bl_options = {"REGISTER"}
 
