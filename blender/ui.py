@@ -17,6 +17,10 @@
 import bpy
 from bpy.types import Panel
 
+from . import client
+from . import domectl
+
+
 #
 # Add additional functions here
 #
@@ -29,6 +33,26 @@ class VIEW3D_PT_stop_motion_vp(Panel):
 
     bl_category = "Stop Motion"  # found in the Sidebar
     bl_label = "Stop Motion VP"  # found at the top of the Panel
+
+    def draw(self, context):
+        """define the layout of the panel"""
+        row = self.layout.row()
+        row.operator("mesh.primitive_cube_add", text="Add Cube")
+        row = self.layout.row()
+        row.operator("mesh.primitive_ico_sphere_add", text="Add Ico Sphere")
+        row = self.layout.row()
+        row.operator("object.shade_smooth", text="Shade Smooth")
+
+
+
+class VIEW3D_PT_domectl(Panel): 
+
+    # where to add the panel in the UI
+    bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
+    bl_region_type = "UI" #Window  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
+
+    bl_category = "Stop Motion"  # found in the Sidebar
+    bl_label = "Lightdome controls"  # found at the top of the Panel
 
     def draw(self, context):
         """define the layout of the panel"""

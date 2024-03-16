@@ -29,6 +29,11 @@ bl_info = {
         }
 
 import bpy
+import sys
+import os.path as path
+parent_module_path = path.abspath("..")
+if not parent_module_path in sys.path:
+    sys.path.append(parent_module_path)
 
 from . import properties
 from . import client
