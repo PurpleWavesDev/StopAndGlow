@@ -1,7 +1,7 @@
 import time
 import threading
 
-from src.worker import Worker
+from .worker import Worker
 
 
 class Timer:

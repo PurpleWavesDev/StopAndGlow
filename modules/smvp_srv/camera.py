@@ -15,10 +15,10 @@ import cv2 as cv
 import rawpy
 #import exiv2
 
-from src.imgdata import *
-from src.sequence import Sequence
-from src.utils import logging_disabled
-from src.config_canon90d import *
+from .imgdata import *
+from .sequence import Sequence
+from .utils import logging_disabled
+from .config_canon90d import *
 
 try:
     import gphoto2 as gp

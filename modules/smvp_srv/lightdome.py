@@ -5,10 +5,10 @@ import math
 
 import cv2 as cv
 
-from src.imgdata import *
-from src.sequence import Sequence
-from src.config import *
-from src.lights import *
+from .imgdata import *
+from .sequence import Sequence
+from .config import *
+from .lights import *
 
 DMX_MAX_VALUE = 255
 

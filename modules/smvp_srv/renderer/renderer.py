@@ -1,8 +1,8 @@
 from enum import Enum
 import numpy as np
 
-from src.sequence import Sequence
-from src.config import Config
+from ..sequence import Sequence
+from ..config import Config
 
 class RenderSettings:
     def __init__(self, is_linear=False, as_int=False, with_exposure=False, needs_hdri=False, needs_coords=False, req_keypress_events=False, req_inputs=False):

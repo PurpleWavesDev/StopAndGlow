@@ -3,16 +3,16 @@ import numpy as np
 
 import taichi as ti
 import taichi.math as tm
-import src.ti_base as tib
+from .. import ti_base as tib
 
-from src.imgdata import *
-from src.sequence import *
-from src.config import *
-from src.renderer.renderer import *
+from ..imgdata import *
+from ..sequence import *
+from ..config import *
+from .renderer import *
 
-from src.renderer.fitter.pseudoinverse import PseudoinverseFitter
-from src.renderer.fitter.poly import PolyFitter
-from src.renderer.fitter.normal import NormalFitter
+from .fitter.pseudoinverse import PseudoinverseFitter
+from .fitter.poly import PolyFitter
+from .fitter.normal import NormalFitter
 
 
 class RtiRenderer(Renderer):

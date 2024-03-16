@@ -1,18 +1,18 @@
 import logging as log
 
 # HW
-from src.camera import *
-from src.lights import Lights
-from src.config import Config
+from .camera import *
+from .lights import Lights
+from .config import Config
 # Timer and worker
-from src.timer import Timer, Worker
-import src.worker as worker
+from .timer import Timer, Worker
+from . import worker as worker
 # Other stuff
-from src.imgdata import *
-from src.sequence import Sequence
-from src.lightdome import Lightdome
-from src.calibrate import Calibrate
-from src.renderer.exposureblend import ExpoBlender
+from .imgdata import *
+from .sequence import Sequence
+from .lightdome import Lightdome
+from .calibrate import Calibrate
+from .renderer.exposureblend import ExpoBlender
 
 class Capture:
     def __init__(self, hw, flags):

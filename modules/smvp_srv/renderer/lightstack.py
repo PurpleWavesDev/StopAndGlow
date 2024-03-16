@@ -9,13 +9,13 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
-from src.imgdata import *
-from src.sequence import *
-from src.img_op import *
+from ..imgdata import *
+from ..sequence import *
+from ..img_op import *
+from .. import ti_base as tib
 
-from src.renderer.renderer import *
-import src.ti_base as tib
-#import src.renderer.ti_stack as tstack
+from .renderer import *
+#from . import renderer.ti_stack as tstack
 
 
 class LightStacker(Renderer):

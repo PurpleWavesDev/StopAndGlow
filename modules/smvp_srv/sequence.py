@@ -10,9 +10,9 @@ import numpy as np
 from numpy.typing import ArrayLike
 import cv2 as cv
 
-from src.imgdata import *
-from src.img_op import *
-from src.utils import logging_disabled
+from .imgdata import *
+from .img_op import *
+from .utils import logging_disabled
 
 class VidParseState(Enum):
     PreBlack = 0,

@@ -6,9 +6,9 @@ import taichi as ti
 import taichi.math as tm
 import numpy as np
 
-import src.ti_base as tib
+from . import ti_base as tib
 
-from src.renderer.rti import RtiRenderer
+from .renderer.rti import RtiRenderer
 
 
 class RenderModules(Enum):

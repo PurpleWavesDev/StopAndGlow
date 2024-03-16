@@ -6,13 +6,13 @@ from copy import copy, deepcopy
 import cv2 as cv
 import taichi as ti
 
-from src.imgdata import *
-from src.sequence import Sequence
-from src.img_op import *
-from src.config import Config
-from src.utils import logging_disabled
-from src.mathutils import *
-from src.renderer.renderer import *
+from .imgdata import *
+from .sequence import Sequence
+from .img_op import *
+from .config import Config
+from .utils import logging_disabled
+from .mathutils import *
+from .renderer.renderer import *
 
 
 class Calibrate(Renderer):

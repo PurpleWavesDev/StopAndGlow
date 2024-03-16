@@ -9,12 +9,12 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
-from src.imgdata import *
-from src.sequence import *
-from src.config import *
+from ..imgdata import *
+from ..sequence import *
+from ..config import *
 
-from src.renderer.renderer import *
-import src.ti_base as tib
+from .renderer import *
+from .. import ti_base as tib
 
 
 class RgbStacker(Renderer):

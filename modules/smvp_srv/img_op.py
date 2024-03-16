@@ -5,7 +5,7 @@ import math
 
 import cv2 as cv
 
-from src.imgdata import *
+from .imgdata import *
 
 # TODO: Unify, input variable?
 DATA_BASE_PATH='../HdM_BA/data/'

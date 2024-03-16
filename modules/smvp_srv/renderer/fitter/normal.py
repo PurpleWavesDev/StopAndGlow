@@ -1,10 +1,10 @@
-from src.renderer.fitter.pseudoinverse import PseudoinverseFitter
-from src.config import *
+from .pseudoinverse import PseudoinverseFitter
+from ...config import *
 
 import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
-import src.ti_base as tib
+from ... import ti_base as tib
 
 class NormalFitter(PseudoinverseFitter):
     name = "Normalmap Fitter"

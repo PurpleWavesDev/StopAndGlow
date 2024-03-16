@@ -3,7 +3,7 @@ from dmx import DMXInterface, DMXUniverse
 import dmx.constants
 from typing import List
 
-from src.imgdata import *
+from .imgdata import *
 
 DMX_MAX_ADDRESS = dmx.constants.DMX_MAX_ADDRESS
 DMX_MAX_VALUE = 255

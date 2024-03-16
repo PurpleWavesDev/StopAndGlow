@@ -1,5 +1,5 @@
-from src.camera import *
-from src.config_canon90d import *
+from .camera import *
+from .config_canon90d import *
 
 class CamOp:
     def FindMaxExposure(cam: Cam):

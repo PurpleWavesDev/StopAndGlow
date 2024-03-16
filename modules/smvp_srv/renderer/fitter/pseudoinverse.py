@@ -6,10 +6,10 @@ import numpy as np
 import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
-import src.ti_base as tib
+from ... import ti_base as tib
 
-from src.config import *
-from src.sequence import *
+from ...config import *
+from ...sequence import *
 
 class PseudoinverseFitter(ABC):
     name = "Pseudoinverse Fitter"
