@@ -65,6 +65,9 @@ class VIEW3D_PT_domectl(Panel):
 
 def register():
     bpy.utils.register_class(VIEW3D_PT_stop_motion_vp)
+    bpy.utils.register_class(VIEW3D_PT_domectl)
 
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_stop_motion_vp)
+    bpy.utils.register_class(VIEW3D_PT_domectl)
+    
