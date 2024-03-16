@@ -5,8 +5,6 @@ import subprocess
 import time
 import os
 
-import sys
-print(sys.path)
 from smvp_ipc import *
 
 context = zmq.Context()
@@ -18,18 +16,18 @@ SERVER_CWD = os.path.abspath("../")
 SERVER_COMMAND = [".venv/bin/python", "server.py"]
 
 # Operator functions
-def connect(address, port, launch=True) -> bool:
+def smvpConnect(address, port, launch=True) -> bool:
     global socket
     global connected
     global server
     
     # First close any remaining connections
-    disconnect()
+    smvpDisconnect()
 
     # Connect to server
     socket = context.socket(zmq.REQ)
-    socket.connect(f"tcp://{address}:{port}")
-    if socket:
+    val = socket.connect(f"tcp://{address}:{port}")
+    if val:
         connected = True
         return True
     elif launch:
@@ -42,7 +40,7 @@ def connect(address, port, launch=True) -> bool:
             connect(address, port, False)
     return False
 
-def disconnect():
+def smvpDisconnect():
     global socket
     global connected
     
@@ -51,16 +49,17 @@ def disconnect():
         socket.disconnect()
         connected = False
 
-def sendMessage() -> bool:
+def sendMessage(message) -> bool:
     global socket
     global connected
     
     # Send message
-    if connected and ipc.send(socket, message):
+    if connected:
+        ipc.send(socket, message)
         # Receive answer
         answer = ipc.receive(socket)
         if answer is not None:
-            if answer.command == CommandError:
+            if answer.command == Command.CommandError:
                 # Print error message
                 print("Received error from smvp server" + f": {answer.data['message']}" if 'message' in answer.data else "")
             return answer
@@ -85,7 +84,7 @@ class WM_OT_smvp_connect(bpy.types.Operator):
     )
 
     def execute(self, context):
-        if not connect(self.address, self.port):
+        if not smvpConnect(self.address, self.port):
             self.report({"WARNING"}, f"Can't connect to server {self.address}:{self.port}")
             return {"CANCELLED"}
         return {"FINISHED"}

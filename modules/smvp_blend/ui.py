@@ -17,8 +17,8 @@
 import bpy
 from bpy.types import Panel
 
-from . import client
-from . import domectl
+from .client import *
+from .domectl import *
 
 
 #
@@ -57,11 +57,11 @@ class VIEW3D_PT_domectl(Panel):
     def draw(self, context):
         """define the layout of the panel"""
         row = self.layout.row()
-        row.operator("mesh.primitive_cube_add", text="Add Cube")
+        row.operator(WM_OT_smvp_connect.bl_idname, text="Connect")
         row = self.layout.row()
-        row.operator("mesh.primitive_ico_sphere_add", text="Add Ico Sphere")
+        row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on")
         row = self.layout.row()
-        row.operator("object.shade_smooth", text="Shade Smooth")
+        row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights Off")
 
 def register():
     bpy.utils.register_class(VIEW3D_PT_stop_motion_vp)
@@ -69,5 +69,5 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_stop_motion_vp)
-    bpy.utils.register_class(VIEW3D_PT_domectl)
+    bpy.utils.unregister_class(VIEW3D_PT_domectl)
     
