@@ -25,6 +25,27 @@ from .domectl import *
 # Add additional functions here
 #
 
+class VIEW3D_PT_render_agorithms(Panel): 
+
+    # where to add the panel in the UI
+    bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
+    bl_region_type = "UI"  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
+
+    bl_category = "Item"  # found in the Sidebar
+    bl_label = "Render Algorithms"  # found at the top of the Panel
+
+    def draw(self, context):
+        """define the layout of the panel"""
+        row = self.layout.row()
+        row.operator("object.shade_flat", text="Algorithm 1")
+        row = self.layout.row()
+        row.operator("object.select_random", text="Algorithm 2")
+        row = self.layout.row()
+        row.operator("object.shade_smooth", text="Algorithm 3")
+
+
+
+
 class VIEW3D_PT_stop_motion_vp(Panel): 
 
     # where to add the panel in the UI
@@ -63,11 +84,22 @@ class VIEW3D_PT_domectl(Panel):
         row = self.layout.row()
         row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off")
 
+
+
+CLASSES =[
+    
+    VIEW3D_PT_render_agorithms,
+    VIEW3D_PT_stop_motion_vp,
+    VIEW3D_PT_domectl
+]
+
 def register():
-    bpy.utils.register_class(VIEW3D_PT_stop_motion_vp)
-    bpy.utils.register_class(VIEW3D_PT_domectl)
+    for cls in CLASSES:
+        bpy.utils.register_class(cls)
+    
 
 def unregister():
-    bpy.utils.unregister_class(VIEW3D_PT_stop_motion_vp)
-    bpy.utils.unregister_class(VIEW3D_PT_domectl)
+    for cls in CLASSES:
+        bpy.utils.unregister_class(cls)
+    
     
