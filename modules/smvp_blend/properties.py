@@ -2,7 +2,7 @@ import bpy
 from bpy.types import Scene, PropertyGroup
 from bpy.props import *
 
-
+  
 class SmvpConfig(PropertyGroup):
     is_canvas: BoolProperty(default=False, name="Is Canvas")
 

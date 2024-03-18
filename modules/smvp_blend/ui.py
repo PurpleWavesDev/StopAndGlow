@@ -19,6 +19,7 @@ from bpy.types import Panel
 
 from .client import *
 from .domectl import *
+from .canvas import *
 
 
 #
@@ -83,6 +84,8 @@ class VIEW3D_PT_domectl(Panel):
         row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on")
         row = self.layout.row()
         row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off")
+        row = self.layout.row()
+        row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Create canvas")
 
 
 
