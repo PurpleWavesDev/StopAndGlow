@@ -3,10 +3,21 @@ import zmq
 
 from smvp_ipc import *
 
+from . import HW
+from .lights import *
+from .camera import *
+from .config import *
+from .lightdome import *
+
+
 def run():
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind("tcp://*:9271")
+    
+    hw = None
+    dome = None
+    initalized = False
 
     while True:
         #  Wait for next request from client
@@ -15,17 +26,39 @@ def run():
             print("Error receiving data")
             break
         
+        if (not initalized) and message.command != Command.Init:
+            send(socket, Message(Command.CommandError, {'message': "Not initialized"}))
+        
+        # Match command
         match message.command:
             case Command.Init:
+                if not initalized:
+                    hw = HW(Cam(), Lights(), Config('../HdM_BA/data/config/lightdome.json')) # Config(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)
+                    dome = Lightdome(hw)
+                    initalized = True
                 send(socket, Message(Command.CommandOkay))
+
             case Command.Ping:
                 # Send pong
                 send(socket, Message(Command.Pong, message.data))
             case Command.Pong:
                 pass
             
+            ## LightCtl commands
+            case Command.LightCtlRand:
+                message.data
+                dome.setNth(6, 50)
+                send(socket, Message(Command.CommandOkay))
+            case Command.LightCtlTop:
+                dome.setTop(60, 50)
+                send(socket, Message(Command.CommandOkay))
+            case Command.LightCtlOff:
+                hw.lights.off()
+                send(socket, Message(Command.CommandOkay))
+            
             case _:
                 send(socket, Message(Command.CommandError, {"message": "Unknown command"}))
+            
             # Config commands
             # Resolution, Paths, Cals, .. ??
             #case Command.ConfResolution:
@@ -37,11 +70,6 @@ def run():
             #case Command.LightsUpdate:
             #case Command.LightsHdriRotation:
             #case Command.LightsHdriTexture:
-            #
-            ## LightCtl
-            #case Command.LightCtlRand:
-            #case Command.LightCtlTop:
-            #case Command.LightCtlOff:
             #
             ## Live Viewer
             #case Command.ViewerOpen:

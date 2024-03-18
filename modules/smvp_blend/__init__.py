@@ -56,4 +56,6 @@ def unregister():
     ui.unregister()
 
 if __name__ == '__main__':
+    # Register everything
     register()
+    

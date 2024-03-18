@@ -11,7 +11,7 @@ class WM_OT_domectl_lights_on(bpy.types.Operator):
     bl_options = {"REGISTER"}
 
     def execute(self, context):
-        message = Message.LightCtlMsg(Command.LightCtlRand)
+        message = Message.LightCtlMsg(Command.LightCtlTop)
         sendMessage(message)
         return {"FINISHED"}
     

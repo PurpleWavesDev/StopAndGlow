@@ -65,7 +65,7 @@ class Message:
     command: Command
     data: dict
     
-    def __init__(self, command, data):
+    def __init__(self, command, data = {}):
         self.command = command
         self.data = data
     

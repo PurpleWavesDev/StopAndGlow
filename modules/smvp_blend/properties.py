@@ -4,18 +4,19 @@ from bpy.props import *
 
 
 class SmvpConfig(PropertyGroup):
-    canvas: BoolProperty()
+    is_canvas: BoolProperty(default=False, name="Is Canvas")
 
 class SmvpCanvasProps(PropertyGroup):
-    canvas: BoolProperty()
+    is_canvas: BoolProperty()
 
 
 # This is where you assign any variables you need in your script
 def register():
     # Property classes
     bpy.utils.register_class(SmvpConfig)
-    Scene.smvp_config = bpy.props.PointerProperty(type=SmvpConfig)
+    Scene.smvp_config = bpy.props.PointerProperty(type=SmvpConfig, name="SMVP Configuration")
     bpy.utils.register_class(SmvpCanvasProps)
+    bpy.types.Object.smvp_canvas = bpy.props.PointerProperty(type=SmvpCanvasProps, name="SMVP Canvas")
     
     # Single properties
     Scene.my_property = BoolProperty(default=True)

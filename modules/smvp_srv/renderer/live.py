@@ -102,7 +102,7 @@ class LiveView(Renderer):
     def getLiveImage(self):
         try:
             return self.hw.cam.capturePreview()
-        except:
+        except Exception as e:
             return self._live_dummy
 
 

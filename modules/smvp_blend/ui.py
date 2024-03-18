@@ -57,11 +57,11 @@ class VIEW3D_PT_domectl(Panel):
     def draw(self, context):
         """define the layout of the panel"""
         row = self.layout.row()
-        row.operator(WM_OT_smvp_connect.bl_idname, text="Connect")
+        row.operator(WM_OT_smvp_connect.bl_idname, text="Launch service")
         row = self.layout.row()
         row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on")
         row = self.layout.row()
-        row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights Off")
+        row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off")
 
 def register():
     bpy.utils.register_class(VIEW3D_PT_stop_motion_vp)
