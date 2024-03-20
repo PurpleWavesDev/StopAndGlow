@@ -21,7 +21,9 @@ class VIEW3D_PT_domectl(Panel):
     def draw(self, context):
         """define the layout of the panel"""
         row = self.layout.row()
-        row.operator(WM_OT_smvp_connect.bl_idname, text="Launch service")
+        row.operator(WM_OT_smvp_connect.bl_idname, text="Launch service").launch=True
+        row = self.layout.row()
+        row.operator(WM_OT_smvp_connect.bl_idname, text="Connect to service")
         row = self.layout.row()
         row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on", icon = "OUTLINER_OB_LIGHT")
         row = self.layout.row()

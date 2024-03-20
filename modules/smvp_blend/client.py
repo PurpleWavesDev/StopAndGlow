@@ -1,9 +1,10 @@
 import bpy
 from bpy.types import WindowManager as wm
 import zmq
-import subprocess
 import time
 import os
+import subprocess
+from threading import Thread
 
 from smvp_ipc import *
 
@@ -12,6 +13,9 @@ socket: zmq.Socket = None
 connected = False
 server = None
 server_address = ""
+receiver = None
+
+callbacks = []
 
 SERVER_CWD = os.path.abspath("../../")
 SERVER_COMMAND = [".venv/bin/python", "server.py"]
@@ -22,6 +26,7 @@ def smvpConnect(address, port, launch=False) -> bool:
     global connected
     global server
     global server_address
+    global receiver
     
     # First close any remaining connections
     smvpDisconnect()
@@ -48,6 +53,12 @@ def smvpConnect(address, port, launch=False) -> bool:
         message = Message(Command.Init, {})
         try:
             connected = sendMessage(message, reconnect=False, force=True) is not None
+            
+            if connected:
+                # Launch service
+                receiver = Thread(target=serviceRun, args=(port+1, ))
+                receiver.start()
+            
             return connected
         except:
             print(f"SMVP Error: Can't connect to server {server_address}")
@@ -83,6 +94,29 @@ def sendMessage(message, reconnect=True, force=False) -> Message|None:
         except Exception as err:
             print(f"SMVP Communication error: {str(err)}")
     return None
+
+
+def serviceRun(port):
+    global connected
+    global context
+
+    # Setup socket
+    recv_addr = f"tcp://*:{port}"
+    recv_sock = context.socket(zmq.PULL)
+    recv_sock.bind(recv_addr)
+    # Poller
+    poller = zmq.Poller()
+    poller.register(recv_sock, zmq.POLLIN)
+
+    # Poll loop
+    while connected:
+        if poller.poll(500):
+            # Data received
+            try:
+                id, data = receive_array(recv_sock)
+            except:
+                print("SMVP receiver error: Can't read received data")
+    
 
 class WM_OT_smvp_connect(bpy.types.Operator):
     """To open an connection to the Stop Motion VP server for accessing pre-rendered or captured frames"""
@@ -127,11 +161,16 @@ def register():
 
 def unregister():
     global server
-
-    # Operators
-    bpy.utils.unregister_class(WM_OT_smvp_connect)
+    
+    # Disconnect, stop receiver service
+    smvpDisconnect()
+    if receiver is not None:
+        receiver.join()
 
     # Close server process
     if server:
         server.terminate()
+
+    # Operators
+    bpy.utils.unregister_class(WM_OT_smvp_connect)
     
