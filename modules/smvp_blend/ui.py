@@ -30,7 +30,7 @@ class VIEW3D_PT_stop_motion_vp(Panel):
         row = self.layout.row()
         row.operator("mesh.primitive_cube_add", text="Live View", icon = "SCENE")
         row = self.layout.row()
-        row.operator("mesh.primitive_ico_sphere_add", text="Capture Sequence", icon = "RENDER")
+        row.operator("mesh.primitive_ico_sphere_add", text="Capture Sequence", icon = "MONKEY")
       
 
    
