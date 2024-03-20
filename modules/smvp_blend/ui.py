@@ -107,6 +107,60 @@ class VIEW3D_PT_domectl(Panel):
         row = self.layout.row()
         row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off")
 
+# -------------------------------------------------------------------
+# Canvas UI
+# -------------------------------------------------------------------
+
+class SMVP_CANVAS_UL_items(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        split = layout.split(factor=0.3)
+        split.label(text="Index: %d" % (index))
+        #custom_icon = "OUTLINER_OB_%s" % item.obj_type
+        #split.prop(item, "name", text="", emboss=False, translate=False, icon=custom_icon)
+        split.label(text=item.name)#, icon=custom_icon) # avoids renaming the item by accident
+
+    def invoke(self, context, event):
+        pass   
+
+class SMVP_CANVAS_PT_frameList(Panel):
+    """Adds a frame list panel to the object properties"""
+    bl_idname = 'OBJECT_PT_frames_panel'
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_label = "Frame List"
+    bl_context = "object"
+    
+    @classmethod
+    def poll(cls, context):
+        """Only draw panel for canvas objects"""
+        return context.object.smvp_canvas.is_canvas
+    
+    def draw(self, context):
+        layout = self.layout
+        scn = context.scene
+        obj = context.object
+
+        rows = 2
+        row = layout.row()
+        row.template_list("SMVP_CANVAS_UL_items", "", obj.smvp_canvas, "frame_list", obj.smvp_canvas, "frame_list_index", rows=rows)
+
+        col = row.column(align=True)
+        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='ZOOM_IN', text="").action = 'ADD'
+        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='ZOOM_OUT', text="").action = 'REMOVE'
+        col.separator()
+        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='TRIA_UP', text="").action = 'UP'
+        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='TRIA_DOWN', text="").action = 'DOWN'
+
+        row = layout.row()
+        col = row.column(align=True)
+        row = col.row(align=True)
+        row.operator(SMVP_CANVAS_OT_printFrames.bl_idname, icon="LINENUMBERS_ON")
+        row = col.row(align=True)
+        row.operator(SMVP_CANVAS_OT_selectFrame.bl_idname, icon="VIEW3D", text="Select current frame")
+        row.operator(SMVP_CANVAS_OT_selectFrame.bl_idname, icon="GROUP", text="Jump to selected").jump_to_selected = True
+        row = col.row(align=True)
+        row.operator(SMVP_CANVAS_OT_clearFrames.bl_idname, icon="X")
+        row.operator(SMVP_CANVAS_OT_removeDuplicates.bl_idname, icon="GHOST_ENABLED")
 
 
 CLASSES =[
@@ -115,6 +169,10 @@ CLASSES =[
     VIEW3D_PT_stop_motion_vp,
     VIEW3D_PT_domectl,
     VIEW3D_PT_onionskin,
+    # Canvas UI
+    SMVP_CANVAS_UL_items,
+    SMVP_CANVAS_PT_frameList,
+
 ]
 
 def register():
