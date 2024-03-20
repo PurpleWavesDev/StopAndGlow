@@ -28,40 +28,41 @@ class SMVP_CANVAS_OT_actions(Operator):
 
     def invoke(self, context, event):
         scn = context.scene
-        idx = scn.custom_index
+        obj = context.object
+        idx = obj.smvp_canvas.frame_list_index
 
         try:
-            item = scn.custom[idx]
+            item = obj.smvp_canvas.frame_list[idx]
         except IndexError:
             pass
         else:
-            if self.action == 'DOWN' and idx < len(scn.custom) - 1:
-                item_next = scn.custom[idx+1].name
-                scn.custom.move(idx, idx+1)
-                scn.custom_index += 1
-                info = 'Item "%s" moved to position %d' % (item.name, scn.custom_index + 1)
+            if self.action == 'DOWN' and idx < len(obj.smvp_canvas.frame_list) - 1:
+                item_next = obj.smvp_canvas.frame_list[idx+1].name
+                obj.smvp_canvas.frame_list.move(idx, idx+1)
+                obj.smvp_canvas.frame_list_index += 1
+                info = 'Item "%s" moved to position %d' % (item.name, obj.smvp_canvas.frame_list_index + 1)
                 self.report({'INFO'}, info)
 
             elif self.action == 'UP' and idx >= 1:
-                item_prev = scn.custom[idx-1].name
-                scn.custom.move(idx, idx-1)
-                scn.custom_index -= 1
-                info = 'Item "%s" moved to position %d' % (item.name, scn.custom_index + 1)
+                item_prev = obj.smvp_canvas.frame_list[idx-1].name
+                obj.smvp_canvas.frame_list.move(idx, idx-1)
+                obj.smvp_canvas.frame_list_index -= 1
+                info = 'Item "%s" moved to position %d' % (item.name, obj.smvp_canvas.frame_list_index + 1)
                 self.report({'INFO'}, info)
 
             elif self.action == 'REMOVE':
-                info = 'Item "%s" removed from list' % (scn.custom[idx].name)
-                scn.custom_index -= 1
-                scn.custom.remove(idx)
+                info = 'Item "%s" removed from list' % (obj.smvp_canvas.frame_list[idx].name)
+                obj.smvp_canvas.frame_list_index -= 1
+                obj.smvp_canvas.frame_list.remove(idx)
                 self.report({'INFO'}, info)
 
         if self.action == 'ADD':
             if context.object:
-                item = scn.custom.add()
+                item = obj.smvp_canvas.frame_list.add()
                 item.name = context.object.name
                 item.obj_type = context.object.type
-                item.obj_id = len(scn.custom)
-                scn.custom_index = len(scn.custom)-1
+                item.obj_id = len(obj.smvp_canvas.frame_list)
+                obj.smvp_canvas.frame_list_index = len(obj.smvp_canvas.frame_list)-1
                 info = '"%s" added to list' % (item.name)
                 self.report({'INFO'}, info)
             else:
@@ -82,16 +83,16 @@ class SMVP_CANVAS_OT_printFrames(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.custom)
+        return bool(context.object.smvp_canvas.frame_list)
 
     def execute(self, context):
         scn = context.scene
         if self.reverse_order:
-            for i in range(scn.custom_index, -1, -1):        
-                item = scn.custom[i]
+            for i in range(obj.smvp_canvas.frame_list_index, -1, -1):        
+                item = obj.smvp_canvas.frame_list[i]
                 print ("Name:", item.name,"-",item.obj_type,item.obj_id)
         else:
-            for item in scn.custom:
+            for item in obj.smvp_canvas.frame_list:
                 print ("Name:", item.name,"-",item.obj_type,item.obj_id)
         return{'FINISHED'}
 
@@ -105,14 +106,14 @@ class SMVP_CANVAS_OT_clearFrames(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.custom)
+        return bool(context.object.smvp_canvas.frame_list)
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        if bool(context.scene.custom):
-            context.scene.custom.clear()
+        if bool(context.object.smvp_canvas.frame_list):
+            context.object.smvp_canvas.frame_list.clear()
             self.report({'INFO'}, "All items removed")
         else:
             self.report({'INFO'}, "Nothing to remove")
@@ -129,7 +130,7 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
     def find_duplicates(self, context):
         """find all duplicates by name"""
         name_lookup = {}
-        for c, i in enumerate(context.scene.custom):
+        for c, i in enumerate(context.object.smvp_canvas.frame_list):
             name_lookup.setdefault(i.name, []).append(c)
         duplicates = set()
         for name, indices in name_lookup.items():
@@ -139,17 +140,17 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.custom)
+        return bool(context.object.smvp_canvas.frame_list)
 
     def execute(self, context):
         scn = context.scene
         removed_items = []
         # Reverse the list before removing the items
         for i in self.find_duplicates(context)[::-1]:
-            scn.custom.remove(i)
+            obj.smvp_canvas.frame_list.remove(i)
             removed_items.append(i)
         if removed_items:
-            scn.custom_index = len(scn.custom)-1
+            obj.smvp_canvas.frame_list_index = len(obj.smvp_canvas.frame_list)-1
             info = ', '.join(map(str, removed_items))
             self.report({'INFO'}, "Removed indices: %s" % (info))
         else:
@@ -174,14 +175,15 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.custom)
+        return bool(context.object.smvp_canvas.frame_list)
 
     def execute(self, context):
         scn = context.scene
-        idx = scn.custom_index
+        obj = context.object
+        idx = obj.smvp_canvas.frame_list_index
 
         try:
-            item = scn.custom[idx]
+            item = obj.smvp_canvas.frame_list[idx]
         except IndexError:
             self.report({'INFO'}, "Nothing selected in the list")
             return{'CANCELLED'}
@@ -189,7 +191,7 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
         obj_error = False
         bpy.ops.object.select_all(action='DESELECT')
         if not self.select_all:
-            obj = scn.objects.get(scn.custom[idx].name, None)
+            obj = scn.objects.get(obj.smvp_canvas.frame_list[idx].name, None)
             if not obj: 
                 obj_error = True
             else:
@@ -197,7 +199,7 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
                 info = '"%s" selected in Viewport' % (obj.name)
         else:
             selected_items = []
-            unique_objs = set([i.name for i in scn.custom])
+            unique_objs = set([i.name for i in obj.smvp_canvas.frame_list])
             for i in unique_objs:
                 obj = scn.objects.get(i, None)
                 if obj:
