@@ -9,6 +9,7 @@ from . import properties as props
 #from . import client
 
 DEFAULT_RESOULTION = (1920, 1080)
+CANVAS_MAT_NAME = "SMVP_CanvasMat"
 
 # -------------------------------------------------------------------
 #   Operators
@@ -262,10 +263,20 @@ class OBJECT_OT_smvp_canvas_add(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        # Add primitive
         bpy.ops.mesh.primitive_plane_add(rotation=(math.pi/2, 0, 0), size=2)
         canvas = bpy.context.object
         canvas.scale[0] = 16/9
         canvas.smvp_canvas.is_canvas = True
+        
+        # Set material
+        mat = bpy.data.materials.get(CANVAS_MAT_NAME)
+        if mat is None:
+            # create material
+            mat = createCanvasMat()
+        # Create slot and assign
+        canvas.data.materials.append(mat)
+        
         return {"FINISHED"}
     
     def invoke(self, context, event):
@@ -290,6 +301,26 @@ def update_canvases_texture(scene):
 # -------------------------------------------------------------------
 #   Helpers
 # -------------------------------------------------------------------
+def createCanvasMat():
+    # Create empty material
+    mat = bpy.data.materials.new(name=CANVAS_MAT_NAME)
+    mat.use_nodes = True
+    mat.node_tree.nodes.remove(mat.node_tree.nodes['Principled BSDF'])
+
+    # Create mix shader node and link with output
+    mix = mat.node_tree.nodes.new('ShaderNodeMixShader')
+    matout = mat.node_tree.nodes.get('Material Output')
+    mat.node_tree.links.new(matout.inputs[0], mix.outputs[0])
+    
+    # Create transparency shader and link with mix shader
+    trans = mat.node_tree.nodes.new('ShaderNodeBsdfTransparent')
+    mat.node_tree.links.new(mix.inputs[1], trans.outputs[0])
+    # Create image texture and link with mix shader
+    img = mat.node_tree.nodes.new('ShaderNodeBsdfTransparent')
+    mat.node_tree.links.new(mix.inputs[2], img.outputs[0])
+    
+    return mat
+
 def createFrameEntry(obj, path, resolution, index=-1):
     item = obj.smvp_canvas.frame_list.add()
     item.seq_path = os.path.normpath(path)
