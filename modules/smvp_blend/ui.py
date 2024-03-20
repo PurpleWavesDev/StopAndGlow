@@ -5,13 +5,31 @@ from .client import *
 from .domectl import *
 from .canvas import *
 
+# -------------------------------------------------------------------
+# Dome Control
+# -------------------------------------------------------------------
+
+class VIEW3D_PT_domectl(Panel): 
+
+    # where to add the panel in the UI
+    bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
+    bl_region_type = "UI" #Window  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
+
+    bl_category = "Stop Motion"  # found in the Sidebar
+    bl_label = "Lightdome Controls"  # found at the top of the Panel
+
+    def draw(self, context):
+        """define the layout of the panel"""
+        row = self.layout.row()
+        row.operator(WM_OT_smvp_connect.bl_idname, text="Launch service")
+        row = self.layout.row()
+        row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on", icon = "OUTLINER_OB_LIGHT")
+        row = self.layout.row()
+        row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off", icon = "OUTLINER_DATA_LIGHT")
 
 # -------------------------------------------------------------------
 # Stop Motion VP Control
 # -------------------------------------------------------------------
-
-
-
 
 
 class VIEW3D_PT_stop_motion_vp(Panel): 
@@ -33,7 +51,6 @@ class VIEW3D_PT_stop_motion_vp(Panel):
         row.operator("mesh.primitive_ico_sphere_add", text="Capture Sequence", icon = "MONKEY")
       
 
-   
 
 class VIEW3D_PT_onionskin(Panel):
     bl_space_type = "VIEW_3D" 
@@ -70,7 +87,7 @@ class VIEW3D_PT_render_agorithms(Panel):
     bl_region_type = "UI"  
     bl_parent_id = "VIEW3D_PT_stop_motion_vp"
     bl_category = "Item" 
-    bl_label = "Render Algorithms"  #
+    bl_label = "Choose Render Algorithm"  
 
     def draw(self, context):
         """define the layout of the panel"""
@@ -81,28 +98,6 @@ class VIEW3D_PT_render_agorithms(Panel):
         row = self.layout.row()
         row.operator("object.shade_smooth", text="Algorithm 3")
 
-
-# -------------------------------------------------------------------
-# Dome Control
-# -------------------------------------------------------------------
-
-class VIEW3D_PT_domectl(Panel): 
-
-    # where to add the panel in the UI
-    bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
-    bl_region_type = "UI" #Window  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
-
-    bl_category = "Stop Motion"  # found in the Sidebar
-    bl_label = "Lightdome controls"  # found at the top of the Panel
-
-    def draw(self, context):
-        """define the layout of the panel"""
-        row = self.layout.row()
-        row.operator(WM_OT_smvp_connect.bl_idname, text="Launch service")
-        row = self.layout.row()
-        row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on", icon = "OUTLINER_OB_LIGHT")
-        row = self.layout.row()
-        row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off", icon = "OUTLINER_DATA_LIGHT")
 
 # -------------------------------------------------------------------
 # Canvas UI
@@ -165,13 +160,15 @@ class SMVP_CANVAS_PT_frameList(Panel):
 # -------------------------------------------------------------------
 
 CLASSES =[
+    # Dome Control
+    VIEW3D_PT_domectl,
     
     # Stop Motion VP
     VIEW3D_PT_stop_motion_vp,
     VIEW3D_PT_onionskin,
     VIEW3D_PT_render_agorithms,
-    # Dome Control
-    VIEW3D_PT_domectl,
+    CustomPanel,   
+
     # Canvas UI
     SMVP_CANVAS_UL_items,
     SMVP_CANVAS_PT_frameList,
@@ -182,9 +179,12 @@ def register():
     for cls in CLASSES:
         bpy.utils.register_class(cls)
     
+ 
+    
 
 def unregister():
     for cls in CLASSES:
         bpy.utils.unregister_class(cls)
-    
+
+   
     
