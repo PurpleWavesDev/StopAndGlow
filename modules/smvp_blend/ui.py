@@ -59,11 +59,33 @@ class VIEW3D_PT_stop_motion_vp(Panel):
     def draw(self, context):
         """define the layout of the panel"""
         row = self.layout.row()
-        row.operator("mesh.primitive_cube_add", text="Add Cube")
+        row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Create Canvas")
         row = self.layout.row()
-        row.operator("mesh.primitive_ico_sphere_add", text="Add Ico Sphere")
+        row.operator("mesh.primitive_cube_add", text="Toggle Live View")
         row = self.layout.row()
-        row.operator("object.shade_smooth", text="Shade Smooth")
+        row.operator("mesh.primitive_ico_sphere_add", text="Capture Frame")
+        row = self.layout.row()
+        row.operator("object.shade_smooth", text="Show Ghosting")
+
+   
+
+class VIEW3D_PT_onionskin(Panel):
+    bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
+    bl_region_type = "UI"  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
+
+    bl_category = "Stop Motion"  # found in the Sidebar
+    bl_label = "Show Ghosting"  # found at the top of the Panel
+    bl_parent_id = "VIEW3D_PT_stop_motion_vp"
+
+    def draw_header(self,context):
+        # Example property to display a checkbox, can be anything
+            self.layout.prop(context.scene.render, "use_border", text="")
+
+    def draw(self, context):        
+        self.layout.label(text="Framerange", icon='WORLD_DATA')
+        row = self.layout.row()
+        row.prop(context.scene, "frame_start", text = "previous Frames")
+        row.prop(context.scene, "frame_end", text = "following Frames") 
 
 
 
@@ -84,8 +106,6 @@ class VIEW3D_PT_domectl(Panel):
         row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on")
         row = self.layout.row()
         row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off")
-        row = self.layout.row()
-        row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Create canvas")
 
 
 
@@ -93,7 +113,8 @@ CLASSES =[
     
     VIEW3D_PT_render_agorithms,
     VIEW3D_PT_stop_motion_vp,
-    VIEW3D_PT_domectl
+    VIEW3D_PT_domectl,
+    VIEW3D_PT_onionskin,
 ]
 
 def register():
