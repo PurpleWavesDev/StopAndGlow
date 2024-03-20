@@ -1,19 +1,3 @@
-# Blender Add-on Template
-# Contributor(s): Aaron Powell (aaron@lunadigital.tv)
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTIBILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-
 import bpy
 from bpy.types import Panel
 
@@ -22,27 +6,10 @@ from .domectl import *
 from .canvas import *
 
 
-#
-# Add additional functions here
-#
+# -------------------------------------------------------------------
+# Stop Motion VP Control
+# -------------------------------------------------------------------
 
-class VIEW3D_PT_render_agorithms(Panel): 
-
-    # where to add the panel in the UI
-    bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
-    bl_region_type = "UI"  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
-
-    bl_category = "Item"  # found in the Sidebar
-    bl_label = "Render Algorithms"  # found at the top of the Panel
-
-    def draw(self, context):
-        """define the layout of the panel"""
-        row = self.layout.row()
-        row.operator("object.shade_flat", text="Algorithm 1")
-        row = self.layout.row()
-        row.operator("object.select_random", text="Algorithm 2")
-        row = self.layout.row()
-        row.operator("object.shade_smooth", text="Algorithm 3")
 
 
 
@@ -59,35 +26,65 @@ class VIEW3D_PT_stop_motion_vp(Panel):
     def draw(self, context):
         """define the layout of the panel"""
         row = self.layout.row()
-        row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Create Canvas")
+        row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Create Canvas", icon ="PLUS")
         row = self.layout.row()
-        row.operator("mesh.primitive_cube_add", text="Toggle Live View")
+        row.operator("mesh.primitive_cube_add", text="Live View", icon = "SCENE")
         row = self.layout.row()
-        row.operator("mesh.primitive_ico_sphere_add", text="Capture Frame")
-        row = self.layout.row()
-        row.operator("object.shade_smooth", text="Show Ghosting")
+        row.operator("mesh.primitive_ico_sphere_add", text="Capture Sequence", icon = "RENDER")
+      
 
    
 
 class VIEW3D_PT_onionskin(Panel):
-    bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
-    bl_region_type = "UI"  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
+    bl_space_type = "VIEW_3D" 
+    bl_region_type = "UI"  
 
-    bl_category = "Stop Motion"  # found in the Sidebar
-    bl_label = "Show Ghosting"  # found at the top of the Panel
-    bl_parent_id = "VIEW3D_PT_stop_motion_vp"
+    bl_category = "Stop Motion" 
+    bl_label = "Show Ghosting" 
+
+    bl_parent_id = "VIEW3D_PT_stop_motion_vp" # makes it into a subpanel
+    bl_options = {"DEFAULT_CLOSED"}
 
     def draw_header(self,context):
-        # Example property to display a checkbox, can be anything
-            self.layout.prop(context.scene.render, "use_border", text="")
-
+        # use layout property to display a checkbox, can be anything
+        self.layout.prop(context.scene.render, "use_border", text="", icon = "GHOST_ENABLED")
+ 
     def draw(self, context):        
-        self.layout.label(text="Framerange", icon='WORLD_DATA')
+        self.layout.label(text="Display Ghostframes", icon='NONE')
         row = self.layout.row()
-        row.prop(context.scene, "frame_start", text = "previous Frames")
-        row.prop(context.scene, "frame_end", text = "following Frames") 
+        row.prop(context.scene, "frame_start", text = "pre")
+        row.prop(context.scene, "frame_end", text = "post") 
+        row = self.layout.row()
+        row.prop(context.scene, "frame_start", text= "Opacity")
+
+# TODO find a way to disable subpanel when unchecked 
+# https://blender.stackexchange.com/questions/212075/how-to-enable-or-disable-panels-with-the-click-of-a-button
 
 
+
+
+
+class VIEW3D_PT_render_agorithms(Panel): 
+
+    bl_space_type = "VIEW_3D"  
+    bl_region_type = "UI"  
+    bl_parent_id = "VIEW3D_PT_stop_motion_vp"
+    bl_category = "Item" 
+    bl_label = "Render Algorithms"  #
+
+    def draw(self, context):
+        """define the layout of the panel"""
+        row = self.layout.row()
+        row.operator("object.shade_flat", text="Algorithm 1")
+        row = self.layout.row()
+        row.operator("object.select_random", text="Algorithm 2")
+        row = self.layout.row()
+        row.operator("object.shade_smooth", text="Algorithm 3")
+
+
+# -------------------------------------------------------------------
+# Dome Control
+# -------------------------------------------------------------------
 
 class VIEW3D_PT_domectl(Panel): 
 
@@ -103,9 +100,9 @@ class VIEW3D_PT_domectl(Panel):
         row = self.layout.row()
         row.operator(WM_OT_smvp_connect.bl_idname, text="Launch service")
         row = self.layout.row()
-        row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on")
+        row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on", icon = "OUTLINER_OB_LIGHT")
         row = self.layout.row()
-        row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off")
+        row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off", icon = "OUTLINER_DATA_LIGHT")
 
 # -------------------------------------------------------------------
 # Canvas UI
@@ -163,12 +160,18 @@ class SMVP_CANVAS_PT_frameList(Panel):
         row.operator(SMVP_CANVAS_OT_removeDuplicates.bl_idname, icon="GHOST_ENABLED")
 
 
+# -------------------------------------------------------------------
+# un/register
+# -------------------------------------------------------------------
+
 CLASSES =[
     
-    VIEW3D_PT_render_agorithms,
+    # Stop Motion VP
     VIEW3D_PT_stop_motion_vp,
-    VIEW3D_PT_domectl,
     VIEW3D_PT_onionskin,
+    VIEW3D_PT_render_agorithms,
+    # Dome Control
+    VIEW3D_PT_domectl,
     # Canvas UI
     SMVP_CANVAS_UL_items,
     SMVP_CANVAS_PT_frameList,
