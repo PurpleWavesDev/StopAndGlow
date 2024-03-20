@@ -1,4 +1,5 @@
 import math
+import os
 
 import bpy
 from bpy.props import *
@@ -7,14 +8,51 @@ from bpy.types import Operator, Panel, PropertyGroup, UIList
 from . import properties as props
 #from . import client
 
+DEFAULT_RESOULTION = (1920, 1080)
+
 # -------------------------------------------------------------------
 #   Operators
 # -------------------------------------------------------------------
 
 ## Frame UIList Operators
+class SMVP_CANVAS_OT_addFrame(Operator):
+    """Add new frame from sequence folder"""
+    bl_idname = "smvp_canvas.frame_add"
+    bl_label = "Load Sequence"
+    bl_description = "Add new frame from sequence folder"
+    bl_options = {'REGISTER'}
+    
+    directory: StringProperty(
+        name="Sequence Path",
+        description="Path to load the Sequence Data from"
+        )
+
+    def invoke(self, context, event):
+        # Add new sequence as frame entry
+        # Open browser, will write selected path into our directory property
+        context.window_manager.fileselect_add(self)
+        # Tells Blender to hang on for the slow user input
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        obj = context.object
+        idx = obj.smvp_canvas.frame_list_index
+        
+        # Check if directory is a valid folder
+        if os.path.isdir(self.directory):
+            # TODO: Index and resolution!
+            createFrameEntry(obj, self.directory, (1920, 1080), -1)
+            return {"FINISHED"}
+            
+        else:
+            self.report({'WARNING'}, "Not a valid folder")
+            return {"CANCELLED"}
+
+
+      
 class SMVP_CANVAS_OT_actions(Operator):
     """Move items up and down, add and remove"""
-    bl_idname = "smvp_canvas.frames_action"
+    bl_idname = "smvp_canvas.frame_action"
     bl_label = "Frame List Actions"
     bl_description = "Move frame items up and down, add and remove"
     bl_options = {'REGISTER'}
@@ -23,14 +61,12 @@ class SMVP_CANVAS_OT_actions(Operator):
         items=(
             ('UP', "Up", ""),
             ('DOWN', "Down", ""),
-            ('REMOVE', "Remove", ""),
-            ('ADD', "Add", "")))
+            ('REMOVE', "Remove", "")))
 
     def invoke(self, context, event):
-        scn = context.scene
         obj = context.object
         idx = obj.smvp_canvas.frame_list_index
-
+        
         try:
             item = obj.smvp_canvas.frame_list[idx]
         except IndexError:
@@ -56,18 +92,13 @@ class SMVP_CANVAS_OT_actions(Operator):
                 obj.smvp_canvas.frame_list.remove(idx)
                 self.report({'INFO'}, info)
 
-        if self.action == 'ADD':
-            if context.object:
-                item = obj.smvp_canvas.frame_list.add()
-                item.name = context.object.name
-                item.obj_type = context.object.type
-                item.obj_id = len(obj.smvp_canvas.frame_list)
-                obj.smvp_canvas.frame_list_index = len(obj.smvp_canvas.frame_list)-1
-                info = '"%s" added to list' % (item.name)
-                self.report({'INFO'}, info)
-            else:
-                self.report({'INFO'}, "Nothing selected in the Viewport")
         return {"FINISHED"}
+
+    #def execute(self, context):
+    #    obj = context.object
+    #    idx = obj.smvp_canvas.frame_list_index
+    #                
+    #    return {"FINISHED"}
 
 
 class SMVP_CANVAS_OT_printFrames(Operator):
@@ -86,7 +117,7 @@ class SMVP_CANVAS_OT_printFrames(Operator):
         return bool(context.object.smvp_canvas.frame_list)
 
     def execute(self, context):
-        scn = context.scene
+        obj = context.object
         if self.reverse_order:
             for i in range(obj.smvp_canvas.frame_list_index, -1, -1):        
                 item = obj.smvp_canvas.frame_list[i]
@@ -143,7 +174,7 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
         return bool(context.object.smvp_canvas.frame_list)
 
     def execute(self, context):
-        scn = context.scene
+        obj = context.object
         removed_items = []
         # Reverse the list before removing the items
         for i in self.find_duplicates(context)[::-1]:
@@ -245,37 +276,67 @@ class OBJECT_OT_smvp_canvas_add(bpy.types.Operator):
 # -------------------------------------------------------------------
 #   Event handlers
 # -------------------------------------------------------------------
-def update_canvas_frame(scene):
+def update_canvases_texture(scene):
     #bpy.data.materials["Video"].node_tree.nodes["texture"].inputs[1].default_value = frame_numscene.frame_current
     for obj in bpy.data.objects:
         if obj.smvp_canvas.is_canvas:
-            # Canvas found! Iterate over available frames
-            for key, val in obj.smvp_canvas.frames.items():
-                obj_key = "frame_"+str(key)
-                key_num = -1
-                # Create new property if it doesn't exist and set key
-                if not obj_key in obj.keys():
-                    obj[obj_key] = True
-                    obj.keyframe_insert(data_path=obj_key, frame=key)
-                    obj.smvp_canvas.keyframes[key] = key
-                # Otherwise find keys
-                else:
-                    for fc in obj.animation_data.action.fcurves:
-                        if fc.data_path == obj_key:
-                            for key_val in fc.keyframe_points:
-                                #print('frame:',key_val.co[0],'value:',key_val.co[1])
-                                obj.smvp_canvas.keyframes[key_val.co[0]] = key
-            # Sort keyframes
-            obj.smvp_canvas.keyframes = dict(sorted(obj.smvp_canvas.keyframes.items()))
-    
-    # Update offsets
-    update_canvas_frame_offset(scene)
+            pass
+            # Canvas found! Find current frame
+            
+            # Apply texture
 
-def update_canvas_frame_offset(scene):
-    for obj in bpy.data.objects:
-        if obj.smvp_canvas.is_canvas:
-            # Assign current frame offset
-            obj.smvp_canvas.offset = scene.frame_current
+
+
+# -------------------------------------------------------------------
+#   Helpers
+# -------------------------------------------------------------------
+def createFrameEntry(obj, path, resolution, index=-1):
+    item = obj.smvp_canvas.frame_list.add()
+    item.seq_path = os.path.normpath(path)
+    item.name = os.path.basename(item.seq_path)
+    
+    # Create textures
+    tex_name = "smvp_"+item.name
+    texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1])
+    preview = bpy.data.images.new(tex_name+'_prev', width=resolution[0], height=resolution[1])
+    # Add to frame list entry
+    item.rendered_texture = texture.name
+    item.preview_texture = preview.name
+    
+    if index != -1:
+        # Move frame to index TODO
+        pass
+
+def getTexture(canvas_obj, frame):
+    canvas = canvas_obj.smvp_canvas
+    canvas_frame = canvas.frame_list[frame % len(canvas.frame_list)]
+    image_name = ""
+    
+    if canvas.display_preview:
+        if not canvas_frame.preview_updated:
+            # Request preview texture
+            
+            # Frame texture was updated
+            canvas_frame.preview_updated = True
+        
+        image_name = canvas_frame.preview_texture
+    
+    else:
+        # Rendered frame
+        if not canvas_frame.updated:
+            # Request rendered texture
+            
+            # Frame texture was updated
+            canvas_frame.updated = True
+            
+        image_name = canvas_frame.rendered_texture
+    
+    if image_name in bpy.data.images:
+        return bpy.data.images[image_name]
+    elif 'smvp_empty' in bpy.data.images:
+        return bpy.data.images['smvp_empty']
+    else:
+        return bpy.data.images.new('smvp_empty', width=DEFAULT_RESOULTION[0], height=DEFAULT_RESOULTION[1])
 
 
 # -------------------------------------------------------------------
@@ -284,6 +345,7 @@ def update_canvas_frame_offset(scene):
 
 classes = (
     # Frame operators
+    SMVP_CANVAS_OT_addFrame,
     SMVP_CANVAS_OT_actions,
     SMVP_CANVAS_OT_printFrames,
     SMVP_CANVAS_OT_clearFrames,
@@ -299,7 +361,7 @@ def register():
         register_class(cls)
     
     # Event handlers
-    #bpy.app.handlers.frame_change_pre.append(update_canvas_frame)
+    bpy.app.handlers.frame_change_pre.append(update_canvases_texture)
 
 
 def unregister():

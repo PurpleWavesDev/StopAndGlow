@@ -142,7 +142,7 @@ class SMVP_CANVAS_PT_frameList(Panel):
         row.template_list("SMVP_CANVAS_UL_items", "", obj.smvp_canvas, "frame_list", obj.smvp_canvas, "frame_list_index", rows=rows)
 
         col = row.column(align=True)
-        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='ZOOM_IN', text="").action = 'ADD'
+        col.operator(SMVP_CANVAS_OT_addFrame.bl_idname, icon='ZOOM_IN', text="")
         col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='ZOOM_OUT', text="").action = 'REMOVE'
         col.separator()
         col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='TRIA_UP', text="").action = 'UP'
