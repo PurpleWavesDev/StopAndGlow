@@ -13,7 +13,7 @@ def receive(socket: zmq.Socket, flags=0) -> Any:
     return pickle.loads(socket.recv(flags))
 
 
-def send_array(socket, A, id=0, flags=0, copy=True, track=False):
+def send_array(socket, id, A, flags=0, copy=True, track=False):
     """send a numpy array with metadata, throws exception on failure"""
     md = dict(
         dtype=str(A.dtype),

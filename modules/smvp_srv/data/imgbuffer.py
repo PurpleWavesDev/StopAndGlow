@@ -95,6 +95,11 @@ class ImgBuffer:
         if self._img is None:
             self.load()
         return self._img
+    
+    def getWithAlpha(self, alpha=None):
+        if alpha is None:
+            return np.dstack((self.get(), np.ones(self._img.shape[0:2], dtype=self._img.dtype)))
+        return np.dstack((self.get(), alpha))
 
     def set(self, img: ArrayLike, domain: ImgDomain = ImgDomain.Keep, overwrite_file=False):
         self._img=img

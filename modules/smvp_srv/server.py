@@ -3,20 +3,18 @@ import zmq
 
 from smvp_ipc import *
 
-from .hw import *
-from .data import *
-from .process import *
+from .processing_queue import *
+from .commands import *
 
 
-
-def run():
+def run(port=9271):
+    # Receiver socket
     context = zmq.Context()
     socket = context.socket(zmq.REP)
-    socket.bind("tcp://*:9271")
+    socket.bind(f"tcp://*:{port}")
     
-    hw = None
-    dome = None
     initalized = False
+    queue = ProcessingQueue()
 
     while True:
         #  Wait for next request from client
@@ -32,8 +30,8 @@ def run():
         match message.command:
             case Command.Init:
                 if not initalized:
-                    hw = HW(Cam(), Lights(), Calibration('../HdM_BA/data/calibration/lightdome.json')) # Calibration(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)
-                    dome = LightCtl(hw)
+                    # Launch queue worker, this will initialize the hardware
+                    queue.launch()
                     initalized = True
                 send(socket, Message(Command.CommandOkay))
 
@@ -45,14 +43,14 @@ def run():
             
             ## LightCtl commands
             case Command.LightCtlRand:
-                message.data
-                dome.setNth(6, 50)
+                #message.data # TODO
+                queue.putCommand(Commands.Lights, 'on')
                 send(socket, Message(Command.CommandOkay))
             case Command.LightCtlTop:
-                dome.setTop(60, 50)
+                queue.putCommand(Commands.Lights, 'top')
                 send(socket, Message(Command.CommandOkay))
             case Command.LightCtlOff:
-                hw.lights.off()
+                queue.putCommand(Commands.Lights, 'off')
                 send(socket, Message(Command.CommandOkay))
             
             ## Live Viewer
@@ -60,6 +58,17 @@ def run():
                 
             #case Command.ViewerClose:
 
+            ## Preview
+            case Command.Preview:
+                send(socket, Message(Command.CommandProcessing))
+            
+            case Command.PreviewLive:
+                # TODO: Localhost should be address of received message
+                queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'live'})
+                send(socket, Message(Command.CommandProcessing))
+                
+            case Command.PreviewHdri:
+                send(socket, Message(Command.CommandProcessing))
             
             case _:
                 send(socket, Message(Command.CommandError, {"message": "Unknown command"}))
@@ -78,9 +87,6 @@ def run():
             #
             ## Several viewer modes?
             #
-            ## Preview
-            #case Command.PreviewLive:
-            #case Command.PreviewHdri:
             #
             ## Full resoultion footage
             #case Command.CaptureHdri:

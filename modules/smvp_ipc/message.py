@@ -14,7 +14,6 @@ class Command(Enum):
     CommandProcessing = 12
     CommandProgress = 13
     CommandComplete = 14
-    CommandFrameAnswer = 15
     CommandError = 16
     
     # Config commands
@@ -40,8 +39,9 @@ class Command(Enum):
     # Several viewer modes?
     
     #
-    PreviewLive = 61
-    PreviewHdri = 62
+    Preview = 61
+    PreviewLive = 62
+    PreviewHdri = 63
     
     # Full resoultion footage
     CaptureHdri = 71

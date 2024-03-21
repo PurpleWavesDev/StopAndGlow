@@ -6,9 +6,6 @@ from bpy.props import *
 
 class SMVP_CANVAS_FrameCollection(PropertyGroup):
     #name: StringProperty() -> Instantiated by default
-    obj_type: StringProperty()
-    obj_id: IntProperty()
-    
     seq_path: StringProperty()
     rendered_texture: StringProperty()
     preview_texture: StringProperty()

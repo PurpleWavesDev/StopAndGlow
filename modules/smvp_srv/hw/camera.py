@@ -186,7 +186,7 @@ class Cam:
         else:
             self._files[id] = [file.folder, file.name]
 
-    def capturePreview(self):
+    def capturePreview(self) -> ImgBuffer:
         """Captures preview image in a quick way but low resolution"""
         capture = self.getCam().capture_preview()
         filedata = capture.get_data_and_size()

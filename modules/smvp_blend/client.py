@@ -5,6 +5,7 @@ import time
 import os
 import subprocess
 from threading import Thread
+import numpy as np
 
 from smvp_ipc import *
 
@@ -15,7 +16,8 @@ server = None
 server_address = ""
 receiver = None
 
-callbacks = []
+image_requests = {}
+request_count = 0
 
 SERVER_CWD = os.path.abspath("../../")
 SERVER_COMMAND = [".venv/bin/python", "server.py"]
@@ -93,12 +95,24 @@ def sendMessage(message, reconnect=True, force=False) -> Message|None:
             return answer
         except Exception as err:
             print(f"SMVP Communication error: {str(err)}")
+            smvpDisconnect()
     return None
 
+
+def serviceAddReq(image) -> int:
+    global image_requests
+    global request_count
+    
+    id = request_count
+    request_count += 1
+    image_requests[id] = image
+    
+    return id
 
 def serviceRun(port):
     global connected
     global context
+    global image_requests
 
     # Setup socket
     recv_addr = f"tcp://*:{port}"
@@ -113,9 +127,15 @@ def serviceRun(port):
         if poller.poll(500):
             # Data received
             try:
-                id, data = receive_array(recv_sock)
-            except:
-                print("SMVP receiver error: Can't read received data")
+                id, img_data = receive_array(recv_sock)
+                
+                if id in image_requests:
+                    image_requests[id].pixels.foreach_set(np.flipud(img_data).flatten())
+                    # TODO: Remove ref
+                else:
+                    print(f"Error: ID {id} not in requested images")
+            except Exception as e:
+                print(f"SMVP receiver error: Can't read received data ({str(e)})")
     
 
 class WM_OT_smvp_connect(bpy.types.Operator):

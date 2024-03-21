@@ -1,12 +1,13 @@
 import math
 import os
-
 import bpy
 from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
 
+from smvp_ipc import *
+
 from . import properties as props
-#from . import client
+from . import client
 
 DEFAULT_RESOULTION = (1920, 1080)
 
@@ -106,6 +107,22 @@ class SMVP_CANVAS_OT_actions(Operator):
 class SMVP_CANVAS_OT_printFrames(Operator):
     """Print all frames and their properties to the console, for debugging purposes"""
     bl_idname = "smvp_canvas.frames_print"
+    bl_label = "Print Frames to Console"
+    bl_description = "Print all frames and their properties to the console"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        obj = context.object
+        tex = obj.smvp_canvas.frame_list[0].preview_texture
+        
+        id = client.serviceAddReq(bpy.data.images[tex])
+        message = Message(Command.PreviewLive, {'id': id})
+        client.sendMessage(message)
+        return{'FINISHED'}
+    
+class SMVP_CANVAS_OT_printFrames_cpy(Operator):
+    """Print all frames and their properties to the console, for debugging purposes"""
+    bl_idname = "smvp_canvas.frames_print_cpy"
     bl_label = "Print Frames to Console"
     bl_description = "Print all frames and their properties to the console"
     bl_options = {'REGISTER', 'UNDO'}
@@ -355,8 +372,8 @@ def createFrameEntry(obj, path, resolution, index=-1):
     
     # Create textures
     tex_name = "smvp_"+item.name
-    texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1])
-    preview = bpy.data.images.new(tex_name+'_prev', width=resolution[0], height=resolution[1])
+    texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1], float_buffer=True)
+    preview = bpy.data.images.new(tex_name+'_prev', width=resolution[0], height=resolution[1], float_buffer=True)
     # Add to frame list entry
     item.rendered_texture = texture.name
     item.preview_texture = preview.name
