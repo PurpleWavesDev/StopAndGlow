@@ -27,20 +27,27 @@ class SMVP_CANVAS_Props(PropertyGroup):
     preview_exposure: FloatProperty()
 
 
+def get_algorithms(self, context):
+
+    items = []
+
+    for i in range(7):
+    
+        name = "0"+str(i+1)
+
+        items.append(("id"+str(i+1), "Algorithm."+ name, "")),
+    
+    return items
+
 class SMVP_Algorithms_Props(PropertyGroup):
     
-    my_string : bpy.props.StringProperty(name= "Enter Text")
-    
-    my_float_vector : bpy.props.FloatVectorProperty(name= "Scale", soft_min= 0, soft_max= 1000, default= (1,1,1))
-    
-    my_enum : bpy.props.EnumProperty(
-        name= "Enumerator / Dropdown",
-        description= "sample text",
-        items= [('OP1', "Add Cube", ""),
-                ('OP2', "Add Sphere", ""),
-                ('OP3', "Add Suzanne", "")
-        ]
+    algs_dropdown_items : bpy.props.EnumProperty(
+        name= "Algorithms",
+        description= "description",
+        items= get_algorithms
     )
+   
+    
  
 
 classes = (

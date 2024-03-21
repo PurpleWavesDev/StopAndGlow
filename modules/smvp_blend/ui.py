@@ -78,11 +78,9 @@ class VIEW3D_PT_onionskin(Panel):
 # https://blender.stackexchange.com/questions/212075/how-to-enable-or-disable-panels-with-the-click-of-a-button
 
 
-
-# algorithm dropdown panel test
  
 class VIEW3D_PT_algorithm(bpy.types.Panel):
-    bl_label = "Main Panel"
+    bl_label = "Choose Algorithm"
     bl_idname = "VIEW3D_PT_select_algorithm"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -92,76 +90,33 @@ class VIEW3D_PT_algorithm(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        mytool = scene.smvp_algorithms
+        algs = scene.smvp_algorithms
         
-        layout.prop(mytool, "my_string")
-        layout.prop(mytool, "my_float_vector")
-        layout.prop(mytool, "my_enum")
- 
-        layout.operator("addonname.myop_operator")
+        layout.prop(algs, "algs_dropdown_items")
+        
+        layout.operator("wm.render_algorithms")
   
  
 class VIEW3D_OT_render_algorithms(bpy.types.Operator):
-    bl_label = "Choose Algorithm"
+    '''Render with chosen algorithm'''
+    bl_label = "Render Canvas"
     bl_idname = "wm.render_algorithms"
     
     
     def execute(self, context):
         scene = context.scene
-        mytool = scene.smvp_algorithms
+        algs = scene.smvp_algorithms
         
-        if mytool.my_enum == 'OP1':
+        if algs.algs_dropdown_items == 'id1':
             bpy.ops.mesh.primitive_cube_add()
-            bpy.context.object.name = mytool.my_string
-            bpy.context.object.scale[0] = mytool.my_float_vector[0]
-            bpy.context.object.scale[1] = mytool.my_float_vector[1]
-            bpy.context.object.scale[2] = mytool.my_float_vector[2]
- 
- 
-            
-            
-        if mytool.my_enum == 'OP2':
-            bpy.ops.mesh.primitive_uv_sphere_add()
-            bpy.context.object.name = mytool.my_string
-            bpy.context.object.scale[0] = mytool.my_float_vector[0]
-            bpy.context.object.scale[1] = mytool.my_float_vector[1]
-            bpy.context.object.scale[2] = mytool.my_float_vector[2]
-            
-        
-        
-        
-        if mytool.my_enum == 'OP3':
+            bpy.context.space_data.shading.type = "WIREFRAME"
+
+        if algs.algs_dropdown_items == 'id2':
             bpy.ops.mesh.primitive_monkey_add()
-            bpy.context.object.name = mytool.my_string
-            bpy.context.object.scale[0] = mytool.my_float_vector[0]
-            bpy.context.object.scale[1] = mytool.my_float_vector[1]
-            bpy.context.object.scale[2] = mytool.my_float_vector[2]
-            
-        
-        
+            bpy.context.space_data.shading.type = "SOLID"
+
         return {'FINISHED'}
     
-# end test dropdown panel
-
-'''
-class VIEW3D_PT_render_agorithms(Panel): 
-
-    bl_space_type = "VIEW_3D"  
-    bl_region_type = "UI"  
-    bl_parent_id = "VIEW3D_PT_stop_motion_vp"
-    bl_category = "Item" 
-    bl_label = "Choose Render Algorithm"  
-
-    def draw(self, context):
-        """define the layout of the panel"""
-        row = self.layout.row()
-        row.operator("object.shade_flat", text="Algorithm 1")
-        row = self.layout.row()
-        row.operator("object.select_random", text="Algorithm 2")
-        row = self.layout.row()
-        row.operator("object.shade_smooth", text="Algorithm 3")
-
-'''
 
 # -------------------------------------------------------------------
 # Canvas UI
