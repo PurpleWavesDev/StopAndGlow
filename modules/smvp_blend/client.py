@@ -55,7 +55,7 @@ def smvpConnect(address, port, launch=False) -> bool:
             connected = sendMessage(message, reconnect=False, force=True) is not None
             
             if connected:
-                # Launch service
+                # Launch service, receiving port is server port +1
                 receiver = Thread(target=serviceRun, args=(port+1, ))
                 receiver.start()
             

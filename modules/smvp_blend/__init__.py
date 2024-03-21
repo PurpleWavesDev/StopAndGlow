@@ -1,5 +1,5 @@
-# Blender Add-on Template
-# Contributor(s): Aaron Powell (aaron@lunadigital.tv)
+# Blender Stop Motion Virtual Production Extension
+# Contributor(s): Kira Vogt, Iris Sipka
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@ bl_info = {
         "blender": (4, 0, 0),
         "location": "3D View > Sidebar > Stop Motion VP Panel",
         "warning": "", # used for warning icon and text in add-ons panel
-        "wiki_url": "https://blender.org",
-        "tracker_url": "http://my.bugtracker.url",
+        "wiki_url": "",
+        "tracker_url": "",
         "support": "COMMUNITY",
         "category": "Render"
         }
@@ -31,15 +31,14 @@ bl_info = {
 import bpy
 import sys
 import os.path as path
+
+# Add parent path as module path
 parent_module_path = path.abspath("..")
 if not parent_module_path in sys.path:
     sys.path.append(parent_module_path)
 
 from . import properties, client, domectl, canvas, ui
 
-#
-# Add additional functions here
-#
 
 def register():
     properties.register()
@@ -55,7 +54,7 @@ def unregister():
     canvas.unregister()
     ui.unregister()
 
+
 if __name__ == '__main__':
-    # Register everything
     register()
     
