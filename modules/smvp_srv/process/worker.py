@@ -3,8 +3,7 @@ from typing import Any
 import logging as log
 import time
 
-from .camera import Cam
-from .lights import Lights
+from ..hw import Cam, Lights
 
 SILHOUETTE_LIMITER = 127
 

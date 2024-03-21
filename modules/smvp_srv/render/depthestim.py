@@ -4,8 +4,8 @@ import cv2 as cv
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import Compose
-from depth_anything.dpt import DepthAnything
-from depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
+from .depth_anything.dpt import DepthAnything
+from .depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
 
 #
 # 'depth_anything_model', 'vitl', ['vits', 'vitb', 'vitl']

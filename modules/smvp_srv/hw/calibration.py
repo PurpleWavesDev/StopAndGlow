@@ -3,7 +3,7 @@ import json
 import math
 from numpy.typing import ArrayLike
 
-class Config:
+class Calibration:
     def __init__(self, path=None):
         self._id_min=-1
         self._id_max=-1
@@ -16,7 +16,7 @@ class Config:
             self._data = {
                 'version': '0.2.0',
                 'lights': [],
-                'fitter': {}
+                'fitter': {},
             }
 
     def addLight(self, id, uv, latlong):
@@ -41,16 +41,17 @@ class Config:
             json.dump(self._data, file, indent=4)
         self._changed = False
 
-    def getLights(self):
-        return self._data['lights']
-    
     def setInverse(self, key, inverse: ArrayLike):
         self._data['fitter']['inverse'] = inverse
         self._changed = True
-        
+    
     def getInverse(self) -> ArrayLike | None:
         self._data['fitter']['inverse'] if 'inverse' in self._data['fitter'] else None
 
+
+    def getLights(self):
+        return self._data['lights']
+    
     def getByIndex(self, index):
         return self._data['lights'][index]
 
@@ -79,15 +80,6 @@ class Config:
     
     def __iter__(self):
         return iter(self._data['lights'])
-
-    # Statics
-    def NormalizeLatlong(latlong) -> [float, float]:
-        """Returns Lat-Long coordinates in the range of 0 to 1"""
-        return ((latlong[0]+90) / 180, (latlong[1]) / 360)
-    
-    def LatlongRadians(latlong) -> [float, float]:
-        """Returns Lat-Long coordinates as radians in the range of -Pi/2 to Pi/2 Latitude and -Pi to Pi Longitude"""
-        return (math.radians(latlong[0]), math.radians(latlong[1]))
     
     # Helper
     def _findMinMax(self, id, latlong):
@@ -109,14 +101,14 @@ class Config:
             for light in self:
                 id = light['id']
                 if stitch_conf[id] is not None:
-                    # This light exists in other config as well
+                    # This light exists in other calibration as well
                     long_diff += stitch_conf[id]['latlong'][1] - light['latlong'][1]
                     break
 
             ids = self.getIds()
             for light in stitch_conf:
                 if not light['id'] in ids:
-                    # This light does not exist, add to config
+                    # This light does not exist, add to calibration
                     light['latlong'][1] = (light['latlong'][1]-long_diff+360) % 360
                     id = light['id']
                     if not id in add_dict:

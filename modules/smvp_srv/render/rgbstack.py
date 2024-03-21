@@ -9,12 +9,10 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
-from ..imgdata import *
-from ..sequence import *
-from ..config import *
-
 from .renderer import *
-from .. import ti_base as tib
+
+from ..data import *
+from ..utils import ti_base as tib
 
 
 class RgbStacker(Renderer):
@@ -40,7 +38,7 @@ class RgbStacker(Renderer):
         #seq.setMeta('key', val)
         return seq
     
-    def process(self, img_seq: Sequence, config: Config, settings={'domain': ImgDomain.Keep}):
+    def process(self, img_seq: Sequence, calibration: Calibration, settings={'domain': ImgDomain.Keep}):
         # Get channels and stack them
         self._domain = settings['domain'] if 'domain' in settings else ImgDomain.Keep
         r = img_seq[0].asDomain(self._domain).r()
@@ -48,7 +46,7 @@ class RgbStacker(Renderer):
         b = img_seq[2].asDomain(self._domain).b()
         
         # Stacking
-        self._stacked = ImgOp.StackChannels([r, g, b])
+        self._stacked = imgutils.StackChannels([r, g, b])
         self._rescaled = None
     
     # Render settings

@@ -1,25 +1,21 @@
 import logging as log
 
-# HW
-from .camera import *
-from .lights import Lights
-from .config import Config
-# Timer and worker
-from .timer import Timer, Worker
-from . import worker as worker
-# Other stuff
-from .imgdata import *
-from .sequence import Sequence
-from .lightdome import Lightdome
+# HW & data
+from ..hw import *
+from ..data import *
+# Processes
+from . import worker
+from .timer import Timer
+from .lightctl import LightCtl
 from .calibrate import Calibrate
-from .renderer.exposureblend import ExpoBlender
+from ..render.exposureblend import ExpoBlender
 
 class Capture:
     def __init__(self, hw, flags):
         self._hw = hw
         self._cam = hw.cam
         self._flags = flags
-        self._dome = Lightdome(hw)
+        self._lgtctl = LightCtl(hw)
         self._id_list = []
 
         # Init lights
@@ -27,23 +23,23 @@ class Capture:
 
         # Generate mask frame
         nth = 4
-        if hw.config is not None:
-            self._mask_frame = [light['id'] for i, light in enumerate(hw.config) if light['latlong'][0] > 45]
+        if hw.cal is not None:
+            self._mask_frame = [light['id'] for i, light in enumerate(hw.cal) if light['latlong'][0] > 45]
         else:
             self._mask_frame = list(range(0, flags.capture_max_addr, step=nth))
 
-    def captureSequence(self, config: Config = None, hdri: ImgBuffer = None):
+    def captureSequence(self, calibration: Calibration = None, hdri: ImgBuffer = None):
         # Get frames for all capture modes
         if self._flags.seq_type == 'lights':
-            lights = config.getIds()
+            lights = calibration.getIds()
             self._id_list = lights
         elif self._flags.seq_type == 'fullrun':
             lights = list(range(self._flags.capture_max_addr))
             self._id_list = lights
         elif self._flags.seq_type == 'hdri':
-            self._dome.processHdri(hdri)
-            self._dome.sampleHdri(0)
-            lights = self._dome.getLights() # Would like to get sth like [{1: 10, 5:100}, {1: 50, 5:80}, {1: 100, 5:30}]
+            self._lgtctl.processHdri(hdri)
+            self._lgtctl.sampleHdri(0)
+            lights = self._lgtctl.getLights() # Would like to get sth like [{1: 10, 5:100}, {1: 50, 5:80}, {1: 100, 5:30}]
             self._id_list = range(3)
 
         if not self._cam.isVideoMode():
@@ -66,7 +62,7 @@ class Capture:
         t.join()
         
         # Default light
-        self._dome.setTop(brightness=50)
+        self._lgtctl.setTop(brightness=50)
 
 
     def captureVideo(self, lights, trigger_start=True):
@@ -95,7 +91,7 @@ class Capture:
                 self._cam.setExposure(f"1/{self._hdr_exposures[i+1]}")
             time.sleep(0.5)
 
-        self._dome.setTop(brightness=50)
+        self._lgtctl.setTop(brightness=50)
         self._cam.triggerVideoEnd()
 
 
@@ -124,7 +120,7 @@ class Capture:
                     # Get exposure times and merge
                     exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]
                     blender = ExpoBlender()
-                    blender.process(sequences, self._hw.config, {'exposure': exposure_times})
+                    blender.process(sequences, self._hw.cal, {'exposure': exposure_times})
                     sequence = blender.get()
 
                 # TODO!

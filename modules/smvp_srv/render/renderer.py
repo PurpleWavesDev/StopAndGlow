@@ -1,8 +1,8 @@
 from enum import Enum
 import numpy as np
 
-from ..sequence import Sequence
-from ..config import Config
+from ..data import Sequence
+from ..hw import Calibration
 
 class RenderSettings:
     def __init__(self, is_linear=False, as_int=False, with_exposure=False, needs_hdri=False, needs_coords=False, req_keypress_events=False, req_inputs=False):
@@ -21,7 +21,7 @@ class Renderer:
         pass
     def get(self) -> Sequence:
         return Sequence()
-    def process(self, img_seq: Sequence, config: Config, settings=dict()):
+    def process(self, img_seq: Sequence, calibration: Calibration, settings=dict()):
         pass
     def setSequence(self, img_seq: Sequence):
         pass

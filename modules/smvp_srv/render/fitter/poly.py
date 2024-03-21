@@ -1,10 +1,10 @@
 from .pseudoinverse import PseudoinverseFitter
-from ...config import *
+from ...hw.calibration import *
 
 import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
-from ... import ti_base as tib
+from ...utils import ti_base as tib
 
 class PolyFitter(PseudoinverseFitter):
     name = "Polynomial Fitter"

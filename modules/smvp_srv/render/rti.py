@@ -3,16 +3,12 @@ import numpy as np
 
 import taichi as ti
 import taichi.math as tm
-from .. import ti_base as tib
 
-from ..imgdata import *
-from ..sequence import *
-from ..config import *
+from ..data import *
+from ..utils import ti_base as tib
+
 from .renderer import *
-
-from .fitter.pseudoinverse import PseudoinverseFitter
-from .fitter.poly import PolyFitter
-from .fitter.normal import NormalFitter
+from .fitter import *
 
 
 class RtiRenderer(Renderer):
@@ -53,13 +49,13 @@ class RtiRenderer(Renderer):
             return seq
         return Sequence()
     
-    def process(self, img_seq: Sequence, config: Config, settings={}):
+    def process(self, img_seq: Sequence, calibration: Calibration, settings={}):
         # Validate image sequence 
-        if len(img_seq) != len(config):
-            log.error(f"Image sequence length ({len(img_seq)}) and number of lights in config ({len(config)}) must match, aborting!")
+        if len(img_seq) != len(calibration):
+            log.error(f"Image sequence length ({len(img_seq)}) and number of lights in calibration ({len(calibration)}) must match, aborting!")
             return
-        # Get dict of light ids with coordinates that are both in the config and image sequence
-        #lights = {light['id']: Latlong2UV(light['latlong']) for light in config if light['id'] in img_seq.getKeys()}
+        # Get dict of light ids with coordinates that are both in the calibration and image sequence
+        #lights = {light['id']: Latlong2UV(light['latlong']) for light in calibration if light['id'] in img_seq.getKeys()}
 
         # Settings and initialization
         fitter = settings['fitter'] if 'fitter' in settings else PolyFitter.__name__
@@ -68,17 +64,17 @@ class RtiRenderer(Renderer):
         log.info(f"Generating RTI coefficients with {self._fitter.name}")
         
         # Compute inverse
-        self._normals.computeInverse(config)
-        self._fitter.computeInverse(config, recalc)
+        self._normals.computeInverse(calibration)
+        self._fitter.computeInverse(calibration, recalc)
         
         # Compute coefficients
         self._normals.computeCoefficients(img_seq, slices=4)
         self._fitter.computeCoefficients(img_seq, slices=4)
         
         # Save coord bounds
-        coord_min, coord_max = config.getCoordBounds()
-        self._u_min, self._v_min = Config.NormalizeLatlong(coord_min)
-        self._u_max, self._v_max = Config.NormalizeLatlong(coord_max)
+        coord_min, coord_max = calibration.getCoordBounds()
+        self._u_min, self._v_min = utils.NormalizeLatlong(coord_min)
+        self._u_max, self._v_max = utils.NormalizeLatlong(coord_max)
     
     # Render settings
     def getRenderModes(self) -> list:

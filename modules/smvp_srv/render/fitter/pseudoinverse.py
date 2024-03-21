@@ -6,10 +6,11 @@ import numpy as np
 import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
-from ... import ti_base as tib
+from ...utils import ti_base as tib
 
-from ...config import *
-from ...sequence import *
+from ...hw.calibration import *
+from ...data.sequence import *
+
 
 class PseudoinverseFitter(ABC):
     name = "Pseudoinverse Fitter"
@@ -77,20 +78,20 @@ class PseudoinverseFitter(ABC):
         del sequence_buf
         
 
-    def computeInverse(self, config, recalculate=False):
+    def computeInverse(self, calibration, recalculate=False):
         # Init array
-        light_count = len(config)
+        light_count = len(calibration)
         coefficient_count = self.getCoefficientCount()
         self._inverse = ti.ndarray(ti.f32, (coefficient_count, light_count))
         
-        if not recalculate and config.getInverse() is not None:
-            # Load from config
-            self._inverse.from_numpy(config.getInverse())
+        if not recalculate and calibration.getInverse() is not None:
+            # Load from calibration
+            self._inverse.from_numpy(calibration.getInverse())
         else:
             # Create array and fill it with light positions
             A = np.zeros((light_count, coefficient_count))
-            for i, light in enumerate(config.getLights()):
-                coord = Config.NormalizeLatlong(light['latlong'])
+            for i, light in enumerate(calibration.getLights()):
+                coord = utils.NormalizeLatlong(light['latlong'])
                 self.fillLightMatrix(A[i], coord)
                 
             # Calculate inverse

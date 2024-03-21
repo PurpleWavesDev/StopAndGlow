@@ -9,12 +9,10 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
-from ..imgdata import *
-from ..sequence import *
-from ..config import *
+from ..data import *
 
 from .renderer import *
-from .. import ti_base as tib
+from ..utils import ti_base as tib
 
 
 class ExpoBlender(Renderer):
@@ -35,7 +33,7 @@ class ExpoBlender(Renderer):
         #seq.setMeta('key', val)
         return self._blended
     
-    def process(self, seq_list: list[Sequence], config: Config, settings={}):
+    def process(self, seq_list: list[Sequence], calibration: Calibration, settings={}):
         if type(seq_list) != list or len(seq_list) <= 1:
             log.error("Must provide at least two sequences for stacking, aborting.")
             return

@@ -7,7 +7,6 @@ import sys
 import io
 import time
 import datetime
-from collections import namedtuple
 from importlib import reload
 from typing import Any
 
@@ -16,32 +15,17 @@ from absl import app
 from absl import flags
 import logging as log
 
-# DMX, Config and Camera interfaces
-from .camera import *
-from .lights import Lights
-from .config import Config
-from .timer import Timer
-from .worker import *
-# Image and dome data, evaluation
-from .imgdata import *
-from .sequence import Sequence
-from .capture import Capture
-from .lightdome import Lightdome
-from .calibrate import Calibrate
-from .img_op import *
-from .cam_op import *
+# Sub-modules
+from .hw import *
+from .process import *
+from .data import *
+from .render import *
+from .utils import *
+# Timer & Worker
+from .process.timer import Timer
+from .process.worker import *
+# Viewer
 from .viewer import *
-from . import ti_base as tib
-# Renderer
-from .renderer.renderer import Renderer
-from .renderer.rti import RtiRenderer
-from .renderer.rgbstack import RgbStacker
-from .renderer.lightstack import LightStacker
-from .renderer.live import LiveView
-from .renderer.exposureblend import ExpoBlender
-
-# Types
-HW = namedtuple("HW", ["cam", "lights", "config"])
 
 # Globals
 FLAGS = None
@@ -57,7 +41,7 @@ def main(argv):
     if FLAGS.capture_frames_skip % 2 == 0:
         FLAGS.capture_frames_skip += 1
     # Prepare hardware for tasks
-    hw = HW(Cam(), Lights(), Config(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)))
+    hw = HW(Cam(), Lights(), Calibration(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)))
     tib.TIBase.gpu = True
     tib.TIBase.debug = DEBUG
     tib.TIBase.init()
@@ -96,7 +80,7 @@ def main(argv):
             if FLAGS.seq_type == 'hdri':
                 # Load hdri
                 hdri = ImgBuffer(path=os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
-            capture.captureSequence(hw.config, hdri)
+            capture.captureSequence(hw.cal, hdri)
             
             # Sequence download, evaluation of video not necessary for capture only
             sequence = capture.downloadSequence(FLAGS.seq_name, keep=False, save=FLAGS.seq_save)
@@ -118,7 +102,7 @@ def main(argv):
     # If not captured, load sequences
     elif FLAGS.process or FLAGS.viewer:
         # Load from disk
-        sequence = load(FLAGS.seq_name, hw.config)
+        sequence = load(FLAGS.seq_name, hw.cal)
         if len(sequence) == 0:
             log.warning("Empty sequence loaded")
 
@@ -141,7 +125,7 @@ def main(argv):
             # Get exposure times and merge
             exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]
             blender = ExpoBlender()
-            blender.process(sequences, hw.config, {'exposure': exposure_times})
+            blender.process(sequences, hw.cal, {'exposure': exposure_times})
             sequence = blender.get()
 
         # Save videos?
@@ -160,9 +144,9 @@ def main(argv):
                 renderer = Calibrate()
             case 'calstack':
                 # Load configs
-                stack_cals = [Config(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
-                hw.config.stitch(stack_cals)
-                hw.config.save(FLAGS.cal_folder, FLAGS.new_cal_name)
+                stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
+                hw.cal.stitch(stack_cals)
+                hw.cal.save(FLAGS.cal_folder, FLAGS.new_cal_name)
             case 'rgbstack':
                 renderer = RgbStacker()
             case 'lightstack':
@@ -171,13 +155,14 @@ def main(argv):
                 settings = {'order': 4}
                 renderer = RtiRenderer()
             case 'expostack':
-                evalStack(sequence, name)
+                # TODO
+                pass
             case 'convert':
                 sequence.convertSequence(FLAGS.convert_to)
                 sequence.saveSequence(name, FLAGS.seq_folder)
             
         if renderer is not None:
-            Process(renderer, sequence, hw.config, name, settings)
+            Process(renderer, sequence, hw.cal, name, settings)
             
     ### Launch viewer ###
     if FLAGS.viewer:
@@ -206,9 +191,9 @@ def main(argv):
         if renderer is not None:
             LaunchViewer(renderer)
 
-    ### Config ###
+    ### Calibration ###
     if type(renderer) is Calibrate:
-        # Save config
+        # Save calibration
         cal_name = FLAGS.new_cal_name if FLAGS.new_cal_name != '' else datetime.datetime.now().strftime("%Y%m%d_%H%M") + '_calibration.json' # 240116_2333_calibration.json
         new_cal = renderer.getCalibration()
         log.info(f"Saving calibration as '{cal_name}' with {len(new_cal)} lights from ID {new_cal.getIdBounds()}")
@@ -223,7 +208,7 @@ def main(argv):
         case 'erase':
             # Delete all files on camera
             hw.cam.deleteAll()
-        #CamOp.FindMaxExposure(hw.cam)
+        #camop.FindMaxExposure(hw.cam)
         #hw.cam.setIso('100')
         #hw.cam.setAperture('8')
     
@@ -232,7 +217,7 @@ def main(argv):
     if FLAGS.lightctl != 'none':
         # Init lights and dome
         hw.lights.getInterface()
-        dome = Lightdome(hw)
+        dome = LightCtl(hw)
 
         match FLAGS.lightctl:
             case 'on':
@@ -242,7 +227,7 @@ def main(argv):
             case 'off':
                 hw.lights.off()
             case 'run':
-                ids = hw.config.getIds() if FLAGS.seq_type == "seq_type" else range(FLAGS.capture_max_addr)
+                ids = hw.cal.getIds() if FLAGS.seq_type == "seq_type" else range(FLAGS.capture_max_addr)
                 lightsRun(hw, ids)
                 dome.setTop(60, 50)
             case 'anim_latlong':
@@ -254,7 +239,7 @@ def main(argv):
 
     # Default lights after image capture
     elif FLAGS.capture and FLAGS.lightctl == 'none':
-        Lightdome(hw).setTop(60, 50)
+        LightCtl(hw).setTop(60, 50)
         hw.lights.write()
 
 
@@ -263,7 +248,7 @@ def main(argv):
 
 def lightsAnimate(hw):
     # Function for
-    dome = Lightdome(hw)
+    dome = LightCtl(hw)
     def fn_lat(lights: Lights, i: int, dome: Any) -> bool:
         dome.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(50) if latlong[0] > 90-(i*2) else ImgBuffer.FromPix(0))
         dome.writeLights()
@@ -283,14 +268,14 @@ def lightsAnimate(hw):
         t.join()
 
 def lightsHdriRotate(hw):
-    dome = Lightdome(hw)
+    dome = LightCtl(hw)
     hdri = ImgBuffer(os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
     dome.processHdri(hdri)
     dome.sampleHdri(0)
     img = dome.generateLatLongMapping(hdri)
-    ImgOp.SaveEval(img.get(), "hdri_latlong")
+    imgop.SaveEval(img.get(), "hdri_latlong")
     img = dome.generateUVMapping()
-    ImgOp.SaveEval(img.get(), "hdri_uv")
+    imgop.SaveEval(img.get(), "hdri_uv")
     
     # Function for
     def fn(lights: Lights, i: int, dome: Any) -> bool:
@@ -305,20 +290,20 @@ def lightsHdriRotate(hw):
 
 def lightsRun(hw, ids=None):
     if ids is None:
-        ids = hw.config.getIds()
+        ids = hw.cal.getIds()
     log.info(f"Running through {len(ids)} lights with IDs {ids[0]}-{ids[-1]}")
-    t = Timer(LightWorker(hw, hw.config.getIds()))
+    t = Timer(LightWorker(hw, hw.cal.getIds()))
     t.start(2/25) # 1/20 is max with occational overruns
     t.join()
 
 
 #################### Processing functions ####################
 
-def Process(renderer, img_seq, config, name, settings):
+def Process(renderer, img_seq, calibration, name, settings):
     log.info(f"Process image sequence for {renderer.name}")
         
     # Process
-    renderer.process(img_seq, config, settings)
+    renderer.process(img_seq, calibration, settings)
 
     # Save data
     seq_out = renderer.get()
@@ -328,48 +313,14 @@ def Process(renderer, img_seq, config, name, settings):
             seq_out.saveSequence(name, FLAGS.eval_folder, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
 
 
-def evalStack(sequences, output_name, cam_response=None):
-    stacked_seq = Sequence()
-    sequence_count = len(sequences)
-            
-    if False: #cam_response is None:
-        # List of current frames
-        frames = [seq.getMaskFrame() for seq in sequences]
-        cam_response = ImgOp.CameraResponse(frames) # TODO Stuck
-        for i in range(len(frames)):
-            frames[i].setPath(os.path.join(FLAGS.seq_folder, output_name, f"mask_{i:03d}"))
-            frames[i].save(ImgFormat.JPG)
-    
-    # Iterate over frames
-    for i in range(len(sequences[0])):
-        # List of current frames
-        frames = [seq.get(i) for seq in sequences]
-        id = sequences[0].getKeys()[i]
-                
-        if cam_response is None:
-            cam_response = ImgOp.CameraResponse(frames) # TODO Stuck
-            for i in range(len(frames)):
-                frames[i].setPath(os.path.join(FLAGS.seq_folder, output_name, f"first_{i:03d}"))
-                frames[i].save(ImgFormat.JPG)
-        
-        path = os.path.join(FLAGS.seq_folder, output_name, f"{output_name}_{id:03d}")
-        stacked_seq.append(ImgOp.ExposureStacking(frames, cam_response, path=path), id)
-        
-        # Save & unload frame
-        stacked_seq[id].unload(save=True)
-    
-    # Return sequence with stacked images       
-    return stacked_seq
-
-
 
 #################### RELIGHT MODES ####################
 
-def relightSimple(img_seq, config, output_name):
+def relightSimple(img_seq, calibration, output_name):
     # Deine Funktion, Iris :)
     log.info(f"Generate HDRI Lighting from Sequence")
 
-    dome = Lightdome(config)
+    dome = LightCtl(calibration)
     hdri = ImgBuffer(os.path.join(FLAGS.seq_folder, FLAGS.input_hdri), domain=ImgDomain.Lin)
     dome.processHdri(hdri)
 
@@ -413,7 +364,7 @@ def LaunchViewer(renderer):
 
 #################### CAMERA SETTINGS & DOWNLOAD HELPERS ####################
     
-def load(seq_name, config):
+def load(seq_name, calibration):
     """Load from disk"""
     sequence = Sequence()
     
@@ -434,7 +385,7 @@ def load(seq_name, config):
             # IDs according sequence type
             match FLAGS.seq_type:
                 case 'lights':
-                    ids = config.getIds()
+                    ids = calibration.getIds()
                 case 'hdri':
                     ids = [0, 1, 2]
                 case 'fullrun':

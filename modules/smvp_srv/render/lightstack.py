@@ -9,10 +9,8 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
-from ..imgdata import *
-from ..sequence import *
-from ..img_op import *
-from .. import ti_base as tib
+from ..data import *
+from ..utils import ti_base as tib
 
 from .renderer import *
 #from . import renderer.ti_stack as tstack
@@ -43,25 +41,25 @@ class LightStacker(Renderer):
         
         return seq
     
-    def process(self, img_seq: Sequence, config: Config, settings={'resolution': (1024, 512), 'closest_light_count': 6}):
+    def process(self, img_seq: Sequence, calibration: Calibration, settings={'resolution': (1024, 512), 'closest_light_count': 6}):
         # Create fields and arrays
         res_x, res_y = settings['resolution'] if 'resolution' in settings else (1024, 512)
         count = settings['closest_light_count'] if 'closest_light_count' in settings else 6
         self._data_idx = ti.field(dtype=ti.i32, shape=(res_y, res_x, count))
         self._data_dist = ti.field(dtype=ti.f32, shape=(res_y, res_x, count))
         
-        # Light config values
-        light_coords = ti.ndarray(dtype=tt.vector(2, ti.f32), shape=(len(config)))
-        light_coords.from_numpy(np.array([Config.LatlongRadians(latlong) for latlong in config.getCoords()], dtype=np.float32))
-        self._light_ids = config.getIds()
+        # Light calibration values
+        light_coords = ti.ndarray(dtype=tt.vector(2, ti.f32), shape=(len(calibration)))
+        light_coords.from_numpy(np.array([utils.LatlongRadians(latlong) for latlong in calibration.getCoords()], dtype=np.float32))
+        self._light_ids = calibration.getIds()
         
         # Calculate
         FindClosestLights(self._data_idx, self._data_dist, light_coords)
         
         # Get coordinate bounds
-        self._latlong_min, self._latlong_max = config.getCoordBounds()
-        self._latlong_min = Config.NormalizeLatlong(self._latlong_min)
-        self._latlong_max = Config.NormalizeLatlong(self._latlong_max)
+        self._latlong_min, self._latlong_max = calibration.getCoordBounds()
+        self._latlong_min = utils.NormalizeLatlong(self._latlong_min)
+        self._latlong_max = utils.NormalizeLatlong(self._latlong_max)
         
         self.setSequence(img_seq)
     
@@ -125,7 +123,7 @@ class LightStacker(Renderer):
         # Init Taichi field
         pixels = ti.ndarray(tib.pixarr, (self._res_y, self._res_x))
         
-        u, v = Config.NormalizeLatlong(light_pos)
+        u, v = utils.NormalizeLatlong(light_pos)
         #trti.sampleLight(pixels, self._rti_factors, u, v)
         
         return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)

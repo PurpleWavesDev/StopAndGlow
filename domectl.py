@@ -27,14 +27,14 @@ flags.DEFINE_integer('capture_frames_skip', 3, 'Frames to skip between frames in
 flags.DEFINE_integer('capture_dmx_repeat', 0, "How many signals should be sent before an image is captured or extracted from video.")
 flags.DEFINE_integer('capture_max_addr', 310, "Max address to be used for generating calibrations.")
 # Sequence settings
-flags.DEFINE_enum('seq_type', 'lights', ["lights", "hdri", "fullrun"], "Sequence consists of images from all lights of the current config, three images for RGB channel stacking or a full run for all light IDs without config.")
+flags.DEFINE_enum('seq_type', 'lights', ["lights", "hdri", "fullrun"], "Sequence consists of images from all lights of the current calibration, three images for RGB channel stacking or a full run for all light IDs without calibration.")
 flags.DEFINE_enum('seq_domain', 'keep', ['keep', 'lin', 'srgb'], 'Domain of sequence, default for EXR is linear, sRGB for PNGs and JPGs.')
 flags.DEFINE_string('seq_folder', '../HdM_BA/data/capture', 'Where the image data should be written to.')
 flags.DEFINE_string('seq_name', '', 'Name of captured sequence or folder/file to load, default is current date & time + type of capture.')
 flags.DEFINE_bool('seq_save', True, "Save downloaded images to disk.")
 flags.DEFINE_bool('seq_convert', False, "Convert to image files if a video was captured.")
 # Calibration
-flags.DEFINE_string('cal_folder', '../HdM_BA/data/config', 'Folder for light calibration.')
+flags.DEFINE_string('cal_folder', '../HdM_BA/data/calibration', 'Folder for light calibration.')
 flags.DEFINE_string('cal_name', 'lightdome.json', 'Name of calibration file to be loaded or generated.')
 flags.DEFINE_list('cal_stack_names', [], 'List of calibration file names to be stacked to the main calibration file.')
 flags.DEFINE_string('new_cal_name', 'lightdome_new.json', 'Name of calibration file to be loaded or generated.')

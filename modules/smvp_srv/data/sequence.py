@@ -10,9 +10,9 @@ import numpy as np
 from numpy.typing import ArrayLike
 import cv2 as cv
 
-from .imgdata import *
-from .img_op import *
-from .utils import logging_disabled
+from .imgbuffer import *
+from ..utils import imgutils
+from ..utils.utils import logging_disabled
 
 class VidParseState(Enum):
     PreBlack = 0,
@@ -125,7 +125,7 @@ class Sequence():
             match self._vid_state:
                 case VidParseState.PreBlack:
                     # Wait for black frame
-                    if ImgOp.blackframe(self._vid_frame):
+                    if imgutils.blackframe(self._vid_frame):
                         log.debug(f"Found blackframe at frame {self._vid_frame_count}")
                         if self._frames_offset > 0:
                             self._vid_state = VidParseState.Black
@@ -160,7 +160,7 @@ class Sequence():
                         # Append
                         id = self.getKeys()[self._vid_frame_number]
                         self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}", img=self._vid_frame, domain=ImgDomain.sRGB)
-                        if ImgOp.blackframe(self._vid_frame):
+                        if imgutils.blackframe(self._vid_frame):
                             log.warning(f"Black frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                         elif self._vid_frame_number == len(self._frames)-1:
                             log.debug(f"Last sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")

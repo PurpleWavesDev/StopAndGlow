@@ -8,7 +8,7 @@ import numpy as np
 
 from . import ti_base as tib
 
-from .renderer.rti import RtiRenderer
+from .render import RtiRenderer
 
 
 class RenderModules(Enum):

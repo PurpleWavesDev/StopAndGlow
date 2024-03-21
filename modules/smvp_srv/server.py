@@ -3,11 +3,10 @@ import zmq
 
 from smvp_ipc import *
 
-from . import HW
-from .lights import *
-from .camera import *
-from .config import *
-from .lightdome import *
+from .hw import *
+from .data import *
+from .process import *
+
 
 
 def run():
@@ -33,8 +32,8 @@ def run():
         match message.command:
             case Command.Init:
                 if not initalized:
-                    hw = HW(Cam(), Lights(), Config('../HdM_BA/data/config/lightdome.json')) # Config(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)
-                    dome = Lightdome(hw)
+                    hw = HW(Cam(), Lights(), Calibration('../HdM_BA/data/calibration/lightdome.json')) # Calibration(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)
+                    dome = LightCtl(hw)
                     initalized = True
                 send(socket, Message(Command.CommandOkay))
 
@@ -56,6 +55,12 @@ def run():
                 hw.lights.off()
                 send(socket, Message(Command.CommandOkay))
             
+            ## Live Viewer
+            #case Command.ViewerOpen:
+                
+            #case Command.ViewerClose:
+
+            
             case _:
                 send(socket, Message(Command.CommandError, {"message": "Unknown command"}))
             
@@ -71,9 +76,6 @@ def run():
             #case Command.LightsHdriRotation:
             #case Command.LightsHdriTexture:
             #
-            ## Live Viewer
-            #case Command.ViewerOpen:
-            #case Command.ViewerClose:
             ## Several viewer modes?
             #
             ## Preview

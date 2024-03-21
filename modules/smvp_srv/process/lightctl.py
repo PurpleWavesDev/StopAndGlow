@@ -5,15 +5,11 @@ import math
 
 import cv2 as cv
 
-from .imgdata import *
-from .sequence import Sequence
-from .config import *
-from .lights import *
-
-DMX_MAX_VALUE = 255
+from ..data import *
+from ..hw import *
 
 
-class Lightdome:
+class LightCtl:
     def __init__(self, hw = None):
         self.img_res_base = 1000
         self.img_background = 10
@@ -23,20 +19,20 @@ class Lightdome:
             self.setHw(hw)
     
     def setHw(self, hw):
-        self._config = hw.config
+        self._cal = hw.cal
         self._lights = hw.lights
         self._lightVals.clear()
         return # TODO
         
         # Init (ti?) fields
-        light_count = len(self._config)
+        light_count = len(self._cal)
         
         # Light info: idx, id, latlong, 6x (neighbour idx, neighbour distance), distance_from_sample
         self._light_ids = []
-        section_begin = [0] * Lightdome.GetSectionCount()+1
-        for section in range(Lightdome.GetSectionCount()):
+        section_begin = [0] * LightCtl.GetSectionCount()+1
+        for section in range(LightCtl.GetSectionCount()):
             section_begin[section] = len(self._light_ids)
-            for light in self._config:
+            for light in self._cal:
                 if GetSection(light['latlong']) == section:
                     self._light_ids.append(light['id'])
         # Last section begin is end of array
@@ -44,13 +40,13 @@ class Lightdome:
         
         # Find 6 closest neighbours and assign IDs (2 above, 2 even, 2 below)
         for id in self._light_ids:
-            latlong = self._config[id]['latlong']
-            section = Lightdome.GetSection(latlong)
+            latlong = self._cal[id]['latlong']
+            section = LightCtl.GetSection(latlong)
             # Check lights in section and neigbouring sections for distances
-            for neigbour_section in Lightdome.GetNeigbouringSections():
+            for neigbour_section in LightCtl.GetNeigbouringSections():
                 for neighbour_light in self.getLightsInSection(neigbour_section):
                     neigh_latlong = 0
-                    dist = Lightdome.GetDistanceOnSphere()
+                    dist = LightCtl.GetDistanceOnSphere()
                     latlong_diff = latlong-neigh_latlong
                     if latlong_diff[0] > 10: # Above
                         pass
@@ -130,7 +126,7 @@ class Lightdome:
 
     def sampleHdri(self, longitude_offset=0):
         res_y, res_x = self._processed_hdri.get().shape[:2]
-        for light in self._config:
+        for light in self._cal:
             # Sample point in HDRI
             latlong = light['latlong']
             x = int(res_x * (360 - (latlong[1]+longitude_offset) % 360) / 360.0) # TODO: Is round here wrong? Indexing error when rounding up on last value!
@@ -138,12 +134,12 @@ class Lightdome:
             self._lightVals[light['id']] = self._processed_hdri[x, y]
     
     def sampleWithUV(self, f):
-        for light in self._config:
+        for light in self._cal:
             sample = f(light['uv'])
             self._lightVals[light['id']] = sample
     
     def sampleWithLatLong(self, f):
-        for light in self._config:
+        for light in self._cal:
             sample = f(light['latlong'])
             self._lightVals[light['id']] = sample
 
@@ -170,11 +166,11 @@ class Lightdome:
     def setNth(self, nth, brightness = DMX_MAX_VALUE):
         random.seed()
         self._lights.reset()
-        for light in self._config:
+        for light in self._cal:
             if random.randrange(0, nth) == 0:
                 self._lightVals[light['id']] = ImgBuffer.FromPix(brightness)
         self.writeLights()
-        #self._mask = [light['id'] for i, light in enumerate(self._config) if i % nth == 0] # TODO: This way every nth is lit and not random
+        #self._mask = [light['id'] for i, light in enumerate(self._cal) if i % nth == 0] # TODO: This way every nth is lit and not random
     
     #TODO: Move to renderer
     def generateLightingFromSequence(self, img_seq: Sequence, longitude_offset=0) -> ImgBuffer:
@@ -186,11 +182,11 @@ class Lightdome:
         res_y, res_x = self._processed_hdri.get().shape[:2]
 
         for id, img in img_seq:
-            # Test if config entry is valid -> configuration might be incomplete!
+            # Test if calibration entry is valid -> configuration might be incomplete!
 
-            if self._config[id] is not None:
-                # ID ist Lampen ID, entspricht der ID der config
-                latlong = self._config[id]['latlong'] # -> Koordinaten der Lampe
+            if self._cal[id] is not None:
+                # ID ist Lampen ID, entspricht der ID der calibration
+                latlong = self._cal[id]['latlong'] # -> Koordinaten der Lampe
                 img = img.asDomain(ImgDomain.Lin, as_float=True) # -> Bild als Linear
 
                 # HDRI sampling
@@ -223,7 +219,7 @@ class Lightdome:
         cv.circle(image.get(), (res_2, res_2), res_2, (0, 0, 255), 2)
         light_radius = 6 # TODO: Calculate
         
-        for light_entry in self._config:
+        for light_entry in self._cal:
             value = self._lightVals[light_entry['id']].asDomain(ImgDomain.sRGB).asInt().get()[0][0].tolist() if not None else (0)
             x = int(round(res_2 + res_2*light_entry['uv'][0]))
             y = int(round(res_2 - res_2*light_entry['uv'][1]))
@@ -245,7 +241,7 @@ class Lightdome:
         light_radius = 6 # TODO: Calculate
         
         # Draw lights as circles with fill
-        for light_entry in self._config:
+        for light_entry in self._cal:
             value = self._lightVals[light_entry['id']].asDomain(ImgDomain.sRGB).asInt().get()[0][0].tolist() if not None else (0)
             x = int(round(res_x * light_entry['latlong'][1] / 360))
             y = int(round(res_y/2 - (res_y/2) * light_entry['latlong'][0] / 90))

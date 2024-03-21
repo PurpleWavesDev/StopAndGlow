@@ -14,10 +14,9 @@ import imageio
 import colour
 import colour.models as models
 import taichi as ti
-from . import ti_base as tib
+from ..utils.utils import logging_disabled
+from ..utils import ti_base as tib
 imageio.plugins.freeimage.download()
-
-from .utils import logging_disabled
 
 IMAGE_DTYPE_FLOAT='float32'
 IMAGE_DTYPE_INT='uint8'
@@ -34,9 +33,6 @@ class ImgDomain(Enum):
     Rec709 = 2
     Keep = -1
 
-
-#class PixBuf:
-    #def __init__(self, pix):
     
 class ImgBuffer:
     def __init__(self, path=None, img: ArrayLike = None, domain: ImgDomain = ImgDomain.Keep):

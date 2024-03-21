@@ -6,19 +6,15 @@ from copy import copy, deepcopy
 import cv2 as cv
 import taichi as ti
 
-from .imgdata import *
-from .sequence import Sequence
-from .img_op import *
-from .config import Config
-from .utils import logging_disabled
-from .mathutils import *
-from .renderer.renderer import *
-
+from ..data import *
+from ..hw import Calibration
+from ..utils import *
+from ..render.renderer import *
 
 class Calibrate(Renderer):
     def __init__(self):
         self._recalc = False
-        self._config = Config()
+        self._cal = Calibration()
         
     def load(self, img_seq: Sequence):
         pass
@@ -26,10 +22,10 @@ class Calibrate(Renderer):
     def get(self) -> Sequence:
         return Sequence()
     
-    def getCalibration(self) -> Config:
-        return self._config
+    def getCalibration(self) -> Calibration:
+        return self._cal
     
-    def process(self, img_seq: Sequence, config: Config, settings={'threshold': 245, 'min_size_ratio': 0.011, 'interactive': False}):
+    def process(self, img_seq: Sequence, calibration: Calibration, settings={'threshold': 245, 'min_size_ratio': 0.011, 'interactive': False}):
         self._view_idx = 0
         # Settings
         self._rect_mask_offset = 0.85
@@ -183,7 +179,7 @@ class Calibrate(Renderer):
         
         # Save image if not in interactive mode
         if not self._interactive:
-            ImgOp.SaveEval(self._cb_edges, 'chromeball_filtered')
+            imgutils.SaveEval(self._cb_edges, 'chromeball_filtered')
         
         # Find circle contours
         cnts = cv.findContours(self._cb_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
@@ -208,7 +204,7 @@ class Calibrate(Renderer):
             cv.circle(self._mask_rgb, (int(x+0.5),int(y+0.5)), int(r), (0, 0, 255), 2)                    
             # Save image if not in interactive mode
             if not self._interactive:
-                ImgOp.SaveEval(self._mask_rgb, 'chromeball_center')
+                imgutils.SaveEval(self._mask_rgb, 'chromeball_center')
                 log.info(f"Found chrome ball at ({self.cb_center[0]:5.2f}, {self.cb_center[1]:5.2f}), radius {self.cb_radius:5.2f}")
                 
             # Calculate viewing angle
@@ -228,7 +224,7 @@ class Calibrate(Renderer):
                                     
     def findReflections(self):
         # Clear calibration
-        self._config = Config()
+        self._cal = Calibration()
         # Loop through all calibration frames
         self._reflections = copy(self._mask_rgb)
         for id, img in self._sequence:
@@ -237,7 +233,7 @@ class Calibrate(Renderer):
                 # Process frame
                 uv = self.findReflection(img, id)
                 if uv is not None:
-                    self._config.addLight(id, uv, Calibrate.SphericalToLatlong(uv, self._viewing_angle_by2))
+                    self._cal.addLight(id, uv, Calibrate.SphericalToLatlong(uv, self._viewing_angle_by2))
             elif not self._interactive:
                 log.debug(f"Found blackframe '{id}'")
             if not self._interactive:
@@ -245,13 +241,13 @@ class Calibrate(Renderer):
         
         # Save debug image
         if not self._interactive:
-            ImgOp.SaveEval(self._reflections, "reflections")
+            imgutils.SaveEval(self._reflections, "reflections")
 
 
     ### Helpers ###
     
     def filterBlackframe(self, frame):
-        return ImgOp.blackframe(frame, threshold=self._refl_threshold, mask=self.cb_mask)
+        return imgutils.blackframe(frame, threshold=self._refl_threshold, mask=self.cb_mask)
 
     def findReflection(self, frame, id):
         # Find reflections in each image
@@ -316,7 +312,7 @@ class Calibrate(Renderer):
         axis = np.array([-uv_norm[1],uv_norm[0],0]) # Rotation axis that is the direction of the reflection rotated 90° on Z
         theta = math.asin(length)*2 # Calculate the angle to the reflection which is two times the angle of the normal on the sphere
         theta_corrected = theta / np.pi * (np.pi-viewing_angle_by_2) # Perspective correction: New range is to 180° - viewing_angle/2
-        vec = np.dot(rotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
+        vec = np.dot(RotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
         
         # Calculate Latitude and Longitude
         latitude = math.asin(vec[1])
