@@ -52,8 +52,6 @@ class VIEW3D_PT_stop_motion_vp(Panel):
         row = self.layout.row()
         row.operator("mesh.primitive_ico_sphere_add", text="Capture Sequence", icon = "MONKEY")
       
-
-
 class VIEW3D_PT_onionskin(Panel):
     bl_space_type = "VIEW_3D" 
     bl_region_type = "UI"  
@@ -81,8 +79,71 @@ class VIEW3D_PT_onionskin(Panel):
 
 
 
+# algorithm dropdown panel test
+ 
+class VIEW3D_PT_algorithm(bpy.types.Panel):
+    bl_label = "Main Panel"
+    bl_idname = "VIEW3D_PT_select_algorithm"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Stop Motion"
+    bl_parent_id = "VIEW3D_PT_stop_motion_vp"
+ 
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        mytool = scene.smvp_algorithms
+        
+        layout.prop(mytool, "my_string")
+        layout.prop(mytool, "my_float_vector")
+        layout.prop(mytool, "my_enum")
+ 
+        layout.operator("addonname.myop_operator")
+  
+ 
+class VIEW3D_OT_render_algorithms(bpy.types.Operator):
+    bl_label = "Choose Algorithm"
+    bl_idname = "wm.render_algorithms"
+    
+    
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.smvp_algorithms
+        
+        if mytool.my_enum == 'OP1':
+            bpy.ops.mesh.primitive_cube_add()
+            bpy.context.object.name = mytool.my_string
+            bpy.context.object.scale[0] = mytool.my_float_vector[0]
+            bpy.context.object.scale[1] = mytool.my_float_vector[1]
+            bpy.context.object.scale[2] = mytool.my_float_vector[2]
+ 
+ 
+            
+            
+        if mytool.my_enum == 'OP2':
+            bpy.ops.mesh.primitive_uv_sphere_add()
+            bpy.context.object.name = mytool.my_string
+            bpy.context.object.scale[0] = mytool.my_float_vector[0]
+            bpy.context.object.scale[1] = mytool.my_float_vector[1]
+            bpy.context.object.scale[2] = mytool.my_float_vector[2]
+            
+        
+        
+        
+        if mytool.my_enum == 'OP3':
+            bpy.ops.mesh.primitive_monkey_add()
+            bpy.context.object.name = mytool.my_string
+            bpy.context.object.scale[0] = mytool.my_float_vector[0]
+            bpy.context.object.scale[1] = mytool.my_float_vector[1]
+            bpy.context.object.scale[2] = mytool.my_float_vector[2]
+            
+        
+        
+        return {'FINISHED'}
+    
+# end test dropdown panel
 
-
+'''
 class VIEW3D_PT_render_agorithms(Panel): 
 
     bl_space_type = "VIEW_3D"  
@@ -100,6 +161,7 @@ class VIEW3D_PT_render_agorithms(Panel):
         row = self.layout.row()
         row.operator("object.shade_smooth", text="Algorithm 3")
 
+'''
 
 # -------------------------------------------------------------------
 # Canvas UI
@@ -173,7 +235,7 @@ class OBJECT_MT_smvp_submenu(Menu):
 
 def smvp_objects_menu(self, context):
     self.layout.separator()
-    self.layout.menu(OBJECT_MT_smvp_submenu.bl_idname, text="SMVP", icon="GHOST_ENABLED")
+    self.layout.menu(OBJECT_MT_smvp_submenu.bl_idname, text="SMVP", icon="GHOST_DISABLED")
 
 
 
@@ -188,15 +250,17 @@ CLASSES =[
     # Stop Motion VP
     VIEW3D_PT_stop_motion_vp,
     VIEW3D_PT_onionskin,
-    VIEW3D_PT_render_agorithms,
-    CustomPanel,   
-
+   # VIEW3D_PT_render_agorithms,
+  
     # Canvas UI
     SMVP_CANVAS_UL_items,
     SMVP_CANVAS_PT_frameList,
 
     # Menus
     OBJECT_MT_smvp_submenu,
+
+    # Test
+    VIEW3D_PT_algorithm, VIEW3D_OT_render_algorithms 
 ]
 
 def register():
@@ -207,6 +271,7 @@ def register():
     # Add menus
     bpy.types.VIEW3D_MT_add.append(smvp_objects_menu)
     
+   
 
 def unregister():
     for cls in CLASSES:
@@ -215,3 +280,4 @@ def unregister():
    # Remove menus
     bpy.types.VIEW3D_MT_add.remove(smvp_objects_menu)
     
+

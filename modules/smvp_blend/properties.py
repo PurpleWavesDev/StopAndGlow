@@ -3,6 +3,7 @@ from bpy.types import Scene, PropertyGroup
 from bpy.props import *
 
 
+
 class SMVP_CANVAS_FrameCollection(PropertyGroup):
     #name: StringProperty() -> Instantiated by default
     obj_type: StringProperty()
@@ -25,9 +26,27 @@ class SMVP_CANVAS_Props(PropertyGroup):
     exposure: FloatProperty()
     preview_exposure: FloatProperty()
 
+
+class SMVP_Algorithms_Props(PropertyGroup):
+    
+    my_string : bpy.props.StringProperty(name= "Enter Text")
+    
+    my_float_vector : bpy.props.FloatVectorProperty(name= "Scale", soft_min= 0, soft_max= 1000, default= (1,1,1))
+    
+    my_enum : bpy.props.EnumProperty(
+        name= "Enumerator / Dropdown",
+        description= "sample text",
+        items= [('OP1', "Add Cube", ""),
+                ('OP2', "Add Sphere", ""),
+                ('OP3', "Add Suzanne", "")
+        ]
+    )
+ 
+
 classes = (
     SMVP_CANVAS_FrameCollection,
     SMVP_CANVAS_Props,
+    SMVP_Algorithms_Props
 )
 
 def register():
@@ -39,6 +58,9 @@ def register():
     #Scene.smvp_config = bpy.props.PointerProperty(type=SmvpConfig, name="SMVP Configuration")
     bpy.types.Object.smvp_canvas = bpy.props.PointerProperty(type=SMVP_CANVAS_Props, name="SMVP Canvas")
 
+     # Add Render Algorithm PointerProperty 
+    bpy.types.Scene.smvp_algorithms = bpy.props.PointerProperty(type= SMVP_Algorithms_Props)
+
 def unregister():
     from bpy.utils import unregister_class
     for cls in reversed(classes):
@@ -47,3 +69,6 @@ def unregister():
     # Delete properties
     #del Scene.smvp_config
     del bpy.types.Object.smvp_canvas
+
+    #del Scene.smvp_algorithms
+    del bpy.types.Scene.smvp_algorithms
