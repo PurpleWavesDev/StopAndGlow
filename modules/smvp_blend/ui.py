@@ -1,5 +1,5 @@
 import bpy
-from bpy.types import Panel
+from bpy.types import Panel, Menu
 
 from .client import *
 from .domectl import *
@@ -158,6 +158,26 @@ class SMVP_CANVAS_PT_frameList(Panel):
 
 
 # -------------------------------------------------------------------
+# Add Menu Entry
+# -------------------------------------------------------------------
+
+class OBJECT_MT_smvp_submenu(Menu):
+    bl_idname = "OBJECT_MT_smvp_submenu"
+    bl_label = "Stop Motion Virtual Production"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Canvas", icon="IMAGE_PLANE")
+        #layout.operator("mesh.plane_effector") # Camera icon="VIEW_CAMERA"
+
+def smvp_objects_menu(self, context):
+    self.layout.separator()
+    self.layout.menu(OBJECT_MT_smvp_submenu.bl_idname, text="SMVP", icon="GHOST_ENABLED")
+
+
+
+# -------------------------------------------------------------------
 # un/register
 # -------------------------------------------------------------------
 
@@ -175,18 +195,23 @@ CLASSES =[
     SMVP_CANVAS_UL_items,
     SMVP_CANVAS_PT_frameList,
 
+    # Menus
+    OBJECT_MT_smvp_submenu,
 ]
 
 def register():
+    # Register classes
     for cls in CLASSES:
         bpy.utils.register_class(cls)
     
- 
+    # Add menus
+    bpy.types.VIEW3D_MT_add.append(smvp_objects_menu)
     
 
 def unregister():
     for cls in CLASSES:
         bpy.utils.unregister_class(cls)
 
-   
+   # Remove menus
+    bpy.types.VIEW3D_MT_add.remove(smvp_objects_menu)
     

@@ -9,7 +9,6 @@ from . import properties as props
 #from . import client
 
 DEFAULT_RESOULTION = (1920, 1080)
-CANVAS_MAT_NAME = "SMVP_CanvasMat"
 
 # -------------------------------------------------------------------
 #   Operators
@@ -43,6 +42,8 @@ class SMVP_CANVAS_OT_addFrame(Operator):
         if os.path.isdir(self.directory):
             # TODO: Index and resolution!
             createFrameEntry(obj, self.directory, (1920, 1080), -1)
+            # Force redraw
+            context.area.tag_redraw()
             return {"FINISHED"}
             
         else:
@@ -266,16 +267,19 @@ class OBJECT_OT_smvp_canvas_add(bpy.types.Operator):
         # Add primitive
         bpy.ops.mesh.primitive_plane_add(rotation=(math.pi/2, 0, 0), size=2)
         canvas = bpy.context.object
+        # Properties
+        canvas.name = "Canvas"
         canvas.scale[0] = 16/9
         canvas.smvp_canvas.is_canvas = True
+        canvas['exposure'] = 1.0
         
         # Set material
-        mat = bpy.data.materials.get(CANVAS_MAT_NAME)
-        if mat is None:
-            # create material
-            mat = createCanvasMat()
+        mat = createCanvasMat(canvas)
         # Create slot and assign
         canvas.data.materials.append(mat)
+        # Settings TODO only for EEVEE?
+        mat.blend_method = 'HASHED'
+        mat.shadow_method = 'HASHED'
         
         return {"FINISHED"}
     
@@ -301,9 +305,9 @@ def update_canvases_texture(scene):
 # -------------------------------------------------------------------
 #   Helpers
 # -------------------------------------------------------------------
-def createCanvasMat():
+def createCanvasMat(obj):
     # Create empty material
-    mat = bpy.data.materials.new(name=CANVAS_MAT_NAME)
+    mat = bpy.data.materials.new(name=obj.name+"_mat")
     mat.use_nodes = True
     mat.node_tree.nodes.remove(mat.node_tree.nodes['Principled BSDF'])
 
@@ -315,10 +319,33 @@ def createCanvasMat():
     # Create transparency shader and link with mix shader
     trans = mat.node_tree.nodes.new('ShaderNodeBsdfTransparent')
     mat.node_tree.links.new(mix.inputs[1], trans.outputs[0])
-    # Create image texture and link with mix shader
-    img = mat.node_tree.nodes.new('ShaderNodeBsdfTransparent')
-    mat.node_tree.links.new(mix.inputs[2], img.outputs[0])
     
+    # Create emission shader and value node and link with mix shader
+    emission = mat.node_tree.nodes.new('ShaderNodeEmission')
+    exposure = mat.node_tree.nodes.new('ShaderNodeValue')
+    mat.node_tree.links.new(mix.inputs[2], emission.outputs[0])
+    mat.node_tree.links.new(emission.inputs[1], exposure.outputs[0])
+    
+    # Create image texture node and link with HSV
+    img = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    mat.node_tree.links.new(emission.inputs[0], img.outputs[0])
+    # Create color ramp to connect image alpha (depth mask?) with mix node
+    ramp = mat.node_tree.nodes.new('ShaderNodeValToRGB') # ShaderNodeMapRange
+    mat.node_tree.links.new(ramp.inputs[0], img.outputs[1])
+    mat.node_tree.links.new(mix.inputs[0], ramp.outputs[0])
+    
+    # Create expression for exposure value
+    fcurve = exposure.outputs[0].driver_add("default_value")
+    # Driver
+    d = fcurve.driver
+    d.type = "AVERAGE"
+    v = d.variables.new()
+    v.name = "exposure"
+    t = v.targets[0]
+    t.id_type = 'OBJECT'
+    t.id = obj
+    t.data_path = '["exposure"]'
+
     return mat
 
 def createFrameEntry(obj, path, resolution, index=-1):
