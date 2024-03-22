@@ -59,9 +59,9 @@ class ExpoBlender(Renderer):
             exposure_blending(buffer, exposure_times, blend_threshold, blend_factor)
             self._blended.append(ImgBuffer(img=buffer.to_numpy()[0, :], domain=ImgDomain.Lin), id)
         # Don't forget mask frame
-        buffer.from_numpy(np.stack([seq.getMaskFrame().asDomain(ImgDomain.Lin).get() for seq in seq_list], dtype='float32'))
+        buffer.from_numpy(np.stack([seq.getPreview().asDomain(ImgDomain.Lin).get() for seq in seq_list], dtype='float32'))
         exposure_blending(buffer, exposure_times, blend_threshold, blend_factor)
-        self._blended.setMaskFrame(ImgBuffer(img=buffer.to_numpy()[0, :], domain=ImgDomain.Lin))
+        self._blended.setPreview(ImgBuffer(img=buffer.to_numpy()[0, :], domain=ImgDomain.Lin))
     
     # Render settings
     def getRenderModes(self) -> list:

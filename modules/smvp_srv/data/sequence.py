@@ -23,11 +23,18 @@ class VidParseState(Enum):
 
 class Sequence():
     def __init__(self):
+        # Frame list, additional frames and sequences
         self._frames = dict()
         self._maskFrame = None
+        self._preview = ImgBuffer()
+        self._data: {}
+        
+        # Metadata
         self._meta = dict()
         self._meta_changed = False
         self._metafile_name = None
+        
+        # Properties
         self._min=-1
         self._max=-1
         self._is_video = False
@@ -69,7 +76,7 @@ class Sequence():
                     id = int(match.group(1))
                     self.append(ImgBuffer(p, domain=domain), id)
                 elif mask_match is not None:
-                    self.setMaskFrame(ImgBuffer(p, domain=domain))
+                    self.setPreview(ImgBuffer(p, domain=domain))
                 elif 'meta.json' in f:
                     self.loadMeta()
                 else:
@@ -150,8 +157,8 @@ class Sequence():
 
                 case VidParseState.Valid:
                     if self._vid_frame_number == -1:
-                        # Sillhouette frame
-                        self._maskFrame = ImgBuffer(path=self._img_name_base+"_mask", img=self._vid_frame, domain=ImgDomain.sRGB)
+                        # Preview frame
+                        self._preview = ImgBuffer(path=self._img_name_base+"_mask", img=self._vid_frame, domain=ImgDomain.sRGB)
                     else:
                         # Abort condition
                         if self._vid_frame_number >= len(self._frames):
@@ -182,11 +189,11 @@ class Sequence():
         self._min = id if self._min == -1 else min(self._min, id)
         self._max = id if self._max == -1 else max(self._max, id)
 
-    def setMaskFrame(self, img: ImgBuffer):
-        self._maskFrame = img
+    def setPreview(self, img: ImgBuffer):
+        self._preview = img
 
-    def getMaskFrame(self) -> ImgBuffer:
-        return self._maskFrame
+    def getPreview(self) -> ImgBuffer:
+        return self._preview
         
     def getKeyBounds(self):
         return [self._min, self._max]
@@ -210,10 +217,9 @@ class Sequence():
             self[id].get()
             self[id].setPath(f"{path}_{id:03d}")
             self[id].save(format=format)
-        if self._maskFrame is not None:
-            self._maskFrame.get()
-            self._maskFrame.setPath(f"{path}_mask")
-            self._maskFrame.save(format=format)
+        if self._preview.get() is not None:
+            self._preview.setPath(f"{path}_mask")
+            self._preview.save(format=format)
         # Metadata
         self._metafile_name = os.path.join(base_path, name, 'meta.json')
         if self._meta:
@@ -221,15 +227,15 @@ class Sequence():
     
     def convertSequence(self, convert_to_flag, crop=True):
         # Scale
-        rescale = None
-        factor = 1
+        resolution = None
+        crop_scale = 1
         if 'hd' in convert_to_flag:
-            rescale = (1920, 1080)
+            resolution = (1920, 1080)
         elif '4k' in convert_to_flag:
-            rescale = (3840, 2160)
-        if rescale is not None and crop:
+            resolution = (3840, 2160)
+        if resolution is not None and crop:
             original = self.get(0).resolution()
-            factor = rescale[0] / original[0]
+            crop_scale = resolution[0] / original[0]
         
         # Format
         new_format = ImgFormat.Keep
@@ -237,30 +243,27 @@ class Sequence():
             new_format = ImgFormat.JPG
         elif 'exr' in convert_to_flag:
             new_format = ImgFormat.EXR
-        
-        def convert(img, rescale, factor, crop, new_format):
-            # Rescale
-            if rescale is not None:
-                if crop:
-                    # Keep pixel ratio, crop to right format
-                    img = img.scale(factor).crop(rescale)
-                else:
-                    img = img.rescale(rescale)
-            if new_format != ImgFormat.Keep:
-                # Change to linear domain for EXR files
-                if new_format == ImgFormat.EXR:
-                    img = img.asDomain(ImgDomain.Lin)
-                img.setFormat(new_format)
-            return img
                 
         # Iterate over frames and convert
         for id in self.getKeys():
             if self[id].get() is not None:
-                self[id] = convert(self[id], rescale, factor, crop, new_format)
-        # Don't forget mask frame 
-        if self._maskFrame is not None:
-            self._maskFrame = convert(self._maskFrame, rescale, factor, crop, new_format)
+                self[id] = self[id].convert(resolution, crop, crop_scale, new_format)
+        # Don't forget preview 
+        if self._preview.get() is not None:
+            self._preview = self._preview.convert(resolution, crop, crop_scale, new_format)
         return self
+    
+    
+    ### Additional sequences and frames ###
+    
+    def getDataSequence(self, key) -> 'Sequence':
+        if key in self._data:
+            return self._data[key]
+        return None
+    
+    def setDataSequence(self, key, seq: 'Sequence'):
+        self._data[key] = seq
+            
     
     ### Metadata ###
     

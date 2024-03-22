@@ -5,10 +5,6 @@ from . import ImgBuffer, Sequence
 class CaptureData:
     def __init__(self, path=None):
         self.lights = Sequence()
-        self.preview = ImgBuffer()
-        self.render = ImgBuffer()
-        self.depth = ImgBuffer()
-        self._data: {}
         self._path = None
         
         if path is not None:

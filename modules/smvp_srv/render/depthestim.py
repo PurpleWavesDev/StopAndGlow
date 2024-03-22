@@ -1,24 +1,39 @@
 import numpy as np
+from numpy.typing import ArrayLike
 import cv2 as cv
+import logging as log
+from enum import StrEnum
 
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import Compose
+
 from .depth_anything.dpt import DepthAnything
 from .depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
+from .renderer import *
 
-#
-# 'depth_anything_model', 'vitl', ['vits', 'vitb', 'vitl']
+from ..data import *
+from ..utils import ti_base as tib
 
 
-class DAProcessor():
+class DepthAnythingModels(StrEnum):
+    large = 'vitl'
+    base = 'vitb'
+    small = 'vits'
+
+class DepthEstimator(Renderer):
     """Wrapper of the Depth-Anything framework"""
-    def __init__(self, flagdict):
+    name = "Depth Estimator"
+    
+    def getDefaultSettings() -> dict:
+        return {'model': DepthAnythingModels.large}
+    
+    def process(self, img_seq: Sequence, calibration: Calibration, settings: dict):
         # Check if a specific model was requested, use large as default
-        Com.info("Initializing Depth Anything..")
+        log.debug("Initializing Depth Anything")
 
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        self.model = DepthAnything.from_pretrained('LiheYoung/depth_anything_{}14'.format(flagdict['depth_anything_model'])).to(self.device).eval()
+        self.model = DepthAnything.from_pretrained('LiheYoung/depth_anything_{}14'.format(settings['model'])).to(self.device).eval()
         
         self.transform = Compose([
             Resize(
@@ -36,12 +51,33 @@ class DAProcessor():
         
         # Print if CUDA is available
         if self.device.type == 'cuda':
-            Com.info("CUDA acceleration for MiDaS enabled.")
+            log.debug("CUDA acceleration for MiDaS enabled")
+        
+        self.setSequence(img_seq)
+    
+    def setSequence(self, img_seq: Sequence):
+        self._sequence = img_seq
 
-    def process_frame(self, frame: np.ndarray, bounds: "tuple[list, list]", original: np.ndarray, bounds_original: "tuple[list, list]") -> np.ndarray:
+    # Render settings
+    def getRenderModes(self) -> list:
+        return ['depth']
+    def getRenderSettings(self, render_mode) -> RenderSettings:
+        return RenderSettings(is_linear=True, with_exposure=True)    
+
+    # Rendering
+    def render(self, render_mode, buffer, hdri=None):
+        #buffer.from_torch(self.getDepthTorch(self._sequence.getPreview())) # TODO: Gray scale image to RGB
+        buffer.from_numpy(self.getDepth(self._sequence.getPreview()))
+        
+    def getDepth(self, frame: ImgBuffer) -> ArrayLike:
+        depth = self.getDepthTorch(frame).cpu().numpy()
+        depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
+        return depth
+    
+    def getDepthTorch(self, frame: ImgBuffer):
         # Apply transform
-        h, w = frame.shape[:2]
-        frame = self.transform({'image': frame})['image']
+        w, h = frame.resolution()
+        frame = self.transform({'image': frame.get()})['image']
         frame = torch.from_numpy(frame).unsqueeze(0).to(self.device)
         
         # Run model
@@ -51,7 +87,5 @@ class DAProcessor():
         # Scale back and normalize
         depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
         depth = (depth - depth.min()) / (depth.max() - depth.min())
-        depth = depth.cpu().numpy()
-        depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
-
-        return depth
+        
+    

@@ -137,7 +137,7 @@ class Calibrate(Renderer):
     # TODO: cv.bilateralFilter respects edges, could be used here
     def findCenter(self):
         # Copy Frames
-        mask_frame = self._sequence.getMaskFrame().asInt()
+        mask_frame = self._sequence.getPreview().asInt()
         self._mask_rgb = np.copy(mask_frame.get())
         cb_filtered = np.copy(mask_frame.r().get())
         res_x, res_y = mask_frame.resolution()

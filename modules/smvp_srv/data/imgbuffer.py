@@ -247,6 +247,22 @@ class ImgBuffer:
         img_cropped = self.get()[crop_from[1]:old_res[1]-crop_to[1], crop_from[0]:old_res[0]-crop_to[0]]
         return ImgBuffer(path=self._path, img=img_cropped, domain=self._domain)
     
+    def convert(self, resolution=None, crop=True, crop_scale=1.0, format=ImgFormat.Keep):
+        # Rescale
+        if resolution is not None:
+            if crop:
+                # Keep pixel ratio, crop to right format
+                img = self.scale(crop_scale).crop(resolution)
+            else:
+                img = self.rescale(resolution)
+        if new_format != ImgFormat.Keep:
+            # Change to linear domain for EXR files
+            if new_format == ImgFormat.EXR:
+                img = img.asDomain(ImgDomain.Lin)
+            img.setFormat(new_format)
+        return img
+
+    
     ### Operators ###
     def __getitem__(self, coord) -> ImgBuffer:
         return ImgBuffer(img=np.array([[self.get()[coord[1]][coord[0]]]]), domain=self._domain)

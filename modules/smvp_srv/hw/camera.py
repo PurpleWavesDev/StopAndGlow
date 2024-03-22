@@ -283,7 +283,7 @@ class Cam:
             img = self.getImage(-1, path, name, keep=True)
             if save:
                 img.save()
-            seq.setMaskFrame(img)
+            seq.setPreview(img)
         if not keep:
             self.deleteFiles()
         
