@@ -11,6 +11,7 @@ from numpy.typing import ArrayLike
 import cv2 as cv
 
 from .imgbuffer import *
+from .config import *
 from ..utils import imgutils
 from ..utils.utils import logging_disabled
 
@@ -225,24 +226,23 @@ class Sequence():
         if self._meta:
             self.writeMeta()
     
-    def convertSequence(self, convert_to_flag, crop=True):
+    def convertSequence(self, settings):
         # Scale
         resolution = None
         crop_scale = 1
-        if 'hd' in convert_to_flag:
+        
+        size = GetSetting(settings, 'size', None)
+        crop = GetSetting(settings, 'crop', True)
+        if size == 'hd':
             resolution = (1920, 1080)
-        elif '4k' in convert_to_flag:
+        elif size == '4k':
             resolution = (3840, 2160)
         if resolution is not None and crop:
             original = self.get(0).resolution()
             crop_scale = resolution[0] / original[0]
         
         # Format
-        new_format = ImgFormat.Keep
-        if 'jpg' in convert_to_flag:
-            new_format = ImgFormat.JPG
-        elif 'exr' in convert_to_flag:
-            new_format = ImgFormat.EXR
+        new_format = GetSetting(settings, 'format', ImgFormat.Keep)
                 
         # Iterate over frames and convert
         for id in self.getKeys():

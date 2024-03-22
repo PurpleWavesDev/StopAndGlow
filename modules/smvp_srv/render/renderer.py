@@ -17,6 +17,8 @@ class RenderSettings:
 
 class Renderer:
     name = "Renderer"
+    name_short = "render"
+    
     # Loading, processing etc.
     def load(self, img_seq: Sequence):
         pass

@@ -111,7 +111,7 @@ def main(argv):
             # Load first video completely and scale
             sequence.loadFrames()
             if True: #self._flags.video_downscale:
-                sequence.convertSequence('hd')
+                sequence.convertSequence({'size': 'hd'})
             # Load other sequences from same video file
             sequences = [sequence]
             sequences[0].setMeta('exposure', f"1/50") # TODO
@@ -120,7 +120,7 @@ def main(argv):
                 sequences[i].setMeta('exposure', f"1/{[50, 200, 800][i]}") # TODO
                 # Scale images
                 if True: #self._flags.video_downscale:
-                    sequences[i].convertSequence('hd')
+                    sequences[i].convertSequence({'size': 'hd'})
 
             # Get exposure times and merge
             exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]

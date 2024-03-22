@@ -142,7 +142,7 @@ class ImgBuffer:
             self.setFormat(format)
                 
             # Create folder
-            Path(os.path.split(self._path)[0]).mkdir(parents=True, exist_ok=True)
+            Path(os.path.dirname(self._path)).mkdir(parents=True, exist_ok=True)
             self._from_file = True
             
             with logging_disabled():
@@ -247,7 +247,7 @@ class ImgBuffer:
         img_cropped = self.get()[crop_from[1]:old_res[1]-crop_to[1], crop_from[0]:old_res[0]-crop_to[0]]
         return ImgBuffer(path=self._path, img=img_cropped, domain=self._domain)
     
-    def convert(self, resolution=None, crop=True, crop_scale=1.0, format=ImgFormat.Keep):
+    def convert(self, resolution=None, crop=True, crop_scale=1.0, new_format=ImgFormat.Keep):
         # Rescale
         if resolution is not None:
             if crop:

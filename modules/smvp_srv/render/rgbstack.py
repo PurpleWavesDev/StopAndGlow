@@ -17,6 +17,7 @@ from ..utils import ti_base as tib
 
 class RgbStacker(Renderer):
     name = "RGB Stacker"
+    name_short = "rgbstack"
 
     def __init__(self):
         self._stacked = ImgBuffer()

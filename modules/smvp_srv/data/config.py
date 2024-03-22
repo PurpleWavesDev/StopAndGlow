@@ -1,31 +1,86 @@
 import os
 import json 
 import math
-from numpy.typing import ArrayLike
+from pathlib import Path
 
 class Config:
-    def __init__(self, path=None):
-        self._changed = False
-        if path is not None:
-            self.load(path)
-        else:
-            self._data = {
-                'version': '0.2.0',
-                'fitter': {}
-            }
-        
-    def load(self, path):
-        with open(path, "r") as file:
-            self._data = json.load(file)
-        if not 'fitter' in self._data:
-            self._data['fitter'] = {}
-        self._changed = False
+    def GetDefaults():
+        return {
+            # General
+            'loglevel': 'debug',
+            'resolution': [1920, 1080],
+            # Folders and default files
+            'seq_folder': '../HdM_BA/data/capture',
+            'cal_folder': '../HdM_BA/data/calibration',
+            'cal_name': 'lightdome.json',
+            'hdri_folder': '../HdM_BA/data/hdri',
+            'hdri_name': 'hdri.exr',
+            # Config TODO: self-referencing? should replace path variable or only be available there
+            'config_folder': '../HdM_BA/data/config',
+            'config_name': 'config.json',
+            # Capture settings
+            'hdr_capture': True,
+            'hdr_bracket_num': 3,
+            'hdr_bracket_stops': 4,
+            'capture_fps': 25,
+            'capture_frames_skip': 3,
+            'capture_dmx_repeat': 0,
+            'capture_max_addr': 310,
+            # Processing settings
+            'hdri_rotation': 0.0,
+        }
 
-    def save(self, path, name='config.json'):
-        if not os.path.exists(path):
-            os.makedirs(path)
-        full_path = os.path.join(path, name)
-        with open(full_path, "w") as file:
-            json.dump(self._data, file, indent=4)
+    def __init__(self, path=None):
+        # Assign defaults
+        self._config = Config.GetDefaults()
         self._changed = False
+        self._path = path
+        
+        if self._path is not None:
+            if os.path.exists(self._path):
+                self.load(self._path)
+            else:
+                self.save(self._path)
     
+    def load(self, path=None):
+        if path is not None:
+            self._path = path
+        
+        if self._path is not None:
+            with open(self._path, "r") as file:
+                data = json.load(file)
+                self._config = {**self._config, **data}
+
+    def save(self, path=None):
+        if path is not None:
+            self._path = path
+            
+        if self._path is not None:
+            Path(os.path.dirname(self._path)).mkdir(parents=True, exist_ok=True)
+            with open(self._path, "w") as file:
+                json.dump(self._config, file, indent=4)
+            self._changed = False
+    
+    def get(self) -> dict:
+        return self._config
+    
+    def __getitem__(self, key):
+        return self._config[key]
+
+    def __len__(self):
+        return len(self._config)
+        
+    def __delitem__(self, key):
+        del self._config[key]
+    
+    def __iter__(self):
+        return iter(self._config)
+
+### General dict helpers ###
+def GetSetting(settings, key, default=None):
+    if key in settings:
+        return settings[key]
+    return default
+
+def SetDefault(settings, key, val):
+    if not key in settings: settings[key] = val

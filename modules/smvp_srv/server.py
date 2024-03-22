@@ -52,26 +52,46 @@ def run(port=9271):
             case Command.LightCtlOff:
                 queue.putCommand(Commands.Lights, 'off')
                 send(socket, Message(Command.CommandOkay))
-            
-            ## Live Viewer
-            #case Command.ViewerOpen:
-                
-            #case Command.ViewerClose:
 
+            ## Full resoultion footage
+            case Command.CaptureLights:
+                queue.putCommand(Commands.Capture, 'lights')
+                queue.putCommand(Commands.Save, '')
+                send(socket, Message(Command.CommandOkay))
+            case Command.CaptureHdri:
+                queue.putCommand(Commands.Capture, 'hdri')
+                queue.putCommand(Commands.Save, '')
+                send(socket, Message(Command.CommandOkay))
+            ## Load from disk
+            case Command.LoadFootage:
+                queue.putCommand(Commands.Load, message['path'])
+                send(socket, Message(Command.CommandOkay))
+            
             ## Preview
             case Command.Preview:
+                queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
+                send(socket, Message(Command.CommandProcessing))
+                
+            case Command.PreviewHdri:
+                queue.putCommand(Commands.Capture, 'hdri')
+                queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
                 send(socket, Message(Command.CommandProcessing))
             
             case Command.PreviewLive:
                 # TODO: Localhost should be address of received message
                 queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'live'})
                 send(socket, Message(Command.CommandProcessing))
-                
-            case Command.PreviewHdri:
-                send(socket, Message(Command.CommandProcessing))
+            
+            ## Render
+            
             
             case _:
                 send(socket, Message(Command.CommandError, {"message": "Unknown command"}))
+            
+            
+            ## Live Viewer
+            #case Command.ViewerOpen:    
+            #case Command.ViewerClose:
             
             # Config commands
             # Resolution, Paths, Cals, .. ??
@@ -88,11 +108,6 @@ def run(port=9271):
             ## Several viewer modes?
             #
             #
-            ## Full resoultion footage
-            #case Command.CaptureHdri:
-            #case Command.CaptureLights:
-            ## Load from disk
-            #case Command.LoadFootage:
             #
             ## Render loaded footage
             #case Command.GetRenderAlgorithms:

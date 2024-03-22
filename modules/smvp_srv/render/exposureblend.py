@@ -17,7 +17,8 @@ from ..utils import ti_base as tib
 
 class ExpoBlender(Renderer):
     name = "Exposure Blender"
-
+    name_short = "expoblend"
+    
     def __init__(self):
         self._blended = Sequence()
         self._rescaled = None

@@ -18,6 +18,8 @@ from .renderer import *
 
 class LightStacker(Renderer):
     name = "Light Stacker"
+    name_short = "lightstack"
+    
     def __init__(self):
         self._u_min = self._u_max = self._v_min = self._v_max = None
         

@@ -24,6 +24,7 @@ class DepthAnythingModels(StrEnum):
 class DepthEstimator(Renderer):
     """Wrapper of the Depth-Anything framework"""
     name = "Depth Estimator"
+    name_short = "depth"
     
     def getDefaultSettings() -> dict:
         return {'model': DepthAnythingModels.large}

@@ -116,7 +116,8 @@ class SMVP_CANVAS_OT_printFrames(Operator):
         tex = obj.smvp_canvas.frame_list[0].preview_texture
         
         id = client.serviceAddReq(bpy.data.images[tex])
-        message = Message(Command.PreviewLive, {'id': id})
+        #message = Message(Command.PreviewLive, {'id': id})
+        message = Message(Command.PreviewHdri, {'id': id})
         client.sendMessage(message)
         return{'FINISHED'}
     

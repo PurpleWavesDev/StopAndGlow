@@ -13,6 +13,7 @@ from .fitter import *
 
 class RtiRenderer(Renderer):
     name = "RTI Renderer"
+    name_short = "rti"
     
     def __init__(self):
         self._fitter = None

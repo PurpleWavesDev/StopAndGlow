@@ -4,6 +4,7 @@ from threading import Thread
 import logging as log
 import time
 import zmq
+from datetime import datetime
 
 from smvp_ipc import *
 
@@ -11,6 +12,8 @@ from .commands import *
 from .hw import *
 from .data import *
 from .process import *
+from .render import *
+from .utils import ti_base as tib
 
 
 class ProcessingQueue:
@@ -50,13 +53,24 @@ class Worker:
                         
     def work(self, queue, keep_running):
         self._keep_running = keep_running
+        # Setup Taichi
+        tib.TIBase.gpu = True
+        tib.TIBase.debug = True
+        tib.TIBase.init()
+        
+        # Default config
+        self.config = Config()
+        
+        # Sequence data and buffers
+        self.sequence = Sequence()
+        self.render = ImgBuffer()
+        self.baked = ImgBuffer()
+        self.hdri = ImgBuffer(path=os.path.join(self.config['hdri_folder'], self.config['hdri_name']))
         
         # Setup hardware
-        self._hw = HW(Cam(), Lights(), Calibration('../HdM_BA/data/calibration/lightdome.json')) # Calibration(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)
-        self._lightctl = LightCtl(self._hw)
-        
-        # Capture data
-        self._capture = CaptureData()
+        calibration = Calibration(path=os.path.join(self.config['cal_folder'], self.config['cal_name']))
+        self.hw = HW(Cam(), Lights(), calibration)
+        self.lightctl = LightCtl(self.hw)
 
         while self._keep_running or not queue.empty():
             try:
@@ -71,19 +85,63 @@ class Worker:
     def processCommand(self, command, arg, settings):
         match command:
             case Commands.Config:
-                pass
+                # --config load path=/bla/bla name=config.json
+                # --config set key=value
+                if arg == 'load':
+                    # TODO
+                    GetSetting(settings, 'path', '')
+                    #self.config = Config(path)
+                elif arg == 'set':
+                    for key, val in settings.items():
+                        self.config[key] = val
             
             case Commands.Capture:
-                pass
-            
+                # --capture lights
+                # Name and settings
+                name = GetSetting(settings, 'name', GetDatetimeNow())
+                settings = self.config.get() | settings
+                settings['seq_type'] = arg
+                
+                # Create capture object and capture
+                capture = Capture(self.hw, settings)
+                capture.captureSequence(self.hw.cal, self.hdri)
+                # Download
+                if arg != 'hdri': #TODO: Should HDRI be a separate sequence or set as data sequence?
+                    self.sequence = capture.downloadSequence(name, keep=False)
+                else:
+                    hdri_seq = capture.downloadSequence(name, keep=False)
+                    stacked = self.process(hdri_seq, 'rgbstack', {})
+                    self.baked = stacked[0]
+                    #self.sequence.setDataSequence()
+                
             case Commands.Load:
-                pass
+                path = arg
+                if os.path.splitext(seq_name)[1] == '':
+                    # Load folder
+                    domain = ImgDomain.Keep
+                    # Override domain TODO
+                    sequence.loadFolder(path, domain)
+                else:
+                    # Load video
+                    # IDs according sequence type
+                    match FLAGS.seq_type:
+                        case 'lights':
+                            ids = calibration.getIds()
+                        case 'hdri':
+                            ids = [0, 1, 2]
+                        case 'fullrun':
+                            ids = range(FLAGS.capture_max_addr)
+                    # TODO: Video parameters via metadata?
+                    sequence.load(path, ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat) 
             
             case Commands.Convert:
-                pass
+                # --convert size=4k|hd format=??
+                sequence.convertSequence(settings)
             
             case Commands.Process:
-                pass
+                data_sequence = self.process(self.sequence, arg, settings)
+                if data_sequence is not None:
+                    self.sequence.setDataSequence(data_key, data_sequence)
             
             case Commands.Render:
                 pass
@@ -92,31 +150,33 @@ class Worker:
                 pass
             
             case Commands.Save:
-                pass
+                sequence.saveSequence(name, FLAGS.seq_folder)
             
             case Commands.Send:
-                # --send address:port id=1 mode=render|preview|live
+                # --send address:port id=1 mode=render|baked|preview|live
                 if not arg in self._sock:
                     self.addConsumer(arg)
                 
-                id = GetVal(settings, 'id', 0)
-                mode = GetVal(settings, 'mode', 'preview')
+                id = GetSetting(settings, 'id', 0)
+                mode = GetSetting(settings, 'mode', 'preview')
                 if mode == 'render':
-                    send_array(self._sock[arg], id, self._capture.render.get())
+                    send_array(self._sock[arg], id, self.render.getWithAlpha())
+                if mode == 'baked':
+                    send_array(self._sock[arg], id, self.baked.getWithAlpha())
                 elif mode == 'preview':
-                    send_array(self._sock[arg], id, self._capture.preview.get())
+                    send_array(self._sock[arg], id, self.preview.getWithAlpha())
                 elif mode == 'live':
-                    send_array(self._sock[arg], id, self._hw.cam.capturePreview().rescale((1920, 1080)).asFloat().getWithAlpha())
+                    send_array(self._sock[arg], id, self.hw.cam.capturePreview().rescale(self.config['resolution']).asFloat().getWithAlpha())
                 
             case Commands.Lights:
                 # --lights on value=50 range=0.2
                 match arg:
                     case 'on'|'rand':
-                        self._lightctl.setNth(6, 50)
+                        self.lightctl.setNth(6, 50)
                     case 'top':
-                        self._lightctl.setTop(60, 50)
+                        self.lightctl.setTop(60, 50)
                     case 'off':
-                        self._hw.lights.off()
+                        self.hw.lights.off()
                 
             case Commands.Sleep:
                 # --sleep 1.0
@@ -129,8 +189,52 @@ class Worker:
             
             case _:
                 log.error(f"Unknown command '{command}'")
+    
+    
+    def process(self, img_seq, arg, settings):
+        # --process <type> setting=value
+        # Get renderer
+        renderer = None
+        data_sequence = None
+        data_key = ""
+        
+        match arg:
+            case 'cal':
+                if not interactive in settings: settings['interactive'] = True
+                renderer = Calibrate()
+            case 'calstack':
+                #stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
+                #self.hw.cal.stitch(stack_cals)
+                #self.hw.cal.save(FLAGS.cal_folder, FLAGS.new_cal_name)
+                pass
+            case 'rgbstack':
+                renderer = RgbStacker()
+            case 'lightstack':
+                renderer = LightStacker()
+            case 'depth':
+                renderer = DepthEstimator()
+            case 'rti':
+                if not order in settings: settings['order'] = 4
+                renderer = RtiRenderer()     
 
-def GetVal(d, key, default=None):
-    if key in d:
-        return d[key]
-    return default
+            case _:
+                log.error(f"Unknwon processor type '{arg}'")
+        
+        # Process renderers
+        if renderer is not None:
+            log.info(f"Process image sequence for {renderer.name}")                    
+            # Process
+            renderer.process(img_seq, calibration, settings)
+            # Store data
+            if len(renderer.get()) > 0:
+                data_sequence = renderer.get()
+                data_key = renderer.name_short
+        
+        return data_sequence 
+
+
+
+### Helper ###
+
+def GetDatetimeNow():
+    return datetime.now().strftime("%Y%m%d_%H%M")
