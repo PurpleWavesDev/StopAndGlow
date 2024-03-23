@@ -23,7 +23,18 @@ SERVER_CWD = os.path.abspath("../../")
 SERVER_COMMAND = [".venv/bin/python", "server.py"]
 
 # Operator functions
-def smvpConnect(address, port, launch=False) -> bool:
+def smvpLaunch(port=0) -> bool:
+    global server
+    # Launch process
+    try:
+        command = SERVER_COMMAND if port == 0 else SERVER_COMMAND + ["--port", str(port)]
+        server = subprocess.Popen(command, cwd=SERVER_CWD)
+        return server is not None
+    except Exception as e:
+        print(f"SMVP Error: Can't launch server process ({str(e)})")
+    return False
+
+def smvpConnect(address, port) -> bool:
     global socket
     global connected
     global server
@@ -33,37 +44,26 @@ def smvpConnect(address, port, launch=False) -> bool:
     # First close any remaining connections
     smvpDisconnect()
 
-    if launch:
-        # Launch process
-        try:
-            server = subprocess.Popen(SERVER_COMMAND, cwd=SERVER_CWD)
-            time.sleep(3)
-            # Call again to connect
-            if server is not None:
-                return connect(address, port, False)
-        except:
-            print(f"SMVP Error: Can't launch server process")
-    else:
-        # Connect to server
-        socket = context.socket(zmq.REQ)
-        server_address = f"tcp://{address}:{port}"
-        val = socket.connect(server_address)
-        # Set timeout and disconnect after timeout option
-        socket.setsockopt(zmq.RCVTIMEO, 3000)
-        socket.setsockopt(zmq.LINGER, 0)
-        # Send an init message and wait for answer
-        message = Message(Command.Init, {})
-        try:
-            connected = sendMessage(message, reconnect=False, force=True) is not None
-            
-            if connected:
-                # Launch service, receiving port is server port +1
-                receiver = Thread(target=serviceRun, args=(port+1, ))
-                receiver.start()
-            
-            return connected
-        except:
-            print(f"SMVP Error: Can't connect to server {server_address}")
+    # Connect to server
+    socket = context.socket(zmq.REQ)
+    server_address = f"tcp://{address}:{port}"
+    val = socket.connect(server_address)
+    # Set timeout and disconnect after timeout option
+    socket.setsockopt(zmq.RCVTIMEO, 3000)
+    socket.setsockopt(zmq.LINGER, 0)
+    # Send an init message and wait for answer
+    message = Message(Command.Init, {})
+    try:
+        connected = sendMessage(message, reconnect=False, force=True) is not None
+        
+        if connected:
+            # Launch service, receiving port is server port +1
+            receiver = Thread(target=serviceRun, args=(port+1, ))
+            receiver.start()
+        
+        return connected
+    except:
+        print(f"SMVP Error: Can't connect to server {server_address}")
     return False
 
 def smvpDisconnect():
@@ -138,45 +138,9 @@ def serviceRun(port):
                 print(f"SMVP receiver error: Can't read received data ({str(e)})")
     
 
-class WM_OT_smvp_connect(bpy.types.Operator):
-    """To open an connection to the Stop Motion VP server for accessing pre-rendered or captured frames"""
 
-    bl_idname = "wm.smvp_connect"
-    bl_label = "Connect to Stop Motion VP Server"
-    bl_options = {"REGISTER"}
-
-    address: bpy.props.StringProperty(
-        name="Address",
-        default="localhost",
-        description="Host address to connect to",
-    )
-    port: bpy.props.IntProperty(
-        name="Port",
-        default=9271,
-        description="Port of connection",
-    )
-    launch: bpy.props.BoolProperty(
-        name="Launch server",
-        default=False,
-        description="If server process should be launched before connecting",
-    )
-
-    def execute(self, context):
-        if not smvpConnect(self.address, self.port, self.launch):
-            self.report({"WARNING"}, f"Can't connect to server {self.address}:{self.port}")
-            return {"CANCELLED"}
-        return {"FINISHED"}
-    
-    @classmethod
-    def poll(cls, context):
-        global connected
-        return not connected
-
-
-# register operators
 def register():
-    # Operators
-    bpy.utils.register_class(WM_OT_smvp_connect)
+    pass
 
 
 def unregister():
@@ -191,6 +155,4 @@ def unregister():
     if server:
         server.terminate()
 
-    # Operators
-    bpy.utils.unregister_class(WM_OT_smvp_connect)
     

@@ -4,6 +4,8 @@ from bpy.types import Panel, Menu
 from .client import *
 from .domectl import *
 from .canvas import *
+from .camera import *
+from .scene import *
 
 # -------------------------------------------------------------------
 # Dome Control
@@ -19,20 +21,21 @@ class VIEW3D_PT_domectl(Panel):
     bl_label = "Lightdome Controls"  # found at the top of the Panel
 
     def draw(self, context):
-        """define the layout of the panel"""
         row = self.layout.row()
-        row.operator(WM_OT_smvp_connect.bl_idname, text="Launch service").launch=True
+        row.operator(WM_OT_smvp_connect.bl_idname, text="(Re-)Connect to service")
         row = self.layout.row()
-        row.operator(WM_OT_smvp_connect.bl_idname, text="Connect to service")
+        row.operator(WM_OT_smvp_launch.bl_idname, text="Launch service")
         row = self.layout.row()
-        row.operator(WM_OT_domectl_lights_on.bl_idname, text="Lights on", icon = "OUTLINER_OB_LIGHT")
+        row.operator(WM_OT_smvp_lightctl.bl_idname, text="Lights on", icon = "OUTLINER_OB_LIGHT").light_state = "TOP"
         row = self.layout.row()
-        row.operator(WM_OT_domectl_lights_off.bl_idname, text="Lights off", icon = "OUTLINER_DATA_LIGHT")
+        row.operator(WM_OT_smvp_lightctl.bl_idname, text="Lights off", icon = "OUTLINER_DATA_LIGHT").light_state = "OFF"
+        row = self.layout.row()
+        row.operator(WM_OT_smvp_viewer.bl_idname, text="Toggle Live View", icon = "SCENE")
+
 
 # -------------------------------------------------------------------
-# Stop Motion VP Control
+# Scene, display and capture controls
 # -------------------------------------------------------------------
-
 
 class VIEW3D_PT_stop_motion_vp(Panel): 
 
@@ -46,9 +49,7 @@ class VIEW3D_PT_stop_motion_vp(Panel):
     def draw(self, context):
         """define the layout of the panel"""
         row = self.layout.row()
-        row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Create Canvas", icon ="PLUS")
-        row = self.layout.row()
-        row.operator("mesh.primitive_cube_add", text="Live View", icon = "SCENE")
+        row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Setup Scene", icon ="PLUS")
         row = self.layout.row()
         row.operator("mesh.primitive_ico_sphere_add", text="Capture Sequence", icon = "MONKEY")
       
@@ -175,6 +176,11 @@ class SMVP_CANVAS_PT_frameList(Panel):
 
 
 # -------------------------------------------------------------------
+# Camera UI
+# -------------------------------------------------------------------
+
+
+# -------------------------------------------------------------------
 # Add Menu Entry
 # -------------------------------------------------------------------
 
@@ -184,10 +190,10 @@ class OBJECT_MT_smvp_submenu(Menu):
 
     def draw(self, context):
         layout = self.layout
-
         layout.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Canvas", icon="IMAGE_PLANE")
-        #layout.operator("mesh.plane_effector") # Camera icon="VIEW_CAMERA"
-
+        layout.operator(SMVP_CAMERA_OT_addLinked.bl_idname, text="Linked Camera", icon="VIEW_CAMERA")
+    
+        
 def smvp_objects_menu(self, context):
     self.layout.separator()
     self.layout.menu(OBJECT_MT_smvp_submenu.bl_idname, text="SMVP", icon="GHOST_DISABLED")

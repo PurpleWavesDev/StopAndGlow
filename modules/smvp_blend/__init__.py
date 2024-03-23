@@ -37,7 +37,7 @@ parent_module_path = path.abspath("..")
 if not parent_module_path in sys.path:
     sys.path.append(parent_module_path)
 
-from . import properties, client, domectl, canvas, ui
+from . import properties, client, domectl, canvas, camera, scene, ui
 
 
 def register():
@@ -45,6 +45,8 @@ def register():
     client.register()
     domectl.register()
     canvas.register()
+    camera.register()
+    scene.register()
     ui.register()
 
 def unregister():
@@ -52,6 +54,8 @@ def unregister():
     client.unregister()
     domectl.unregister()
     canvas.unregister()
+    camera.unregister()
+    scene.unregister()
     ui.unregister()
 
 

@@ -1,8 +1,11 @@
 import bpy
-from bpy.types import Scene, PropertyGroup
+from bpy.types import Scene, Object, Camera, PropertyGroup
 from bpy.props import *
 
 
+
+class SMVP_SceneProps(PropertyGroup):
+    active_canvas: StringProperty()
 
 class SMVP_CANVAS_FrameCollection(PropertyGroup):
     #name: StringProperty() -> Instantiated by default
@@ -13,7 +16,7 @@ class SMVP_CANVAS_FrameCollection(PropertyGroup):
     updated: BoolProperty(default=False)
     preview_updated: BoolProperty(default=False)
 
-class SMVP_CANVAS_Props(PropertyGroup):
+class SMVP_CanvasProps(PropertyGroup):
     is_canvas: BoolProperty()
     frame_list_index: IntProperty()
     frame_list: CollectionProperty(type=SMVP_CANVAS_FrameCollection)
@@ -22,6 +25,10 @@ class SMVP_CANVAS_Props(PropertyGroup):
     render_type: StringProperty()
     exposure: FloatProperty()
     preview_exposure: FloatProperty()
+    
+
+class SMVP_CameraProps(PropertyGroup):
+    canvas_link: StringProperty()
 
 
 def get_algorithms(self, context):
@@ -48,8 +55,10 @@ class SMVP_Algorithms_Props(PropertyGroup):
  
 
 classes = (
+    SMVP_SceneProps,
     SMVP_CANVAS_FrameCollection,
-    SMVP_CANVAS_Props,
+    SMVP_CanvasProps,
+    SMVP_CameraProps,
     SMVP_Algorithms_Props
 )
 
@@ -59,11 +68,12 @@ def register():
         register_class(cls)
     
     # Assign properties
-    #Scene.smvp_config = bpy.props.PointerProperty(type=SmvpConfig, name="SMVP Configuration")
-    bpy.types.Object.smvp_canvas = bpy.props.PointerProperty(type=SMVP_CANVAS_Props, name="SMVP Canvas")
+    Scene.smvp_scene = PointerProperty(type=SMVP_SceneProps, name="SMVP Scene Properties")
+    Object.smvp_canvas = PointerProperty(type=SMVP_CanvasProps, name="SMVP Canvas Properties")
+    Camera.smvp = PointerProperty(type=SMVP_CameraProps, name="SMVP Camera Properties")
 
      # Add Render Algorithm PointerProperty 
-    bpy.types.Scene.smvp_algorithms = bpy.props.PointerProperty(type= SMVP_Algorithms_Props)
+    Scene.smvp_algorithms = bpy.props.PointerProperty(type= SMVP_Algorithms_Props)
 
 def unregister():
     from bpy.utils import unregister_class
@@ -71,8 +81,9 @@ def unregister():
         unregister_class(cls)
     
     # Delete properties
-    #del Scene.smvp_config
-    del bpy.types.Object.smvp_canvas
+    del Scene.smvp_scene
+    del Object.smvp_canvas
+    del Camera.smvp
 
     #del Scene.smvp_algorithms
     del bpy.types.Scene.smvp_algorithms

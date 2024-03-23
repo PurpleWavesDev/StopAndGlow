@@ -11,11 +11,11 @@ from . import client
 
 DEFAULT_RESOULTION = (1920, 1080)
 
+
 # -------------------------------------------------------------------
-#   Operators
+#   Frame UI List Operators
 # -------------------------------------------------------------------
 
-## Frame UIList Operators
 class SMVP_CANVAS_OT_addFrame(Operator):
     """Add new frame from sequence folder"""
     bl_idname = "smvp_canvas.frame_add"
@@ -50,7 +50,6 @@ class SMVP_CANVAS_OT_addFrame(Operator):
         else:
             self.report({'WARNING'}, "Not a valid folder")
             return {"CANCELLED"}
-
 
       
 class SMVP_CANVAS_OT_actions(Operator):
@@ -273,7 +272,9 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
         return{'FINISHED'}
 
 
-## N-Panel Operators
+# -------------------------------------------------------------------
+#   Side-Panel (3D-View) Operators
+# -------------------------------------------------------------------
 class OBJECT_OT_smvp_canvas_add(bpy.types.Operator):
     """Creates an canvas object"""
 
@@ -298,6 +299,10 @@ class OBJECT_OT_smvp_canvas_add(bpy.types.Operator):
         # Settings TODO only for EEVEE?
         mat.blend_method = 'HASHED'
         mat.shadow_method = 'HASHED'
+        
+        # Set active canvas object if not set
+        if context.scene.smvp_scene.active_canvas == "":
+            context.scene.smvp_scene.active_canvas = canvas.name
         
         return {"FINISHED"}
     
