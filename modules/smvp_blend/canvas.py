@@ -4,13 +4,12 @@ import bpy
 from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
 
-from smvp_ipc import *
+import smvp_ipc as ipc
 
 from . import properties as props
 from . import client
 
 DEFAULT_RESOULTION = (1920, 1080)
-
 
 # -------------------------------------------------------------------
 #   Frame UI List Operators
@@ -36,15 +35,37 @@ class SMVP_CANVAS_OT_addFrame(Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        obj = context.object
-        idx = obj.smvp_canvas.frame_list_index
+        canvas = context.object.smvp_canvas
+        #idx = canvas.frame_list_index
         
         # Check if directory is a valid folder
         if os.path.isdir(self.directory):
-            # TODO: Index and resolution!
-            createFrameEntry(obj, self.directory, (1920, 1080), -1)
-            # Force redraw
+            # Create new item and move to correct place TODO!
+            item = canvas.frame_list.add()
+            # New index depending on number of keyframes before current frame TODO
+            #canvas.frame_list.move(len(canvas.frame_list)-1, idx+1)
+            
+            # Assign path and name
+            item.seq_path = os.path.normpath(self.directory)
+            item.name = os.path.basename(item.seq_path)
+    
+            # Set Frame ID and increment
+            frame_id = item.id = canvas.frame_ids
+            canvas.frame_ids += 1
+            
+            # Create texture images
+            createFrameTextures(context.object, len(canvas.frame_list)-1, (1920, 1080)) # TODO Index!!
+            
+            # Insert keyframe
+            context.object.keyframe_insert(data_path='["frame_keys"]')
+            
+            # Send load command
+            message = ipc.Message(ipc.Command.LoadFootage, {'path': self.directory})
+            client.sendMessage(message)
             context.area.tag_redraw()
+            
+            # Request image
+            update_single_canvas_tex(context.scene, context.obj)
             return {"FINISHED"}
             
         else:
@@ -65,6 +86,10 @@ class SMVP_CANVAS_OT_actions(Operator):
             ('DOWN', "Down", ""),
             ('REMOVE', "Remove", "")))
 
+    @classmethod
+    def poll(cls, context):
+        return len(context.object.smvp_canvas.frame_list) > 0
+    
     def invoke(self, context, event):
         obj = context.object
         idx = obj.smvp_canvas.frame_list_index
@@ -78,73 +103,58 @@ class SMVP_CANVAS_OT_actions(Operator):
                 item_next = obj.smvp_canvas.frame_list[idx+1].name
                 obj.smvp_canvas.frame_list.move(idx, idx+1)
                 obj.smvp_canvas.frame_list_index += 1
-                info = 'Item "%s" moved to position %d' % (item.name, obj.smvp_canvas.frame_list_index + 1)
+                info = 'Frame "%s" moved to position %d' % (item.name, obj.smvp_canvas.frame_list_index + 1)
                 self.report({'INFO'}, info)
 
             elif self.action == 'UP' and idx >= 1:
                 item_prev = obj.smvp_canvas.frame_list[idx-1].name
                 obj.smvp_canvas.frame_list.move(idx, idx-1)
                 obj.smvp_canvas.frame_list_index -= 1
-                info = 'Item "%s" moved to position %d' % (item.name, obj.smvp_canvas.frame_list_index + 1)
+                info = 'Frame "%s" moved to position %d' % (item.name, obj.smvp_canvas.frame_list_index + 1)
                 self.report({'INFO'}, info)
 
             elif self.action == 'REMOVE':
-                info = 'Item "%s" removed from list' % (obj.smvp_canvas.frame_list[idx].name)
-                obj.smvp_canvas.frame_list_index -= 1
-                obj.smvp_canvas.frame_list.remove(idx)
+                info = 'Frame "%s" removed from list' % (obj.smvp_canvas.frame_list[idx].name)
+                deleteFrameEntry(obj, idx)
                 self.report({'INFO'}, info)
-
+            update_single_canvas_tex(context.scene, obj)
+            
         return {"FINISHED"}
 
-    #def execute(self, context):
-    #    obj = context.object
-    #    idx = obj.smvp_canvas.frame_list_index
-    #                
-    #    return {"FINISHED"}
+    def execute(self, context):
+        obj = context.object
+        idx = obj.smvp_canvas.frame_list_index
+        # TODO: Update texture
+        return {"FINISHED"}
 
 
-class SMVP_CANVAS_OT_printFrames(Operator):
-    """Print all frames and their properties to the console, for debugging purposes"""
-    bl_idname = "smvp_canvas.frames_print"
-    bl_label = "Print Frames to Console"
-    bl_description = "Print all frames and their properties to the console"
+class SMVP_CANVAS_OT_capture(Operator):
+    """Capture frame data for rendering or with baked lighting"""
+    bl_idname = "smvp_canvas.capture"
+    bl_label = "Capture"
+    bl_description = "Capture frame data for rendering or with baked lighting"
     bl_options = {'REGISTER', 'UNDO'}
+    
+    baked: BoolProperty(name="Capture with baked HDRI", default=False)
+    frame: IntProperty(name="Frame number for the captured frame (-1 for current frame)", default=-1) # Or float?
 
     def execute(self, context):
         obj = context.object
         tex = obj.smvp_canvas.frame_list[0].preview_texture
         
         id = client.serviceAddReq(bpy.data.images[tex])
-        #message = Message(Command.PreviewLive, {'id': id})
-        message = Message(Command.PreviewHdri, {'id': id})
-        client.sendMessage(message)
-        return{'FINISHED'}
-    
-class SMVP_CANVAS_OT_printFrames_cpy(Operator):
-    """Print all frames and their properties to the console, for debugging purposes"""
-    bl_idname = "smvp_canvas.frames_print_cpy"
-    bl_label = "Print Frames to Console"
-    bl_description = "Print all frames and their properties to the console"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    reverse_order: BoolProperty(
-        default=False,
-        name="Reverse Order")
-
-    @classmethod
-    def poll(cls, context):
-        return bool(context.object.smvp_canvas.frame_list)
-
-    def execute(self, context):
-        obj = context.object
-        if self.reverse_order:
-            for i in range(obj.smvp_canvas.frame_list_index, -1, -1):        
-                item = obj.smvp_canvas.frame_list[i]
-                print ("Name:", item.name,"-",item.obj_type,item.obj_id)
+        #message = ipc.Message(ipc.Command.PreviewLive, {'id': id})
+        #message = ipc.Message(ipc.Command.PreviewHdri, {'id': id})
+        # Send capture message
+        message = None
+        if self.baked:
+            message = ipc.Message(ipc.Command.CaptureBaked, {'id': id})
         else:
-            for item in obj.smvp_canvas.frame_list:
-                print ("Name:", item.name,"-",item.obj_type,item.obj_id)
+            message = ipc.Message(ipc.Command.CaptureLights, {'id': id})
+        client.sendMessage(message)
+        
         return{'FINISHED'}
+
 
 
 class SMVP_CANVAS_OT_clearFrames(Operator):
@@ -291,10 +301,15 @@ class OBJECT_OT_smvp_canvas_add(bpy.types.Operator):
         canvas.scale[0] = 16/9
         canvas.smvp_canvas.is_canvas = True
         canvas['exposure'] = 1.0
+        #canvas['exposure_preview'] = 1.0
+        canvas['frame_keys'] = True
         
-        # Set material
+        # Set ID and increment
+        canvas.smvp_canvas.canvas_id = context.scene.smvp_scene.canvas_ids
+        context.scene.smvp_scene.canvas_ids += 1
+        
+        # Set material, create slot and assign
         mat = createCanvasMat(canvas)
-        # Create slot and assign
         canvas.data.materials.append(mat)
         # Settings TODO only for EEVEE?
         mat.blend_method = 'HASHED'
@@ -314,46 +329,65 @@ class OBJECT_OT_smvp_canvas_add(bpy.types.Operator):
 # -------------------------------------------------------------------
 #   Event handlers
 # -------------------------------------------------------------------
-def update_canvases_texture(scene):
+def update_canvas_textures(scene):
     #bpy.data.materials["Video"].node_tree.nodes["texture"].inputs[1].default_value = frame_numscene.frame_current
     for obj in bpy.data.objects:
         if obj.smvp_canvas.is_canvas:
-            pass
-            # Canvas found! Find current frame
+            # Canvas found!
+            update_single_canvas_tex(scene, obj)
             
-            # Apply texture
+                
+def update_single_canvas_tex(scene, obj):
+    try:
+        idx = obj.smvp_canvas.frame_list_index
+        item = obj.smvp_canvas.frame_list[idx]
+    except:
+        pass
+    else:
+        # Apply texture
+        img = getTexture(obj, idx)
+        obj.material_slots[0].node_tree.nodes["ImageTexture"].image = img
 
 
 
 # -------------------------------------------------------------------
-#   Helpers
+#   Shader, Material, Image Texture Helpers
 # -------------------------------------------------------------------
 def createCanvasMat(obj):
+    """Creates a new material for a canvas object"""
     # Create empty material
-    mat = bpy.data.materials.new(name=obj.name+"_mat")
+    mat = bpy.data.materials.new(name=f"canvas_{obj.smvp_canvas.id:02d}_mat")
     mat.use_nodes = True
     mat.node_tree.nodes.remove(mat.node_tree.nodes['Principled BSDF'])
 
     # Create mix shader node and link with output
     mix = mat.node_tree.nodes.new('ShaderNodeMixShader')
+    mix.location = 400,0
     matout = mat.node_tree.nodes.get('Material Output')
+    matout.location = 800,0
     mat.node_tree.links.new(matout.inputs[0], mix.outputs[0])
     
     # Create transparency shader and link with mix shader
     trans = mat.node_tree.nodes.new('ShaderNodeBsdfTransparent')
+    trans.location = 0,200
     mat.node_tree.links.new(mix.inputs[1], trans.outputs[0])
     
     # Create emission shader and value node and link with mix shader
     emission = mat.node_tree.nodes.new('ShaderNodeEmission')
+    trans.location = 0,-200
     exposure = mat.node_tree.nodes.new('ShaderNodeValue')
+    trans.location = -400,-200
     mat.node_tree.links.new(mix.inputs[2], emission.outputs[0])
     mat.node_tree.links.new(emission.inputs[1], exposure.outputs[0])
     
     # Create image texture node and link with HSV
     img = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    img.location = -1200,-200
+    img.name = "ImageTexture"
     mat.node_tree.links.new(emission.inputs[0], img.outputs[0])
     # Create color ramp to connect image alpha (depth mask?) with mix node
     ramp = mat.node_tree.nodes.new('ShaderNodeValToRGB') # ShaderNodeMapRange
+    ramp.location = -800,-200
     mat.node_tree.links.new(ramp.inputs[0], img.outputs[1])
     mat.node_tree.links.new(mix.inputs[0], ramp.outputs[0])
     
@@ -371,26 +405,44 @@ def createCanvasMat(obj):
 
     return mat
 
-def createFrameEntry(obj, path, resolution, index=-1):
-    item = obj.smvp_canvas.frame_list.add()
-    item.seq_path = os.path.normpath(path)
-    item.name = os.path.basename(item.seq_path)
-    
+def createFrameTextures(obj, index, resolution):
+    """Creates textures for frame"""    
+    item = obj.smvp_canvas.frame_list[index]
+    canvas_id = obj.smvp_canvas.canvas_id
+    frame_id = item.id
+
     # Create textures
-    tex_name = "smvp_"+item.name
+    tex_name = f"smvp_{canvas_id:02d}-{frame_id:04d}"
+    prev_name = f"smvp_prev_{canvas_id:02d}-{frame_id:04d}"
     texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1], float_buffer=True)
-    preview = bpy.data.images.new(tex_name+'_prev', width=resolution[0], height=resolution[1], float_buffer=True)
-    # Add to frame list entry
+    preview = bpy.data.images.new(prev_name, width=resolution[0], height=resolution[1], float_buffer=True)
+    
+    # Add textures to frame list entry
     item.rendered_texture = texture.name
     item.preview_texture = preview.name
     
-    if index != -1:
-        # Move frame to index TODO
-        pass
 
-def getTexture(canvas_obj, frame):
+def deleteFrameEntry(obj, index):
+    """Deletes the entry at index of the canvas object frame list"""
+    item = obj.smvp_canvas.frame_list[index]
+    
+    # Delete textures
+    if item.rendered_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.rendered_texture])
+    if item.preview_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.preview_texture])
+    
+    # Remove entry from canvas list and move index
+    obj.smvp_canvas.frame_list.remove(index)
+    if obj.smvp_canvas.frame_list_index >= index:
+        obj.smvp_canvas.frame_list_index -= 1
+    
+    # Delete keyframe
+    #TODO index-th keyframe must be gone!
+    
+
+def getTexture(canvas_obj, index):
+    global frame_ids
     canvas = canvas_obj.smvp_canvas
-    canvas_frame = canvas.frame_list[frame % len(canvas.frame_list)]
+    canvas_frame = canvas.frame_list[index % len(canvas.frame_list)]
     image_name = ""
     
     if canvas.display_preview:
@@ -412,12 +464,20 @@ def getTexture(canvas_obj, frame):
             
         image_name = canvas_frame.rendered_texture
     
+    # Return texture (or none if it got deleted)
     if image_name in bpy.data.images:
         return bpy.data.images[image_name]
-    elif 'smvp_empty' in bpy.data.images:
-        return bpy.data.images['smvp_empty']
-    else:
-        return bpy.data.images.new('smvp_empty', width=DEFAULT_RESOULTION[0], height=DEFAULT_RESOULTION[1])
+    
+    # Create textures
+    tex_name = f"smvp_{frame_ids:04d}"
+    prev_name = f"smvp_prev_{frame_ids:04d}"
+    texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1], float_buffer=True)
+    preview = bpy.data.images.new(prev_name, width=resolution[0], height=resolution[1], float_buffer=True)
+    
+    # Add textures to frame list entry
+    item.rendered_texture = texture.name
+    item.preview_texture = preview.name
+
 
 
 # -------------------------------------------------------------------
@@ -428,7 +488,7 @@ classes = (
     # Frame operators
     SMVP_CANVAS_OT_addFrame,
     SMVP_CANVAS_OT_actions,
-    SMVP_CANVAS_OT_printFrames,
+    SMVP_CANVAS_OT_capture,
     SMVP_CANVAS_OT_clearFrames,
     SMVP_CANVAS_OT_removeDuplicates,
     SMVP_CANVAS_OT_selectFrame,
@@ -442,7 +502,7 @@ def register():
         register_class(cls)
     
     # Event handlers
-    bpy.app.handlers.frame_change_pre.append(update_canvases_texture)
+    bpy.app.handlers.frame_change_pre.append(update_canvas_textures)
 
 
 def unregister():

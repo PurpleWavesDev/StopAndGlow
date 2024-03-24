@@ -6,10 +6,13 @@ from bpy.props import *
 
 class SMVP_SceneProps(PropertyGroup):
     active_canvas: StringProperty()
+    canvas_ids: IntProperty()
 
 class SMVP_CANVAS_FrameCollection(PropertyGroup):
     #name: StringProperty() -> Instantiated by default
     seq_path: StringProperty()
+    id: IntProperty()
+    
     rendered_texture: StringProperty()
     preview_texture: StringProperty()
     
@@ -25,6 +28,9 @@ class SMVP_CanvasProps(PropertyGroup):
     render_type: StringProperty()
     exposure: FloatProperty()
     preview_exposure: FloatProperty()
+    
+    canvas_id: IntProperty()
+    frame_ids: IntProperty()
     
 
 class SMVP_CameraProps(PropertyGroup):

@@ -40,12 +40,12 @@ class Command(Enum):
     
     #
     Preview = 61
-    PreviewLive = 62
-    PreviewHdri = 63
+    PreviewBaked = 62
+    PreviewLive = 63
     
     # Full resoultion footage
-    CaptureHdri = 71
-    CaptureLights = 72
+    CaptureLights = 71
+    CaptureBaked = 72
     # Load from disk
     LoadFootage = 75
     

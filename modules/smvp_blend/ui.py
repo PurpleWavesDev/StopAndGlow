@@ -157,8 +157,8 @@ class SMVP_CANVAS_PT_frameList(Panel):
         row.template_list("SMVP_CANVAS_UL_items", "", obj.smvp_canvas, "frame_list", obj.smvp_canvas, "frame_list_index", rows=rows)
 
         col = row.column(align=True)
-        col.operator(SMVP_CANVAS_OT_addFrame.bl_idname, icon='ZOOM_IN', text="")
-        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='ZOOM_OUT', text="").action = 'REMOVE'
+        col.operator(SMVP_CANVAS_OT_addFrame.bl_idname, icon='ADD', text="")
+        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='REMOVE', text="").action = 'REMOVE'
         col.separator()
         col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='TRIA_UP', text="").action = 'UP'
         col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='TRIA_DOWN', text="").action = 'DOWN'
@@ -166,13 +166,15 @@ class SMVP_CANVAS_PT_frameList(Panel):
         row = layout.row()
         col = row.column(align=True)
         row = col.row(align=True)
-        row.operator(SMVP_CANVAS_OT_printFrames.bl_idname, icon="LINENUMBERS_ON")
+        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Full Sequence")
         row = col.row(align=True)
-        row.operator(SMVP_CANVAS_OT_selectFrame.bl_idname, icon="VIEW3D", text="Select current frame")
-        row.operator(SMVP_CANVAS_OT_selectFrame.bl_idname, icon="GROUP", text="Jump to selected").jump_to_selected = True
+        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked Lights").baked = True
         row = col.row(align=True)
-        row.operator(SMVP_CANVAS_OT_clearFrames.bl_idname, icon="X")
-        row.operator(SMVP_CANVAS_OT_removeDuplicates.bl_idname, icon="GHOST_ENABLED")
+        row.operator(SMVP_CANVAS_OT_selectFrame.bl_idname, icon="LAYER_ACTIVE", text="Select current frame")
+        row.operator(SMVP_CANVAS_OT_selectFrame.bl_idname, icon="ARROW_LEFTRIGHT", text="Jump to selected").jump_to_selected = True
+        row = col.row(align=True)
+        row.operator(SMVP_CANVAS_OT_removeDuplicates.bl_idname, icon="TRASH")
+        row.operator(SMVP_CANVAS_OT_clearFrames.bl_idname, icon="PANEL_CLOSE")
 
 
 # -------------------------------------------------------------------
