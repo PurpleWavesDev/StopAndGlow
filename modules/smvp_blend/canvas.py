@@ -499,6 +499,7 @@ classes = (
     SMVP_CANVAS_OT_clearFrames,
     SMVP_CANVAS_OT_removeDuplicates,
     SMVP_CANVAS_OT_selectFrame,
+    
     # Canvas object operators
     OBJECT_OT_smvp_canvas_add,
 )

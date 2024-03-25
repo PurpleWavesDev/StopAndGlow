@@ -84,7 +84,7 @@ def register():
     Camera.smvp = PointerProperty(type=SMVP_CameraProps, name="SMVP Camera Properties")
 
      # Add Render Algorithm PointerProperty 
-    Scene.smvp_algorithms = bpy.props.PointerProperty(type= SMVP_Algorithms_Props)
+    Scene.smvp_algorithms = PointerProperty(type= SMVP_Algorithms_Props)
 
     # Toggle Render Algorithms Button    
     bpy.types.WindowManager.toggle_render_algs = bpy.props.BoolProperty(

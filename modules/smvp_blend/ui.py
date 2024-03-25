@@ -52,8 +52,10 @@ class VIEW3D_PT_stop_motion_vp(Panel):
         row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Setup Scene", icon ="PLUS")
         row = self.layout.row()
         row.operator("mesh.primitive_ico_sphere_add", text="Capture Sequence", icon = "MONKEY")
-      
+
+
 class VIEW3D_PT_onionskin(Panel):
+
     bl_space_type = "VIEW_3D" 
     bl_region_type = "UI"  
 
@@ -89,8 +91,7 @@ class VIEW3D_PT_algorithm(bpy.types.Panel):
     bl_parent_id = "VIEW3D_PT_stop_motion_vp"
     bl_options = {"DEFAULT_CLOSED"}
  
-   # wm = context.window_manager
-    
+      
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -98,12 +99,11 @@ class VIEW3D_PT_algorithm(bpy.types.Panel):
         wm = context.window_manager
        
         layout.prop(algs, "algs_dropdown_items")
-        #layout.operator("wm.render_algorithms", text = "test")
         label = "Stop Render" if wm.toggle_render_algs else "Start Render"
         layout.prop(wm, 'toggle_render_algs', text=label, toggle=True)
   
 
-class VIEW3D_OT_render_algorithms(bpy.types.Operator):
+class VIEW3D_OT_render_algorithms(Operator):
     bl_idname = "algs.render"
     bl_label = "render_algorithms"
 
@@ -188,20 +188,28 @@ class SMVP_CANVAS_PT_frameList(Panel):
 
 
 class SMVP_CANVAS_PT_canvasProps(Panel):
-    """Adds a frame list panel to the object properties"""
+    """Adds a Canvas Properties Panel to the Object Properties Interface"""
     bl_idname = 'OBJECT_PT_canvasprops'
-    bl_space_type = "PROPERTIES"
-    bl_region_type = "WINDOW"
-    bl_label = "Canvas"
-    bl_context = "object"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_label = "Active Canvas"
+    bl_category = "Stop Motion"
 
     def draw(self, context):
         layout = self.layout
         scn = context.scene
         obj = context.object
+        
+        active = scn.smvp_scene.active_canvas
+        selected = obj.name
 
         row = layout.row()
-        row.label(text = "test")
+        row.label(text = active, icon = "TRACKER_DATA") 
+      
+        if active != selected:
+            row.operator("smvp_canvas.activate_selected", text = "",  icon = "FILE_REFRESH")
+
+
 
 # -------------------------------------------------------------------
 # Camera UI
@@ -232,7 +240,7 @@ def smvp_objects_menu(self, context):
 # un/register
 # -------------------------------------------------------------------
 
-classes =[
+classes =(
     # Dome Control
     VIEW3D_PT_domectl,
     
@@ -251,7 +259,7 @@ classes =[
     # Menus
     OBJECT_MT_smvp_submenu,
 
-]
+)
 
 def register():
     # Register classes
