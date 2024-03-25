@@ -136,7 +136,7 @@ class Worker:
                 # Get preview
                 self.preview = self.sequence.getPreview().asDomain(ImgDomain.sRGB)
                 res = self.config['resolution']
-                scale = res[0] / self.preview.resolution()[0]
+                scale = max(res[0] / self.preview.resolution()[0], res[1] / self.preview.resolution()[1])
                 self.preview = self.preview.scale(scale).crop(res)
             
             

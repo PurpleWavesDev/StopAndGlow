@@ -24,7 +24,7 @@ class SMVP_CanvasProps(PropertyGroup):
     frame_list_index: IntProperty()
     frame_list: CollectionProperty(type=SMVP_CANVAS_FrameCollection)
     
-    display_preview: BoolProperty()
+    display_preview: BoolProperty(default=True)
     render_type: StringProperty()
     exposure: FloatProperty()
     preview_exposure: FloatProperty()

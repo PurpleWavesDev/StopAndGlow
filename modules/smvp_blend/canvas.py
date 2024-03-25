@@ -15,6 +15,24 @@ DEFAULT_RESOULTION = (1920, 1080)
 #   Frame UI List Operators
 # -------------------------------------------------------------------
 
+class SMVP_CANVAS_OT_overrideConfirm(Operator):
+    """Override current frame?"""
+    bl_idname = "smvp_canvas.override_confirm"
+    bl_label = "Override current frame?"
+    bl_options = {'REGISTER', 'INTERNAL'}
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+    
+    def execute(self, context):
+        # Call operator again with override set
+        bpy.ops.smvp_canvas.frame_add('INVOKE_DEFAULT', override=True)
+        return {'FINISHED'}
+    
 class SMVP_CANVAS_OT_addFrame(Operator):
     """Add new frame from sequence folder"""
     bl_idname = "smvp_canvas.frame_add"
@@ -26,9 +44,25 @@ class SMVP_CANVAS_OT_addFrame(Operator):
         name="Sequence Path",
         description="Path to load the Sequence Data from"
         )
+    override: BoolProperty(
+        default=False,
+        name="Override current frame",
+        description="If set, operator will delete current frame and replace it with the new frame"
+        )
 
     def invoke(self, context, event):
         # Add new sequence as frame entry
+        obj = context.object
+        scn = context.scene
+        
+        if not self.override:
+            # Check if there is a keyframe already that would be overwritten
+            keyframes = getKeyframes(obj)
+            for x, y in keyframes:
+                if x == scn.frame_current:
+                    bpy.ops.smvp_canvas.override_confirm('INVOKE_DEFAULT')
+                    return {'RUNNING_MODAL'}
+
         # Open browser, will write selected path into our directory property
         context.window_manager.fileselect_add(self)
         # Tells Blender to hang on for the slow user input
@@ -36,15 +70,29 @@ class SMVP_CANVAS_OT_addFrame(Operator):
 
     def execute(self, context):
         obj = context.object
+        scn = context.scene
         canvas = obj.smvp_canvas
         #idx = canvas.frame_list_index
-        
+                
         # Check if directory is a valid folder
         if os.path.isdir(self.directory):
-            # Create new item and move to correct place TODO!
+            keyframes = getKeyframes(obj)
+            new_index = 0
+            # Iterate over keys, increment index count and delete entry if there is one for the current frame
+            for x, y in keyframes:
+                if x == scn.frame_current:
+                    # Remove item (on index keys_before) and delete current keyframe
+                    deleteFrameEntry(obj, new_index)
+                    break
+                if x > scn.frame_current:
+                    break
+                new_index += 1
+
+            # Create new item
             item = canvas.frame_list.add()
-            # New index depending on number of keyframes before current frame TODO
-            #canvas.frame_list.move(len(canvas.frame_list)-1, idx+1)
+            num_items = len(canvas.frame_list)
+            # Index shall not be greater then item count
+            new_index = min(new_index, len(canvas.frame_list)-1)
             
             # Assign path and name
             item.seq_path = os.path.normpath(self.directory)
@@ -54,8 +102,13 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             frame_id = item.id = canvas.frame_ids
             canvas.frame_ids += 1
             
+            # Move to correct place. Assign all values to item before, won't change position after move!
+            if new_index != num_items-1:
+                canvas.frame_list.move(num_items-1, new_index)
+            canvas.frame_list_index = new_index
+
             # Create texture images
-            createFrameTextures(obj, len(canvas.frame_list)-1, (1920, 1080)) # TODO Index!!
+            createFrameTextures(obj, new_index, (1920, 1080))
             
             # Insert keyframe
             obj.keyframe_insert(data_path='["frame_keys"]')
@@ -66,12 +119,7 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             context.area.tag_redraw()
             
             # Update texture
-            img = update_single_canvas_tex(context.scene, obj)
-            # Request image
-            # TODO: Only preview for now
-            id = client.serviceAddReq(img)
-            message = ipc.Message(ipc.Command.Preview, {'id': id})
-            client.sendMessage(message)
+            update_single_canvas_tex(context.scene, obj)
             return {"FINISHED"}
             
         else:
@@ -122,16 +170,13 @@ class SMVP_CANVAS_OT_actions(Operator):
             elif self.action == 'REMOVE':
                 info = 'Frame "%s" removed from list' % (obj.smvp_canvas.frame_list[idx].name)
                 deleteFrameEntry(obj, idx)
+                if obj.smvp_canvas.frame_list_index >= idx:
+                    obj.smvp_canvas.frame_list_index -= 1
                 self.report({'INFO'}, info)
-            update_single_canvas_tex(context.scene, obj)
             
-        return {"FINISHED"}
+        update_single_canvas_tex(context.scene, obj)
+        return {"RUNNING_MODAL"}
 
-    def execute(self, context):
-        obj = context.object
-        idx = obj.smvp_canvas.frame_list_index
-        # TODO: Update texture
-        return {"FINISHED"}
 
 
 class SMVP_CANVAS_OT_capture(Operator):
@@ -148,7 +193,7 @@ class SMVP_CANVAS_OT_capture(Operator):
         obj = context.object
         tex = obj.smvp_canvas.frame_list[0].preview_texture
         
-        id = client.serviceAddReq(bpy.data.images[tex])
+        id = client.serviceAddReq(tex)
         #message = ipc.Message(ipc.Command.PreviewLive, {'id': id})
         #message = ipc.Message(ipc.Command.PreviewHdri, {'id': id})
         # Send capture message
@@ -178,8 +223,11 @@ class SMVP_CANVAS_OT_clearFrames(Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        if bool(context.object.smvp_canvas.frame_list):
-            context.object.smvp_canvas.frame_list.clear()
+        obj = context.object
+        if bool(obj.smvp_canvas.frame_list):
+            for i in reversed(range(len(obj.smvp_canvas.frame_list))):
+                deleteFrameEntry(obj, i)
+            obj.smvp_canvas.frame_list_index = 0
             self.report({'INFO'}, "All items removed")
         else:
             self.report({'INFO'}, "Nothing to remove")
@@ -213,10 +261,10 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
         removed_items = []
         # Reverse the list before removing the items
         for i in self.find_duplicates(context)[::-1]:
-            obj.smvp_canvas.frame_list.remove(i)
+            deleteFrameEntry(obj, i)
             removed_items.append(i)
         if removed_items:
-            obj.smvp_canvas.frame_list_index = len(obj.smvp_canvas.frame_list)-1
+            obj.smvp_canvas.frame_list_index = min(obj.smvp_canvas.frame_list_index, len(obj.smvp_canvas.frame_list)-1)
             info = ', '.join(map(str, removed_items))
             self.report({'INFO'}, "Removed indices: %s" % (info))
         else:
@@ -348,12 +396,11 @@ def update_single_canvas_tex(scene, obj):
         idx = obj.smvp_canvas.frame_list_index # TODO
         item = obj.smvp_canvas.frame_list[idx]
     except:
-        return None
+        pass
     else:
         # Apply texture
-        img = getTexture(obj, idx)
+        img = getTexture(obj, scene.frame_current)
         obj.active_material.node_tree.nodes["ImageTexture"].image = img
-        return img
 
 
 
@@ -442,56 +489,78 @@ def deleteFrameEntry(obj, index):
     if obj.smvp_canvas.frame_list_index >= index:
         obj.smvp_canvas.frame_list_index -= 1
     
-    # Delete keyframe
-    #TODO index-th keyframe must be gone!
-    
+    try:
+        # Delete index-th keyframe
+        frame_num = getKeyframes(obj)[index][0]
+        obj.keyframe_delete('["frame_keys"]', frame=frame_num)
+    except:
+        pass
 
-def getTexture(canvas_obj, index):
-    global frame_ids
+def getTexture(canvas_obj, frame):
     canvas = canvas_obj.smvp_canvas
-    canvas_frame = canvas.frame_list[index % len(canvas.frame_list)]
+    keyframes = getKeyframes(canvas_obj)
+    index = 0 
+    for x, y in keyframes:
+        if x > frame:
+            break
+        index += 1
+        
+    canvas_frame = canvas.frame_list[max(0, index-1) % len(canvas.frame_list)]
     image_name = ""
     
     if canvas.display_preview:
+        # Check if image exists, create new one if missing
+        image_name = canvas_frame.preview_texture
+        if not image_name in bpy.data.images:
+            print(f"Error: Image {image_name} missing")
+            return None # createFrameTextures(canvas_obj, index, (1920, 1080)) # TODO
+        
         if not canvas_frame.preview_updated:
             # Request preview texture
+            id = client.serviceAddReq(image_name)
+            message = ipc.Message(ipc.Command.Preview, {'id': id})
+            client.sendMessage(message)
             
             # Frame texture was updated
             canvas_frame.preview_updated = True
         
-        image_name = canvas_frame.preview_texture
-    
     else:
         # Rendered frame
+        image_name = canvas_frame.rendered_texture
+        if not image_name in bpy.data.images:
+            print(f"Error: Image {image_name} missing")
+            return None # createFrameTextures(canvas_obj, index, (1920, 1080)) # TODO
+        
         if not canvas_frame.updated:
             # Request rendered texture
+            id = client.serviceAddReq(image_name)
+            message = ipc.Message(ipc.Command.Preview, {'id': id}) # TODO render, nicht preview!!
+            client.sendMessage(message)
             
             # Frame texture was updated
             canvas_frame.updated = True
             
-        image_name = canvas_frame.rendered_texture
     
     # Return texture (or none if it got deleted)
-    if image_name in bpy.data.images:
-        return bpy.data.images[image_name]
-    
-    # Create textures
-    tex_name = f"smvp_{frame_ids:04d}"
-    prev_name = f"smvp_prev_{frame_ids:04d}"
-    texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1], float_buffer=True)
-    preview = bpy.data.images.new(prev_name, width=resolution[0], height=resolution[1], float_buffer=True)
-    
-    # Add textures to frame list entry
-    item.rendered_texture = texture.name
-    item.preview_texture = preview.name
+    return bpy.data.images[image_name]
+        
 
 
+def getKeyframes(obj, data_path='["frame_keys"]'):
+    try:
+        fc = obj.animation_data.action.fcurves.find('["frame_keys"]')
+        fc.update()
+        return [keyframe.co for keyframe in fc.keyframe_points]
+    except:
+        return []
 
 # -------------------------------------------------------------------
 #   Register & Unregister
 # -------------------------------------------------------------------
 
 classes = (
+    # Override warning OP
+    SMVP_CANVAS_OT_overrideConfirm,
     # Frame operators
     SMVP_CANVAS_OT_addFrame,
     SMVP_CANVAS_OT_actions,
@@ -511,7 +580,7 @@ def register():
     
     # Event handlers
     bpy.app.handlers.frame_change_pre.append(update_canvas_textures)
-
+    bpy.app.handlers
 
 def unregister():
     from bpy.utils import unregister_class

@@ -99,19 +99,19 @@ def sendMessage(message, reconnect=True, force=False) -> Message|None:
     return None
 
 
-def serviceAddReq(image) -> int:
+def serviceAddReq(image_name) -> int:
     global image_requests
     global request_count
     
     # Delete old entry
-    old_ids = [id for id, img in image_requests.items() if img == image.name]
+    old_ids = [id for id, img in image_requests.items() if img == image_name]
     for id in old_ids:
         del image_requests[id]
     
     # Add new ID
     id = request_count
     request_count += 1
-    image_requests[id] = image.name
+    image_requests[id] = image_name
     
     return id
 
@@ -138,8 +138,10 @@ def serviceRun(port):
                 if id in image_requests:
                     try:
                         bpy.data.images[image_requests[id]].pixels.foreach_set(np.flipud(img_data).flatten())
+                    #except ??
+                    #    print(f"SMVP receiver warning: Image {image_requests[id]} not found")
                     except Exception as e:
-                        print(f"SMVP receiver warning: Image {image_requests[id]} not found")
+                        print(f"SMVP receiver error: {str(e)}")
             except Exception as e:
                 print(f"SMVP receiver error: Can't read received data ({str(e)})")
     
