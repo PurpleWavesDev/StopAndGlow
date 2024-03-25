@@ -174,7 +174,7 @@ class Sequence():
                 case VidParseState.Valid:
                     if self._vid_frame_number == -1:
                         # Preview frame
-                        self._preview = ImgBuffer(path=self._img_name_base+"_mask", img=self._vid_frame, domain=ImgDomain.sRGB)
+                        self._preview = ImgBuffer(path=self._img_name_base+"_preview", img=self._vid_frame, domain=ImgDomain.sRGB)
                     else:
                         # Abort condition
                         if self._vid_frame_number >= len(self._frames):
@@ -234,7 +234,7 @@ class Sequence():
             self[id].setPath(f"{path}_{id:03d}")
             self[id].save(format=format)
         if self._preview.get() is not None:
-            self._preview.setPath(f"{path}_mask")
+            self._preview.setPath(f"{path}_preview")
             self._preview.save(format=format)
         
         # Metadata
