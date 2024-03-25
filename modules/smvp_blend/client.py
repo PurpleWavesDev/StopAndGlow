@@ -49,7 +49,7 @@ def smvpConnect(address, port) -> bool:
     server_address = f"tcp://{address}:{port}"
     val = socket.connect(server_address)
     # Set timeout and disconnect after timeout option
-    socket.setsockopt(zmq.RCVTIMEO, 3000)
+    socket.setsockopt(zmq.RCVTIMEO, 10000)
     socket.setsockopt(zmq.LINGER, 0)
     # Send an init message and wait for answer
     message = Message(Command.Init, {})
@@ -82,7 +82,7 @@ def sendMessage(message, reconnect=True, force=False) -> Message|None:
     
     if not connected and reconnect:
         # Try to connect
-        bpy.ops.wm.smvp_connect(launch=False)
+        bpy.ops.wm.smvp_connect()
     if connected or force:
         # Send message
         try:
@@ -103,9 +103,15 @@ def serviceAddReq(image) -> int:
     global image_requests
     global request_count
     
+    # Delete old entry
+    old_ids = [id for id, img in image_requests.items() if img == image.name]
+    for id in old_ids:
+        del image_requests[id]
+    
+    # Add new ID
     id = request_count
     request_count += 1
-    image_requests[id] = image
+    image_requests[id] = image.name
     
     return id
 
@@ -117,7 +123,7 @@ def serviceRun(port):
     # Setup socket
     recv_addr = f"tcp://*:{port}"
     recv_sock = context.socket(zmq.PULL)
-    recv_sock.bind(recv_addr)
+    recv_sock.bind(recv_addr) # TODO: Reconnecting causes address already in use error
     # Poller
     poller = zmq.Poller()
     poller.register(recv_sock, zmq.POLLIN)
@@ -130,10 +136,10 @@ def serviceRun(port):
                 id, img_data = receive_array(recv_sock)
                 
                 if id in image_requests:
-                    image_requests[id].pixels.foreach_set(np.flipud(img_data).flatten())
-                    # TODO: Remove ref
-                else:
-                    print(f"Error: ID {id} not in requested images")
+                    try:
+                        bpy.data.images[image_requests[id]].pixels.foreach_set(np.flipud(img_data).flatten())
+                    except Exception as e:
+                        print(f"SMVP receiver warning: Image {image_requests[id]} not found")
             except Exception as e:
                 print(f"SMVP receiver error: Can't read received data ({str(e)})")
     

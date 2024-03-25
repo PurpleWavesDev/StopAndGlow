@@ -35,7 +35,8 @@ class SMVP_CANVAS_OT_addFrame(Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        canvas = context.object.smvp_canvas
+        obj = context.object
+        canvas = obj.smvp_canvas
         #idx = canvas.frame_list_index
         
         # Check if directory is a valid folder
@@ -54,18 +55,23 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             canvas.frame_ids += 1
             
             # Create texture images
-            createFrameTextures(context.object, len(canvas.frame_list)-1, (1920, 1080)) # TODO Index!!
+            createFrameTextures(obj, len(canvas.frame_list)-1, (1920, 1080)) # TODO Index!!
             
             # Insert keyframe
-            context.object.keyframe_insert(data_path='["frame_keys"]')
+            obj.keyframe_insert(data_path='["frame_keys"]')
             
             # Send load command
             message = ipc.Message(ipc.Command.LoadFootage, {'path': self.directory})
             client.sendMessage(message)
             context.area.tag_redraw()
             
+            # Update texture
+            img = update_single_canvas_tex(context.scene, obj)
             # Request image
-            update_single_canvas_tex(context.scene, context.obj)
+            # TODO: Only preview for now
+            id = client.serviceAddReq(img)
+            message = ipc.Message(ipc.Command.Preview, {'id': id})
+            client.sendMessage(message)
             return {"FINISHED"}
             
         else:
@@ -339,14 +345,15 @@ def update_canvas_textures(scene):
                 
 def update_single_canvas_tex(scene, obj):
     try:
-        idx = obj.smvp_canvas.frame_list_index
+        idx = obj.smvp_canvas.frame_list_index # TODO
         item = obj.smvp_canvas.frame_list[idx]
     except:
-        pass
+        return None
     else:
         # Apply texture
         img = getTexture(obj, idx)
-        obj.material_slots[0].node_tree.nodes["ImageTexture"].image = img
+        obj.active_material.node_tree.nodes["ImageTexture"].image = img
+        return img
 
 
 
@@ -356,38 +363,38 @@ def update_single_canvas_tex(scene, obj):
 def createCanvasMat(obj):
     """Creates a new material for a canvas object"""
     # Create empty material
-    mat = bpy.data.materials.new(name=f"canvas_{obj.smvp_canvas.id:02d}_mat")
+    mat = bpy.data.materials.new(name=f"canvas_{obj.smvp_canvas.canvas_id:02d}_mat")
     mat.use_nodes = True
     mat.node_tree.nodes.remove(mat.node_tree.nodes['Principled BSDF'])
 
     # Create mix shader node and link with output
     mix = mat.node_tree.nodes.new('ShaderNodeMixShader')
-    mix.location = 400,0
+    mix.location = 200,0
     matout = mat.node_tree.nodes.get('Material Output')
-    matout.location = 800,0
+    matout.location = 400,0
     mat.node_tree.links.new(matout.inputs[0], mix.outputs[0])
     
     # Create transparency shader and link with mix shader
     trans = mat.node_tree.nodes.new('ShaderNodeBsdfTransparent')
-    trans.location = 0,200
+    trans.location = 0,0
     mat.node_tree.links.new(mix.inputs[1], trans.outputs[0])
     
     # Create emission shader and value node and link with mix shader
     emission = mat.node_tree.nodes.new('ShaderNodeEmission')
-    trans.location = 0,-200
+    emission.location = 0,-150
     exposure = mat.node_tree.nodes.new('ShaderNodeValue')
-    trans.location = -400,-200
+    exposure.location = -200,-250
     mat.node_tree.links.new(mix.inputs[2], emission.outputs[0])
     mat.node_tree.links.new(emission.inputs[1], exposure.outputs[0])
     
     # Create image texture node and link with HSV
     img = mat.node_tree.nodes.new('ShaderNodeTexImage')
-    img.location = -1200,-200
+    img.location = -600,0
     img.name = "ImageTexture"
     mat.node_tree.links.new(emission.inputs[0], img.outputs[0])
     # Create color ramp to connect image alpha (depth mask?) with mix node
     ramp = mat.node_tree.nodes.new('ShaderNodeValToRGB') # ShaderNodeMapRange
-    ramp.location = -800,-200
+    ramp.location = -200,300
     mat.node_tree.links.new(ramp.inputs[0], img.outputs[1])
     mat.node_tree.links.new(mix.inputs[0], ramp.outputs[0])
     

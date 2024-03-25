@@ -190,6 +190,7 @@ class ImgBuffer:
                 case _: # Raw/Linear
                     pass
 
+            if img.dtype == 'float64': img = img.astype(IMAGE_DTYPE_FLOAT)
             return ImgBuffer(path=self._path, img=img, domain=domain)
         return ImgBuffer(path=self._path, img=self._img, domain=self._domain)
     

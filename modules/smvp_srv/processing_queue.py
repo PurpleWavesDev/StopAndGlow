@@ -64,6 +64,7 @@ class Worker:
         # Sequence data and buffers
         self.sequence = Sequence()
         self.render = ImgBuffer()
+        self.preview = ImgBuffer()
         self.baked = ImgBuffer()
         self.hdri = ImgBuffer(path=os.path.join(self.config['hdri_folder'], self.config['hdri_name']))
         
@@ -115,28 +116,33 @@ class Worker:
                     #self.sequence.setDataSequence()
                 
             case Commands.Load:
-                path = arg
-                if os.path.splitext(seq_name)[1] == '':
-                    # Load folder
-                    domain = ImgDomain.Keep
-                    # Override domain TODO
-                    sequence.loadFolder(path, domain)
-                else:
-                    # Load video
-                    # IDs according sequence type
-                    match FLAGS.seq_type:
+                # --load <path> seq_type=<lights,hdri,fullrun>
+                default_config = self.config.get()
+                if os.path.splitext(arg)[1] != '':
+                    # Video file, add IDs to defaults according to sequence type
+                    match GetSetting(settings, 'seq_type', 'lights'):
                         case 'lights':
                             ids = calibration.getIds()
                         case 'hdri':
                             ids = [0, 1, 2]
                         case 'fullrun':
-                            ids = range(FLAGS.capture_max_addr)
-                    # TODO: Video parameters via metadata?
-                    sequence.load(path, ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat) 
+                            ids = range(config['capture_max_addr'])
+                    default_config = {**default_config, **{'video_frame_list', ids}}
+                
+                # Replace sequence and load
+                self.sequence = Sequence()
+                self.sequence.load(arg, defaults=default_config, overrides=settings)
+                
+                # Get preview
+                self.preview = self.sequence.getPreview().asDomain(ImgDomain.sRGB)
+                res = self.config['resolution']
+                scale = res[0] / self.preview.resolution()[0]
+                self.preview = self.preview.scale(scale).crop(res)
+            
             
             case Commands.Convert:
                 # --convert size=4k|hd format=??
-                sequence.convertSequence(settings)
+                self.sequence.convertSequence(settings)
             
             case Commands.Process:
                 data_sequence = self.process(self.sequence, arg, settings)
@@ -150,7 +156,7 @@ class Worker:
                 pass
             
             case Commands.Save:
-                sequence.saveSequence(name, FLAGS.seq_folder)
+                self.sequence.saveSequence(name, FLAGS.seq_folder)
             
             case Commands.Send:
                 # --send address:port id=1 mode=render|baked|preview|live

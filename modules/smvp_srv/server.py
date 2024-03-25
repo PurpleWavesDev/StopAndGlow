@@ -58,13 +58,13 @@ def run(port=9271):
                 queue.putCommand(Commands.Capture, 'lights')
                 queue.putCommand(Commands.Save, '')
                 send(socket, Message(Command.CommandOkay))
-            case Command.CaptureHdri:
+            case Command.CaptureBaked:
                 queue.putCommand(Commands.Capture, 'hdri')
                 queue.putCommand(Commands.Save, '')
                 send(socket, Message(Command.CommandOkay))
             ## Load from disk
             case Command.LoadFootage:
-                queue.putCommand(Commands.Load, message['path'])
+                queue.putCommand(Commands.Load, message.data['path'])
                 send(socket, Message(Command.CommandOkay))
             
             ## Preview

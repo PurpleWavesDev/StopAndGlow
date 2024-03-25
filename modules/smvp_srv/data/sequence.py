@@ -26,7 +26,6 @@ class Sequence():
     def __init__(self):
         # Frame list, additional frames and sequences
         self._frames = dict()
-        self._maskFrame = None
         self._preview = ImgBuffer()
         self._data: {}
         
@@ -45,27 +44,50 @@ class Sequence():
             # Save metadata
             self.writeMeta()
 
-    def load(self, path, frame_list=None, frames_skip=-1, dmx_repeat=-1, domain=ImgDomain.Keep):
-        match (os.path.splitext(path)[1]).lower():
-            case '':
-                # Path, load folder
-                self.loadFolder(path, domain)
-            case '.mov' | '.mp4':
-                # Video
-                if frame_list != None and frames_skip != -1 and dmx_repeat != -1:
-                    # Delay for DMX repeat signals (two frames per signal) and half of the skipped frames (round down)
-                    frames_offset = dmx_repeat * 2 + frames_skip // 2
-                    # frames_skip is odd to mach together with valid frame double the lights frequency
-                    frames_skip = frames_skip + dmx_repeat*2
-                    self.loadVideo(path, frame_list, frames_skip, frames_offset)
-                else:
-                    raise NotImplementedError("Load video parameters via metadata")
-                    # Load frame_list, frames_skip, dmx_repeat from metadata
-            case _:
-                log.error(f"Can't load file {path}")
+    def load(self, path, defaults={}, overrides={}):
+        if os.path.isdir(path):
+            # Apply defaults
+            self.setMeta('domain', GetSetting(defaults, 'domain', ImgDomain.Keep.name))
+
+            # Load metadata
+            self._metafile_name = os.path.join(path, 'meta.json')
+            self.loadMeta()
+            
+            # Apply overrides
+            self.setMeta('domain', GetSetting(overrides, 'domain', self.getMeta('domain')))
+
+            # Load folder
+            self.loadFolder(path)
+        
+        elif os.path.isfile(path) and os.path.splitext(path)[1].lower() in ['.mov', '.mp4']:
+            # Apply defaults
+            self.setMeta('video_frame_list', GetSetting(defaults, 'video_frame_list', []))
+            self.setMeta('video_frames_skip', GetSetting(defaults, 'video_frames_skip', 1))
+            self.setMeta('video_frames_offset', GetSetting(defaults, 'video_frames_offset', 0))
+        
+            # Load metadata
+            self._metafile_name = os.path.join(os.path.dirname(path), f'{os.path.splitext(os.path.basename(path))[0]}.json')
+            self.loadMeta()
+            
+            # Apply overrides
+            self.setMeta('video_frame_list', GetSetting(overrides, 'video_frame_list', self.getMeta('video_frame_list')))
+            self.setMeta('video_frames_skip', GetSetting(overrides, 'video_frames_skip', self.getMeta('video_frames_skip')))
+            self.setMeta('video_frames_offset', GetSetting(overrides, 'video_frames_offset', self.getMeta('video_frames_offset')))
+            
+            # Load Video
+            self.loadVideo(path)
+            
+        else:
+            log.error(f"Can't load sequence '{path}'")
+
+    #                # Delay for DMX repeat signals (two frames per signal) and half of the skipped frames (round down)
+    #                frames_offset = dmx_repeat * 2 + frames_skip // 2
+    #                # frames_skip is odd to mach together with valid frame double the lights frequency
+    #                frames_skip = frames_skip + dmx_repeat*2
                 
-    def loadFolder(self, path, domain=ImgDomain.Keep):
-        self._metafile_name = os.path.join(path, 'meta.json')
+    def loadFolder(self, path):
+        domain = ImgDomain[self.getMeta('domain')]
+        
         # Search for frames in folder
         for f in os.listdir(path):
             p = os.path.join(path, f)
@@ -79,7 +101,7 @@ class Sequence():
                 elif mask_match is not None:
                     self.setPreview(ImgBuffer(p, domain=domain))
                 elif 'meta.json' in f:
-                    self.loadMeta()
+                    pass
                 else:
                     log.warn(f"Found file without sequence numbering: {f}")
         
@@ -92,21 +114,14 @@ class Sequence():
     def loadVideo(self, path, frame_list, frames_skip, frames_offset, lazy=True):
         # Setup variables
         self._is_video = True
-        self._frames_skip = frames_skip
-        self._frames_offset = frames_offset
+        self._frames_skip = self.getMeta('video_frames_skip', self._frames_skip)
+        self._frames_offset = self.getMeta('video_frames_offset', self._frames_offset)
+        frame_list = self.getMeta('video_frame_list')
         
         # Define paths and sequence names
         base_dir = os.path.dirname(path)
         seq_name = os.path.splitext(os.path.basename(path))[0]                    
         self._img_name_base = os.path.join(base_dir, seq_name, seq_name)
-        # Load Metadata from video meta file
-        self._metafile_name = os.path.join(base_dir, seq_name+'.json')
-        self.loadMeta()
-        # Change file name to folder path
-        self._metafile_name = os.path.join(base_dir, seq_name, 'meta.json')
-        # Set metadata
-        self.setMeta('video_frames_skip', self._frames_skip)
-        self.setMeta('video_frames_offset', self._frames_offset)
             
         # Load video
         self._vidcap = cv.VideoCapture(path)
@@ -221,8 +236,14 @@ class Sequence():
         if self._preview.get() is not None:
             self._preview.setPath(f"{path}_mask")
             self._preview.save(format=format)
+        
         # Metadata
+        self._is_video = False
         self._metafile_name = os.path.join(base_path, name, 'meta.json')
+        # Delete video metadata
+        if 'video_frames_skip' in self._meta: del self._meta['video_frames_skip']
+        if 'video_frames_offset' in self._meta: del self._meta['video_frames_offset']
+        if 'video_frame_list' in self._meta: del self._meta['video_frame_list']
         if self._meta:
             self.writeMeta()
     
@@ -270,8 +291,9 @@ class Sequence():
     def loadMeta(self):
         if os.path.isfile(self._metafile_name):
             with open(self._metafile_name, 'r') as f:
-                self._meta = json.load(f)
-                self._meta_changed = False
+                new_meta = json.load(f)
+                self._meta = {**self._meta, **new_meta}
+                self._meta_changed = new_meta != self._meta
             
     def writeMeta(self):
         if self._metafile_name is not None:
@@ -310,9 +332,6 @@ class Sequence():
         expo_meta = seq.getMeta(f'exposure_{sequence_index}')
         if expo_meta is not None:
             seq.setMeta(f'exposure', expo_meta)
-        seq._meta_changed = True
-        # Set file name to folder path
-        seq._metafile_name = os.path.join(base_dir, seq_name, 'meta.json')
             
         # Check vidcap video
         seq._vid_frame = seq._readVideoFrame()
