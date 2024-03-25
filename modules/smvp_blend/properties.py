@@ -39,7 +39,9 @@ class SMVP_CameraProps(PropertyGroup):
 
 def get_algorithms(self, context):
 
-    items = []
+    items = [
+        ("id00", "Default", ""),
+    ]
 
     for i in range(7):
     
@@ -57,8 +59,11 @@ class SMVP_Algorithms_Props(PropertyGroup):
         items= get_algorithms
     )
    
-    
- 
+
+def update_function(self, context):
+    if self.toggle_render_algs:
+        bpy.ops.my.operator('INVOKE_DEFAULT')
+    return
 
 classes = (
     SMVP_SceneProps,
@@ -81,6 +86,11 @@ def register():
      # Add Render Algorithm PointerProperty 
     Scene.smvp_algorithms = bpy.props.PointerProperty(type= SMVP_Algorithms_Props)
 
+    # Toggle Render Algorithms Button    
+    bpy.types.WindowManager.toggle_render_algs = bpy.props.BoolProperty(
+                                                    default = False,
+                                                    update = update_function)
+
 def unregister():
     from bpy.utils import unregister_class
     for cls in reversed(classes):
@@ -93,3 +103,6 @@ def unregister():
 
     #del Scene.smvp_algorithms
     del bpy.types.Scene.smvp_algorithms
+
+    #del Toggle Button
+    del bpy.types.WindowManager.toggle_render_algs

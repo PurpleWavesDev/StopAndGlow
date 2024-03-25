@@ -87,37 +87,47 @@ class VIEW3D_PT_algorithm(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category = "Stop Motion"
     bl_parent_id = "VIEW3D_PT_stop_motion_vp"
+    bl_options = {"DEFAULT_CLOSED"}
  
+   # wm = context.window_manager
+    
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         algs = scene.smvp_algorithms
-        
+        wm = context.window_manager
+       
         layout.prop(algs, "algs_dropdown_items")
-        
-        layout.operator("wm.render_algorithms")
+        #layout.operator("wm.render_algorithms", text = "test")
+        label = "Stop Render" if wm.toggle_render_algs else "Start Render"
+        layout.prop(wm, 'toggle_render_algs', text=label, toggle=True)
   
- 
+
 class VIEW3D_OT_render_algorithms(bpy.types.Operator):
-    '''Render with chosen algorithm'''
-    bl_label = "Render Canvas"
-    bl_idname = "wm.render_algorithms"
-    
-    
-    def execute(self, context):
+    bl_idname = "algs_render_op"
+    bl_label = "render_algorithms"
+
+    def modal(self, context, event):
         scene = context.scene
         algs = scene.smvp_algorithms
         
-        if algs.algs_dropdown_items == 'id1':
-            bpy.ops.mesh.primitive_cube_add()
-            bpy.context.space_data.shading.type = "WIREFRAME"
+        print("running")
+   
+        if context.window_manager.toggle_render_algs:
+            if algs.algs_dropdown_items == 'id00': #default
+                bpy.context.space_data.shading.type = "SOLID"
 
-        if algs.algs_dropdown_items == 'id2':
-            bpy.ops.mesh.primitive_monkey_add()
-            bpy.context.space_data.shading.type = "SOLID"
+            if algs.algs_dropdown_items == 'id1':
+                bpy.context.space_data.shading.type = "WIREFRAME"
 
-        return {'FINISHED'}
-    
+            return {'FINISHED'} 
+        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):
+      
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
 
 # -------------------------------------------------------------------
 # Canvas UI
@@ -206,15 +216,17 @@ def smvp_objects_menu(self, context):
 # un/register
 # -------------------------------------------------------------------
 
-CLASSES =[
+classes =[
     # Dome Control
     VIEW3D_PT_domectl,
     
     # Stop Motion VP
     VIEW3D_PT_stop_motion_vp,
     VIEW3D_PT_onionskin,
-   # VIEW3D_PT_render_agorithms,
-  
+        # Render Algorithms
+    VIEW3D_PT_algorithm, 
+    VIEW3D_OT_render_algorithms, 
+     
     # Canvas UI
     SMVP_CANVAS_UL_items,
     SMVP_CANVAS_PT_frameList,
@@ -222,13 +234,11 @@ CLASSES =[
     # Menus
     OBJECT_MT_smvp_submenu,
 
-    # Test
-    VIEW3D_PT_algorithm, VIEW3D_OT_render_algorithms 
 ]
 
 def register():
     # Register classes
-    for cls in CLASSES:
+    for cls in classes:
         bpy.utils.register_class(cls)
     
     # Add menus
@@ -237,7 +247,7 @@ def register():
    
 
 def unregister():
-    for cls in CLASSES:
+    for cls in classes:
         bpy.utils.unregister_class(cls)
 
    # Remove menus
