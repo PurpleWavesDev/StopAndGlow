@@ -104,7 +104,7 @@ class VIEW3D_PT_algorithm(bpy.types.Panel):
   
 
 class VIEW3D_OT_render_algorithms(bpy.types.Operator):
-    bl_idname = "algs_render_op"
+    bl_idname = "algs.render"
     bl_label = "render_algorithms"
 
     def modal(self, context, event):
@@ -187,6 +187,22 @@ class SMVP_CANVAS_PT_frameList(Panel):
         row.operator(SMVP_CANVAS_OT_clearFrames.bl_idname, icon="PANEL_CLOSE")
 
 
+class SMVP_CANVAS_PT_canvasProps(Panel):
+    """Adds a frame list panel to the object properties"""
+    bl_idname = 'OBJECT_PT_canvasprops'
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_label = "Canvas"
+    bl_context = "object"
+
+    def draw(self, context):
+        layout = self.layout
+        scn = context.scene
+        obj = context.object
+
+        row = layout.row()
+        row.label(text = "test")
+
 # -------------------------------------------------------------------
 # Camera UI
 # -------------------------------------------------------------------
@@ -230,6 +246,7 @@ classes =[
     # Canvas UI
     SMVP_CANVAS_UL_items,
     SMVP_CANVAS_PT_frameList,
+    SMVP_CANVAS_PT_canvasProps,
 
     # Menus
     OBJECT_MT_smvp_submenu,

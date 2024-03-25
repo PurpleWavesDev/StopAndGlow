@@ -62,7 +62,7 @@ class SMVP_Algorithms_Props(PropertyGroup):
 
 def update_function(self, context):
     if self.toggle_render_algs:
-        bpy.ops.my.operator('INVOKE_DEFAULT')
+        bpy.ops.algs.render('INVOKE_DEFAULT')
     return
 
 classes = (
