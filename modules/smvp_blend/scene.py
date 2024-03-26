@@ -112,7 +112,6 @@ def register():
 
     # Event handlers
     bpy.app.handlers.frame_change_pre.append(update_canvas_textures)
-    bpy.app.handlers.depsgraph_update_pre.append(remove_textures)
 
 
 def unregister():
