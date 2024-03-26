@@ -55,7 +55,6 @@ def getAlgorithms(self, context) -> list:
             except:
                 pass
     
-    
     return algorithms
 
 def getAlgorithmSettings(self, context) -> dict:

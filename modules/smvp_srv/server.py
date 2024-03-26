@@ -115,9 +115,9 @@ def run(port=9271):
             case Command.LightsSet:
                 send(socket, Message(Command.CommandOkay))
                 pass
-                message.data['directional'] # Rotation, spread(?)
-                message.data['points'] # Position, size(?)
-                message.data['spot'] # Position, rotation, angle, falloff(?), size(?)
+                message.data['sun'] # Rotation, spread(?)
+                message.data['point'] # Position, size(?)
+                #message.data['spot'] # Position, rotation, angle, falloff(?), size(?)
                 queue.putCommand(Commands.Lights)
             
             #case Command.LightsHdriRotation:
