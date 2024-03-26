@@ -25,7 +25,8 @@ class Command(Enum):
     ConfGetLights = 26
     
     # LightInfo
-    LightsUpdate = 31 # ??
+    LightsSet = 31 # ??
+    LightsUpdate = 32
     LightsHdriRotation = 35
     LightsHdriTexture = 36
     

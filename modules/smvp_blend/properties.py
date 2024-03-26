@@ -2,7 +2,11 @@ import bpy
 from bpy.types import Scene, Object, Camera, PropertyGroup
 from bpy.props import *
 
+from smvp_ipc import *
 
+from . import client
+
+algorithms = []
 
 class SMVP_SceneProps(PropertyGroup):
     active_canvas: StringProperty()
@@ -37,26 +41,40 @@ class SMVP_CameraProps(PropertyGroup):
     canvas_link: StringProperty()
 
 
-def get_algorithms(self, context):
-
-    items = [
-        ("id00", "Default", ""),
-    ]
-
-    for i in range(7):
+def getAlgorithms(self, context) -> list:
+    """Returns a list of available render algorithms but only when a connection to the server is established"""
+    global algorithms
     
-        name = "0"+str(i+1)
-
-        items.append(("id"+str(i+1), "Algorithm."+ name, "")),
+    if not algorithms and client.connected:
+        message = Message(Command.GetRenderAlgorithms)
+        answer = client.sendMessage(message)
+        if answer.command == Command.CommandAnswer:
+            try:
+                for name_short, name_long in answer.data['algorithms']:
+                    algorithms.append((name_short, name_long, ""))
+            except:
+                pass
+    #items = [
+    #    ("id00", "Default", ""),
+    #]
     
-    return items
+    return algorithms
+
+def getAlgorithmSettings(self, context) -> dict:
+    """Returns the options of the renderer/algorithm"""
+    if client.connected:
+        message = Message(Command.Command.GetRenderSettings)
+        answer = client.sendMessage(message)
+        if answer.command == Command.CommandAnswer:
+            return answer.data
+    return {}
 
 class SMVP_Algorithms_Props(PropertyGroup):
     
     algs_dropdown_items : bpy.props.EnumProperty(
         name= "Algorithms",
         description= "description",
-        items= get_algorithms
+        items= getAlgorithms
     )
    
 
