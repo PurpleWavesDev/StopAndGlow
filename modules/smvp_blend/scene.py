@@ -18,7 +18,7 @@ class VIEW3D_OT_setupScene(Operator):
     bl_label ="Setup SMVP Scene"
     bl_id = "smvpscene.setup"
 
-    #return{'FINISHED'}
+   
 
 
 
@@ -33,8 +33,10 @@ class SMVP_CANVAS_OT_setCanvasActive(Operator):
         canvas = obj.smvp_canvas
         scn = context.scene
 
+        # fill property 'active_canvas' with name of selected canvas 
         if scn.smvp_scene.active_canvas is not obj.name:
-            scn.smvp_scene.active_canvas = obj.name
+            if obj.smvp_canvas.is_canvas:
+                scn.smvp_scene.active_canvas= obj.name
 
         return{'FINISHED'}
 

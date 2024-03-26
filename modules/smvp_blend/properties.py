@@ -54,9 +54,7 @@ def getAlgorithms(self, context) -> list:
                     algorithms.append((name_short, name_long, ""))
             except:
                 pass
-    #items = [
-    #    ("id00", "Default", ""),
-    #]
+    
     
     return algorithms
 
