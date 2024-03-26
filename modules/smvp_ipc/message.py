@@ -11,9 +11,10 @@ class Command(Enum):
     Trace = 5
     # Command answers
     CommandOkay = 11
-    CommandProcessing = 12
-    CommandProgress = 13
-    CommandComplete = 14
+    CommandAnswer = 12
+    CommandProcessing = 13
+    CommandProgress = 14
+    CommandComplete = 15
     CommandError = 16
     
     # Config commands

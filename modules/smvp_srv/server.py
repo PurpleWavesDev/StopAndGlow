@@ -14,6 +14,7 @@ def run(port=9271):
     socket.bind(f"tcp://*:{port}")
     
     initalized = False
+    renderer = None
     queue = ProcessingQueue()
 
     while True:
@@ -40,6 +41,32 @@ def run(port=9271):
                 send(socket, Message(Command.Pong, message.data))
             case Command.Pong:
                 pass
+            
+            ## Config commands for resolution, paths, calibration
+            case Command.ConfResolution:
+                try:
+                    res_x, res_y = message.data['resolution']
+                    # Set resolution
+                    
+                    send(socket, Message(Command.CommandOkay))
+                except:
+                    send(socket, Message(Command.CommandError, {'message': 'Failed to parse resolution value'}))
+            case Command.ConfCapturePath:
+                capture_path = message.data['path']
+                if os.path.isdir(capture_path):
+                    # Set folder
+                    
+                    send(socket, Message(Command.CommandOkay))
+                else:
+                    send(socket, Message(Command.CommandError, {'message': 'Path is not a folder'}))
+            case Command.ConfCalibrationFile:
+                cal_file = message.data['path']
+                if os.path.isfile(cal_file):
+                    # Load cal file
+                    
+                    send(socket, Message(Command.CommandOkay))
+                else:
+                    send(socket, Message(Command.CommandError, {'message': 'Path is not a file'}))
             
             ## LightCtl commands
             case Command.LightCtlTop:
@@ -86,44 +113,45 @@ def run(port=9271):
             
             ## LightInfo
             case Command.LightsSet:
+                send(socket, Message(Command.CommandOkay))
                 pass
                 message.data['directional'] # Rotation, spread(?)
                 message.data['points'] # Position, size(?)
                 message.data['spot'] # Position, rotation, angle, falloff(?), size(?)
-                #queue.putCommand()
+                queue.putCommand(Commands.Lights)
             
             #case Command.LightsHdriRotation:
             #case Command.LightsHdriTexture:
             
             ## Render loaded footage
-            #case Command.GetRenderAlgorithms:
-            #case Command.GetRenderSettings:
-            #case Command.SetRenderer:
-            #case Command.Process:
-            #case Command.Render:
-            
+            case Command.GetRenderAlgorithms:
+                answer = {'algorithms': [(rend.name_short, rend.name) for rend in renderers]}
+                send(socket, Message(Command.CommandAnswer, answer))
+            case Command.SetRenderer:
+                rend_name = message.data['algorithm']
+                try:
+                    renderer = [rend for rend in renderers if rend.name_short == rend_name][0]
+                except:
+                    send(socket, Message(Command.CommandError, {'message': 'Unknwon render algorithm selected'}))
+            case Command.GetRenderSettings:
+                if renderer is not None:
+                    answer = renderer.getDefaultSettings()
+                    send(socket, Message(Command.CommandAnswer, answer))
+                else:
+                    send(socket, Message(Command.CommandError, {'message': 'No renderer selected'}))
+            ##case Command.Process: # Implicitly called?
+            case Command.Render:
+                # Render here
+                send(socket, Message(Command.CommandProcessing))
+                
             ## Live Viewer
             #case Command.ViewerOpen:    
             #case Command.ViewerClose:
             
-            case _:
-                send(socket, Message(Command.CommandError, {"message": "Unknown command"}))
-            
-            
-            
-            # Config commands
-            # Resolution, Paths, Cals, .. ??
-            #case Command.ConfResolution:
-            #case Command.ConfCapturePath:
-            #case Command.ConfCalibrationFile:
-            #case Command.ConfGetLights:
-            #
-            #
-            ## Several viewer modes?
-            #
-            #
-            #
-            #
             ## Camera settings
             #case Command.CameraSettings:
             #case Command.CameraTracking:
+            
+            case _:
+                send(socket, Message(Command.CommandError, {"message": "Unknown command"}))
+            
