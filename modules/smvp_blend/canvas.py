@@ -225,9 +225,7 @@ class SMVP_CANVAS_OT_clearFrames(Operator):
     def execute(self, context):
         obj = context.object
         if bool(obj.smvp_canvas.frame_list):
-            for i in reversed(range(len(obj.smvp_canvas.frame_list))):
-                deleteFrameEntry(obj, i)
-            obj.smvp_canvas.frame_list_index = 0
+            clearFrames(context.scene, obj)
             self.report({'INFO'}, "All items removed")
         else:
             self.report({'INFO'}, "Nothing to remove")
@@ -267,6 +265,7 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
             obj.smvp_canvas.frame_list_index = min(obj.smvp_canvas.frame_list_index, len(obj.smvp_canvas.frame_list)-1)
             info = ', '.join(map(str, removed_items))
             self.report({'INFO'}, "Removed indices: %s" % (info))
+            update_single_canvas_tex(context.scene, obj)
         else:
             self.report({'INFO'}, "No duplicates")
         return{'FINISHED'}
@@ -294,112 +293,41 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
     def execute(self, context):
         scn = context.scene
         obj = context.object
-        idx = obj.smvp_canvas.frame_list_index
 
-        try:
-            item = obj.smvp_canvas.frame_list[idx]
-        except IndexError:
-            self.report({'INFO'}, "Nothing selected in the list")
-            return{'CANCELLED'}
+        if self.jump_to_selected:
+            idx = obj.smvp_canvas.frame_list_index
+            try:
+                item = obj.smvp_canvas.frame_list[idx]
+            except IndexError:
+                self.report({'INFO'}, "Nothing selected in the list")
+                return{'CANCELLED'}
+            
+            frame = int(getKeyframes(obj)[idx][0])
+            scn.frame_set(frame)
+            self.report({'INFO'}, f"Jumped to frame {frame}")
 
-        obj_error = False
-        bpy.ops.object.select_all(action='DESELECT')
-        if not self.select_all:
-            obj = scn.objects.get(obj.smvp_canvas.frame_list[idx].name, None)
-            if not obj: 
-                obj_error = True
-            else:
-                obj.select_set(True)
-                info = '"%s" selected in Viewport' % (obj.name)
         else:
-            selected_items = []
-            unique_objs = set([i.name for i in obj.smvp_canvas.frame_list])
-            for i in unique_objs:
-                obj = scn.objects.get(i, None)
-                if obj:
-                    obj.select_set(True)
-                    selected_items.append(obj.name)
-
-            if not selected_items: 
-                obj_error = True
-            else:
-                missing_items = unique_objs.difference(selected_items)
-                if not missing_items:
-                    info = '"%s" selected in Viewport' \
-                        % (', '.join(map(str, selected_items)))
-                else:
-                    info = 'Missing items: "%s"' \
-                        % (', '.join(map(str, missing_items)))
-        if obj_error: 
-            info = "Nothing to select, object removed from scene"
-        self.report({'INFO'}, info)    
+            keyframes = getKeyframes(obj)
+            # Find first keyframe that is on frame greater than current
+            idx = 0
+            for x, y in keyframes:
+                if x > scn.frame_current:
+                    break
+                idx += 1
+            # Index is previous key (except for first key)
+            idx = max(idx-1, 0)
+            obj.smvp_canvas.frame_list_index = idx
+            self.report({'INFO'}, f"Selected frame {idx} '{obj.smvp_canvas.frame_list[idx].name}'")
+        
         return{'FINISHED'}
 
 
-# -------------------------------------------------------------------
-#   Side-Panel (3D-View) Operators
-# -------------------------------------------------------------------
-class OBJECT_OT_smvp_canvas_add(bpy.types.Operator):
-    """Creates an canvas object"""
-
-    bl_idname = "object.smvp_create_canvas"
-    bl_label = "Creates an canvas object"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        # Add primitive
-        bpy.ops.mesh.primitive_plane_add(rotation=(math.pi/2, 0, 0), size=2)
-        canvas = bpy.context.object
-        # Properties
-        canvas.name = "Canvas"
-        canvas.scale[0] = 16/9
-        canvas.smvp_canvas.is_canvas = True
-        canvas['exposure'] = 1.0
-        #canvas['exposure_preview'] = 1.0
-        canvas['frame_keys'] = True
-        
-        # Set ID and increment
-        canvas.smvp_canvas.canvas_id = context.scene.smvp_scene.canvas_ids
-        context.scene.smvp_scene.canvas_ids += 1
-        
-        # Set material, create slot and assign
-        mat = createCanvasMat(canvas)
-        canvas.data.materials.append(mat)
-        # Settings TODO only for EEVEE?
-        mat.blend_method = 'HASHED'
-        mat.shadow_method = 'HASHED'
-        
-        # Set active canvas object if not set
-        if context.scene.smvp_scene.active_canvas == "":
-            context.scene.smvp_scene.active_canvas = canvas.name
-        
-        return {"FINISHED"}
-    
-    def invoke(self, context, event):
-        return self.execute(context)
 
 
-
-# -------------------------------------------------------------------
-#   Event handlers
-# -------------------------------------------------------------------
-def update_canvas_textures(scene):
-    #bpy.data.materials["Video"].node_tree.nodes["texture"].inputs[1].default_value = frame_numscene.frame_current
-    for obj in bpy.data.objects:
-        if obj.smvp_canvas.is_canvas:
-            # Canvas found!
-            update_single_canvas_tex(scene, obj)
-            
-                
 def update_single_canvas_tex(scene, obj):
-    try:
-        idx = obj.smvp_canvas.frame_list_index # TODO
-        item = obj.smvp_canvas.frame_list[idx]
-    except:
-        pass
-    else:
-        # Apply texture
-        img = getTexture(obj, scene.frame_current)
+    # Apply texture
+    img = getTexture(obj, scene.frame_current)
+    if img is not None:
         obj.active_material.node_tree.nodes["ImageTexture"].image = img
 
 
@@ -496,9 +424,18 @@ def deleteFrameEntry(obj, index):
     except:
         pass
 
+def clearFrames(scn, obj):
+    for i in reversed(range(len(obj.smvp_canvas.frame_list))):
+        deleteFrameEntry(obj, i)
+    obj.smvp_canvas.frame_list_index = 0
+    update_single_canvas_tex(scn, obj)
+
 def getTexture(canvas_obj, frame):
     canvas = canvas_obj.smvp_canvas
     keyframes = getKeyframes(canvas_obj)
+    if len(canvas.frame_list) == 0:
+        return None
+    
     index = 0 
     for x, y in keyframes:
         if x > frame:
@@ -568,19 +505,12 @@ classes = (
     SMVP_CANVAS_OT_clearFrames,
     SMVP_CANVAS_OT_removeDuplicates,
     SMVP_CANVAS_OT_selectFrame,
-    
-    # Canvas object operators
-    OBJECT_OT_smvp_canvas_add,
 )
 
 def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-    
-    # Event handlers
-    bpy.app.handlers.frame_change_pre.append(update_canvas_textures)
-    bpy.app.handlers
 
 def unregister():
     from bpy.utils import unregister_class

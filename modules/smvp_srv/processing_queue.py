@@ -175,12 +175,18 @@ class Worker:
                     send_array(self._sock[arg], id, self.hw.cam.capturePreview().rescale(self.config['resolution']).asFloat().getWithAlpha())
                 
             case Commands.Lights:
-                # --lights on value=50 range=0.2
+                # --lights on power=0.5 range=0.2
+                power = min(GetSetting(message.data, 'power', 1/3), 1.0)
+                amount = min(GetSetting(message.data, 'amount', 1/3), 1.0)
+                width = min(GetSetting(message.data, 'width', 1/6), 1.0)
+
                 match arg:
                     case 'on'|'rand':
-                        self.lightctl.setNth(6, 50)
+                        self.lightctl.setNth(round(1/amount), int(power*255))
                     case 'top':
-                        self.lightctl.setTop(60, 50)
+                        self.lightctl.setTop(90-90*amount, int(power*255))
+                    case 'ring':
+                        self.lightctl.setRing(90-90*amount, 90*width, int(power*255))
                     case 'off':
                         self.hw.lights.off()
                 

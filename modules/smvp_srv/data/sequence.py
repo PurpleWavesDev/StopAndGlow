@@ -94,13 +94,14 @@ class Sequence():
             if os.path.isfile(p):
                 # Extract frame number, add buffer to dict
                 match = re.search("[\.|_](\d+)\.[a-zA-Z]+$", f)
-                mask_match = re.search("[\.|_]mask\.[a-zA-Z]+$", f)
+                preview_match = re.search("[\.|_]preview\.[a-zA-Z]+$", f)
                 if match is not None:
                     id = int(match.group(1))
                     self.append(ImgBuffer(p, domain=domain), id)
-                elif mask_match is not None:
+                elif preview_match is not None:
                     self.setPreview(ImgBuffer(p, domain=domain))
                 elif 'meta.json' in f:
+                    # Already taken care off
                     pass
                 else:
                     log.warn(f"Found file without sequence numbering: {f}")

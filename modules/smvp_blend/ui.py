@@ -49,7 +49,7 @@ class VIEW3D_PT_stop_motion_vp(Panel):
     def draw(self, context):
         """define the layout of the panel"""
         row = self.layout.row()
-        row.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Setup Scene", icon ="PLUS")
+        row.operator(OBJECT_OT_smvpCanvasAdd.bl_idname, text="Setup Scene", icon ="PLUS")
         row = self.layout.row()
         row.operator("mesh.primitive_ico_sphere_add", text="Capture Sequence", icon = "MONKEY")
 
@@ -226,7 +226,7 @@ class OBJECT_MT_smvp_submenu(Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.operator(OBJECT_OT_smvp_canvas_add.bl_idname, text="Canvas", icon="IMAGE_PLANE")
+        layout.operator(OBJECT_OT_smvpCanvasAdd.bl_idname, text="Canvas", icon="IMAGE_PLANE")
         layout.operator(SMVP_CAMERA_OT_addLinked.bl_idname, text="Linked Camera", icon="VIEW_CAMERA")
     
         

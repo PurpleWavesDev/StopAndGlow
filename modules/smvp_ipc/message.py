@@ -29,9 +29,10 @@ class Command(Enum):
     LightsHdriTexture = 36
     
     # LightCtl
-    LightCtlRand = 41
-    LightCtlTop = 42
-    LightCtlOff = 43
+    LightCtlTop = 41
+    LightCtlRing = 42
+    LightCtlRand = 43
+    LightCtlOff = 44
     
     # Live Viewer
     ViewerOpen = 51

@@ -42,12 +42,14 @@ def run(port=9271):
                 pass
             
             ## LightCtl commands
-            case Command.LightCtlRand:
-                #message.data # TODO
-                queue.putCommand(Commands.Lights, 'on')
-                send(socket, Message(Command.CommandOkay))
             case Command.LightCtlTop:
-                queue.putCommand(Commands.Lights, 'top')
+                queue.putCommand(Commands.Lights, 'top', message.data)
+                send(socket, Message(Command.CommandOkay))
+            case Command.LightCtlRing:
+                queue.putCommand(Commands.Lights, 'ring', message.data)
+                send(socket, Message(Command.CommandOkay))
+            case Command.LightCtlRand:
+                queue.putCommand(Commands.Lights, 'rand', message.data)
                 send(socket, Message(Command.CommandOkay))
             case Command.LightCtlOff:
                 queue.putCommand(Commands.Lights, 'off')
@@ -72,7 +74,7 @@ def run(port=9271):
                 queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
                 send(socket, Message(Command.CommandProcessing))
                 
-            case Command.PreviewHdri:
+            case Command.PreviewBaked:
                 queue.putCommand(Commands.Capture, 'hdri')
                 queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
                 send(socket, Message(Command.CommandProcessing))
@@ -82,16 +84,32 @@ def run(port=9271):
                 queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'live'})
                 send(socket, Message(Command.CommandProcessing))
             
-            ## Render
+            ## LightInfo
+            case Command.LightsSet:
+                pass
+                message.data['directional'] # Rotation, spread(?)
+                message.data['points'] # Position, size(?)
+                message.data['spot'] # Position, rotation, angle, falloff(?), size(?)
+                #queue.putCommand()
             
+            #case Command.LightsHdriRotation:
+            #case Command.LightsHdriTexture:
+            
+            ## Render loaded footage
+            #case Command.GetRenderAlgorithms:
+            #case Command.GetRenderSettings:
+            #case Command.SetRenderer:
+            #case Command.Process:
+            #case Command.Render:
+            
+            ## Live Viewer
+            #case Command.ViewerOpen:    
+            #case Command.ViewerClose:
             
             case _:
                 send(socket, Message(Command.CommandError, {"message": "Unknown command"}))
             
             
-            ## Live Viewer
-            #case Command.ViewerOpen:    
-            #case Command.ViewerClose:
             
             # Config commands
             # Resolution, Paths, Cals, .. ??
@@ -100,21 +118,11 @@ def run(port=9271):
             #case Command.ConfCalibrationFile:
             #case Command.ConfGetLights:
             #
-            ## LightInfo
-            #case Command.LightsUpdate:
-            #case Command.LightsHdriRotation:
-            #case Command.LightsHdriTexture:
             #
             ## Several viewer modes?
             #
             #
             #
-            ## Render loaded footage
-            #case Command.GetRenderAlgorithms:
-            #case Command.GetRenderSettings:
-            #case Command.SetRenderer:
-            #case Command.Process:
-            #case Command.Render:
             #
             ## Camera settings
             #case Command.CameraSettings:

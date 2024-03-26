@@ -159,7 +159,12 @@ class LightCtl:
     def setTop(self, latitude = 60, brightness = DMX_MAX_VALUE):
         # Sample lights
         self.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > latitude else ImgBuffer.FromPix(0))
-
+        # Write DMX values
+        self.writeLights()
+    
+    def setRing(self, latitude = 45, ring_width = 15, brightness = DMX_MAX_VALUE):
+        # Sample lights
+        self.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > latitude and latlong[0] < latitude+ring_width else ImgBuffer.FromPix(0))
         # Write DMX values
         self.writeLights()
     
