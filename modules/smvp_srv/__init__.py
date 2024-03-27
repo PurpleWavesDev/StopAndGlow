@@ -17,13 +17,13 @@ import logging as log
 
 # Sub-modules
 from .hw import *
-from .process import *
+from .procedure import *
 from .data import *
 from .render import *
 from .utils import *
 # Timer & Worker
-from .process.timer import Timer
-from .process.worker import *
+from .procedure.timer import Timer
+from .procedure.worker import *
 # Viewer
 from .viewer import *
 

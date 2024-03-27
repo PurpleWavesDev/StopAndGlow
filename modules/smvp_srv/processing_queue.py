@@ -11,7 +11,7 @@ from smvp_ipc import *
 from .commands import *
 from .hw import *
 from .data import *
-from .process import *
+from .procedure import *
 from .render import *
 from .utils import ti_base as tib
 
