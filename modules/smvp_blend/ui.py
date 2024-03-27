@@ -154,7 +154,7 @@ class SMVP_CANVAS_PT_canvasProps(Panel):
             row.label(text = "", icon = "ERROR") 
         row.label(text = active) 
 
-        if obj.smvp_canvas.is_canvas:
+        if obj is not None and obj.smvp_canvas.is_canvas:
                   
             if active != obj.name:
                 #only draw icon to refresh, if selected isn't active

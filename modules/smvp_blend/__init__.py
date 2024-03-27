@@ -36,11 +36,22 @@ import os.path as path
 parent_module_path = path.abspath("..")
 if not parent_module_path in sys.path:
     sys.path.append(parent_module_path)
+    
 
-from . import properties, client, domectl, canvas, camera, scene, ui
+def checkDependencies():
+    # Check dependencies and install if needed
+    import pip
+    try:
+        import zmq
+    except:
+        pip.main(['install', 'pyzmq', '--user'])
+
 
 
 def register():
+    checkDependencies()
+    
+    from . import properties, client, domectl, canvas, camera, scene, ui
     properties.register()
     client.register()
     domectl.register()
@@ -50,6 +61,7 @@ def register():
     ui.register()
 
 def unregister():
+    from . import properties, client, domectl, canvas, camera, scene, ui
     properties.unregister()
     client.unregister()
     domectl.unregister()
