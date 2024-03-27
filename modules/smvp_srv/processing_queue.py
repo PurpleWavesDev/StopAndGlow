@@ -75,7 +75,7 @@ class Worker:
         self.hw = HW(Cam(), Lights(), calibration)
         self.lightctl = LightCtl(self.hw)
         self.executor = None
-        self.id
+        self.id = 0
 
         while self._keep_running or not queue.empty():
             try:
@@ -188,15 +188,18 @@ class Worker:
                 # --lights on power=0.5 range=0.2
                 power = min(GetSetting(settings, 'power', 1/3), 1.0)
                 amount = min(GetSetting(settings, 'amount', 1/3), 1.0)
-                width = min(GetSetting(settings, 'width', 1/6), 1.0)
+                width = min(GetSetting(settings, 'width', 1/5), 1.0)
 
                 match arg:
                     case 'on'|'rand':
-                        self.lightctl.setNth(round(1/amount), int(power*255))
+                        if amount != 0:
+                            self.lightctl.setNth(round(1/amount), int(power*255))
+                        else:
+                            self.hw.lights.off()
                     case 'top':
                         self.lightctl.setTop(90-90*amount, int(power*255))
                     case 'ring':
-                        self.lightctl.setRing(90-90*amount, 90*width, int(power*255))
+                        self.lightctl.setRing(90-90*amount, 135*width, int(power*255))
                     case 'off':
                         self.hw.lights.off()
                 
@@ -255,6 +258,7 @@ class Worker:
         return data_sequence
     
     def sendImage(self, id):
+        time.sleep(0.1)
         send_array(self._consumer, id, self.executor.execute().getWithAlpha())
 
 

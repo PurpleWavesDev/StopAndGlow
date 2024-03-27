@@ -169,13 +169,15 @@ class LightCtl:
         self.writeLights()
     
     def setNth(self, nth, brightness = DMX_MAX_VALUE):
-        random.seed()
-        self._lights.reset()
-        for light in self._cal:
-            if random.randrange(0, nth) == 0:
-                self._lightVals[light['id']] = ImgBuffer.FromPix(brightness)
-        self.writeLights()
-        #self._mask = [light['id'] for i, light in enumerate(self._cal) if i % nth == 0] # TODO: This way every nth is lit and not random
+        if nth != 0:
+            random.seed()
+            self._lights.reset()
+            self._lightVals.clear()
+            for light in self._cal:
+                if random.randrange(0, nth) == 0:
+                    self._lightVals[light['id']] = ImgBuffer.FromPix(brightness)
+            self.writeLights()
+            #self._mask = [light['id'] for i, light in enumerate(self._cal) if i % nth == 0] # TODO: This way every nth is lit and not random
     
     #TODO: Move to renderer
     def generateLightingFromSequence(self, img_seq: Sequence, longitude_offset=0) -> ImgBuffer:

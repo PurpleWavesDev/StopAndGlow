@@ -34,8 +34,8 @@ class Engine:
                 pass
             case EngineModes.Live:
                 preview = self._hw.cam.capturePreview()
-                scale = max(res[0] / preview.resolution()[0], res[1] / preview.resolution()[1])
-                return preview.scale(scale).crop(self._res)
+                scale = max(self._res[0] / preview.resolution()[0], self._res[1] / preview.resolution()[1])
+                return preview.scale(scale).crop(self._res).asFloat()
             case EngineModes.Sequence:
                 pass
         return ImgBuffer()

@@ -138,7 +138,7 @@ def serviceRun(port):
                 if id in image_requests:
                     try:
                         bpy.data.images[image_requests[id]].pixels.foreach_set(np.flipud(img_data).flatten())
-                        bpy.data.images[image_requests[id]].update()
+                        bpy.data.images[image_requests[id]].update_tag()
                     #except ??
                     #    print(f"SMVP receiver warning: Image {image_requests[id]} not found")
                     except Exception as e:

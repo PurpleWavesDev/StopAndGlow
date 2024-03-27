@@ -59,7 +59,7 @@ class WM_OT_smvp_lightctl(bpy.types.Operator):
 
     bl_idname = "wm.smvp_lightctl"
     bl_label = "Set the state of the lights of the dome"
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER", "UNDO"}
     
     light_state: bpy.props.EnumProperty(items=[
         ("TOP", "Top", "", 1),
@@ -67,8 +67,9 @@ class WM_OT_smvp_lightctl(bpy.types.Operator):
         ("RAND", "Rand", "", 3),
         ("OFF", "Off", "", 4),
         ])
-    power: bpy.props.FloatProperty(default=0.3)
-    amount: bpy.props.FloatProperty(default=0.3)
+    power: bpy.props.FloatProperty(name="Power", default=0.3, min=0.0, max=1.0, step=5)
+    amount: bpy.props.FloatProperty(name="Amount", default=0.3, min=0.0, max=1.0, step=5)
+    width: bpy.props.FloatProperty(name="Ring Width", default=0.25, min=0.0, max=1.0, step=5)
 
     def execute(self, context):
         command = None
@@ -81,7 +82,7 @@ class WM_OT_smvp_lightctl(bpy.types.Operator):
                 command = Command.LightCtlRand
             case 'OFF':
                 command = Command.LightCtlOff
-        message = Message(command, {'power': self.power, 'amount': self.amount})
+        message = Message(command, {'power': self.power, 'amount': self.amount, 'width': self.width})
         client.sendMessage(message)
         return {"FINISHED"}
     
@@ -93,8 +94,9 @@ class WM_OT_smvp_viewer(bpy.types.Operator):
     bl_options = {"REGISTER"}
 
     def execute(self, context):
-        message = Message.LightCtlMsg(Command.ViewerOpen)
-        client.sendMessage(message)
+        context.object.smvp_canvas.display_mode = 'live'
+        #message = Message.LightCtlMsg(Command.ViewerLaunch)
+        #client.sendMessage(message)
         return {"FINISHED"}
 
 

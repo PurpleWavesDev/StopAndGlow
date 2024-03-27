@@ -433,6 +433,17 @@ def clearFrames(scn, obj):
 def getTexture(canvas_obj, frame):
     canvas = canvas_obj.smvp_canvas
     keyframes = getKeyframes(canvas_obj)
+    
+    if canvas.display_mode == 'live':
+        # No need to look for current key, start live capture with canvas texture
+        image_name = canvas.live_texture
+        if image_name in bpy.data.images:
+            id = client.serviceAddReq(image_name)
+            message = ipc.Message(ipc.Command.ReqLive, {'id': id})
+            client.sendMessage(message)    
+            return bpy.data.images[image_name]
+        return None
+        
     if len(canvas.frame_list) == 0:
         # No frames in canvas
         return None
@@ -467,17 +478,13 @@ def getTextureForIdx(canvas_obj, index):
             image_name = canvas_frame.render_texture
             # Start render process
             command = ipc.Command.ReqRender
-
-        case 'live': # Live
-            image_name = canvas.live_texture
-            # Start live capture
-            command = ipc.Command.ReqLive
     
     # If image is not valid, create a new one and call function recursively
     if not image_name in bpy.data.images:
-        print(f"Error: Image {image_name} missing")
-        createFrameTextures(canvas_obj, index, scn.smvp_scene.resolution)
-        getTextureForIdx(canvas_obj, index)
+        if image_name != "":
+            print(f"Error: Image {image_name} missing")
+            createFrameTextures(canvas_obj, index, bpy.context.scene.smvp_scene.resolution)
+            getTextureForIdx(canvas_obj, index)
     
     # If command is set, generate ID for requested image and send request
     if command is not None:
