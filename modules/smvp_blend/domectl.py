@@ -73,13 +73,13 @@ class WM_OT_smvp_lightctl(bpy.types.Operator):
     def execute(self, context):
         command = None
         match self.light_state:
-            case 1:
+            case 'TOP':
                 command = Command.LightCtlTop
-            case 2:
+            case 'RING':
                 command = Command.LightCtlRing
-            case 3:
+            case 'RAND':
                 command = Command.LightCtlRand
-            case 4:
+            case 'OFF':
                 command = Command.LightCtlOff
         message = Message(command, {'power': self.power, 'amount': self.amount})
         client.sendMessage(message)

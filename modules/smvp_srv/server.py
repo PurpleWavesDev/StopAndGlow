@@ -15,6 +15,7 @@ def run(port=9271):
     
     initalized = False
     renderer = None
+    res_x, res_y = (1920, 1080)
     queue = ProcessingQueue()
 
     while True:
@@ -29,18 +30,18 @@ def run(port=9271):
         
         # Match command
         match message.command:
+            case Command.Ping:
+                # Send pong
+                send(socket, Message(Command.Pong, message.data))
+            case Command.Pong:
+                pass
+
             case Command.Init:
                 if not initalized:
                     # Launch queue worker, this will initialize the hardware
                     queue.launch()
                     initalized = True
                 send(socket, Message(Command.CommandOkay))
-
-            case Command.Ping:
-                # Send pong
-                send(socket, Message(Command.Pong, message.data))
-            case Command.Pong:
-                pass
             
             ## Config commands for resolution, paths, calibration
             case Command.ConfResolution:
@@ -82,6 +83,7 @@ def run(port=9271):
                 queue.putCommand(Commands.Lights, 'off')
                 send(socket, Message(Command.CommandOkay))
 
+
             ## Full resoultion footage
             case Command.CaptureLights:
                 queue.putCommand(Commands.Capture, 'lights')
@@ -95,6 +97,20 @@ def run(port=9271):
             case Command.LoadFootage:
                 queue.putCommand(Commands.Load, message.data['path'])
                 send(socket, Message(Command.CommandOkay))
+            
+            
+            ## LightInfo
+            case Command.LightsSet:
+                send(socket, Message(Command.CommandOkay))
+                pass
+                message.data['sun'] # Rotation, spread(?)
+                message.data['point'] # Position, size(?)
+                #message.data['spot'] # Position, rotation, angle, falloff(?), size(?)
+                queue.putCommand(Commands.Lights)
+            
+            #case Command.LightsHdriRotation:
+            #case Command.LightsHdriTexture:
+            
             
             ## Preview
             # TODO: Localhost should be address of received message
@@ -115,45 +131,36 @@ def run(port=9271):
             case Command.ReqRender:
                 queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'render'})
                 send(socket, Message(Command.CommandProcessing))
-
             
-            ## LightInfo
-            case Command.LightsSet:
-                send(socket, Message(Command.CommandOkay))
-                pass
-                message.data['sun'] # Rotation, spread(?)
-                message.data['point'] # Position, size(?)
-                #message.data['spot'] # Position, rotation, angle, falloff(?), size(?)
-                queue.putCommand(Commands.Lights)
             
-            #case Command.LightsHdriRotation:
-            #case Command.LightsHdriTexture:
-            
-            ## Render loaded footage
+            ## Render Algorithmns
             case Command.GetRenderAlgorithms:
                 answer = {'algorithms': [(rend.name_short, rend.name) for rend in renderers]}
                 send(socket, Message(Command.CommandAnswer, answer))
-            case Command.SetRenderer:
-                rend_name = message.data['algorithm']
-                try:
-                    renderer = [rend for rend in renderers if rend.name_short == rend_name][0]
-                except:
-                    send(socket, Message(Command.CommandError, {'message': 'Unknwon render algorithm selected'}))
+            
             case Command.GetRenderSettings:
                 if renderer is not None:
                     answer = renderer.getDefaultSettings()
                     send(socket, Message(Command.CommandAnswer, answer))
                 else:
                     send(socket, Message(Command.CommandError, {'message': 'No renderer selected'}))
-            ##case Command.Process: # Implicitly called?
+            
+            case Command.SetRenderer:
+                rend_name = message.data['algorithm']
+                try:
+                    renderer = [rend for rend in renderers if rend.name_short == rend_name][0]
+                except:
+                    send(socket, Message(Command.CommandError, {'message': 'Unknwon render algorithm selected'}))
+
                 
             ## Live Viewer
-            #case Command.ViewerOpen:    
-            #case Command.ViewerClose:
+            case Command.ViewerLaunch:    
+                
+                send(socket, Message(Command.CommandAnswer, answer))
             
             ## Camera settings
             #case Command.CameraSettings:
-            #case Command.CameraTracking:
+            #case Command.CameraPosition:
             
             case _:
                 send(socket, Message(Command.CommandError, {"message": "Unknown command"}))

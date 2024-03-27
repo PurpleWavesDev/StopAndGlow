@@ -6,7 +6,7 @@ class Command(Enum):
     Ping = 1
     Pong = 2
     Init = 3
-    State = 4
+    #State = 4
 
     # Command answers
     CommandOkay = 11
@@ -21,13 +21,6 @@ class Command(Enum):
     ConfResolution = 21
     ConfCapturePath = 22
     ConfCalibrationFile = 23
-    ConfGetLights = 26
-    
-    # LightInfo
-    LightsSet = 31 # ??
-    LightsUpdate = 32
-    LightsHdriRotation = 35
-    LightsHdriTexture = 36
     
     # LightCtl
     LightCtlTop = 41
@@ -35,9 +28,16 @@ class Command(Enum):
     LightCtlRand = 43
     LightCtlOff = 44
     
-    # Live Viewer
-    ViewerOpen = 51
-    ViewerClose = 52
+    # Image data (capture & load)
+    CaptureLights = 71
+    CaptureBaked = 72
+    LoadFootage = 75
+    
+    # LightInfo
+    LightsSet = 31 # ??
+    LightsUpdate = 32
+    LightsHdriRotation = 35
+    LightsHdriTexture = 36
     
     # Image requests
     ReqPreview = 61
@@ -46,19 +46,17 @@ class Command(Enum):
     ReqLive = 64
     ReqStop = 65
     
-    # Image data (capture & load)
-    CaptureLights = 71
-    CaptureBaked = 72
-    LoadFootage = 75
-    
     # Render Algorithmns
     GetRenderAlgorithms = 81
     GetRenderSettings = 82
     SetRenderer = 83
     
+    # Live Viewer
+    ViewerLaunch = 51
+    
     # Camera settings
     CameraSettings = 91
-    CameraTracking = 92
+    CameraPosition = 92
     
     
 class Message:

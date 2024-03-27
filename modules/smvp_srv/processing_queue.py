@@ -14,6 +14,7 @@ from .data import *
 from .procedure import *
 from .render import *
 from .utils import ti_base as tib
+from .engine import *
 
 
 class ProcessingQueue:
@@ -42,14 +43,14 @@ class ProcessingQueue:
 class Worker:
     def __init__(self, send_results=False):
         # Setup processing queue
-        self._sock = {}
+        self._consumer = None
         self._context = zmq.Context()
                 
-    def addConsumer(self, address_string):
+    def setConsumer(self, address_string):
         # Open new socket to consumer
         address_str = f"tcp://{address_string}"
-        self._sock[address_string] = self._context.socket(zmq.PUSH)
-        self._sock[address_string].connect(address_str)
+        self._consumer = self._context.socket(zmq.PUSH)
+        self._consumer.connect(address_str)
                         
     def work(self, queue, keep_running):
         self._keep_running = keep_running
@@ -57,6 +58,7 @@ class Worker:
         tib.TIBase.gpu = True
         tib.TIBase.debug = True
         tib.TIBase.init()
+        self.tib_buffer = None
         
         # Default config
         self.config = Config()
@@ -72,13 +74,18 @@ class Worker:
         calibration = Calibration(path=os.path.join(self.config['cal_folder'], self.config['cal_name']))
         self.hw = HW(Cam(), Lights(), calibration)
         self.lightctl = LightCtl(self.hw)
+        self.executor = None
+        self.id
 
         while self._keep_running or not queue.empty():
             try:
                 command, arg, settings = queue.get_nowait()
                 self.processCommand(command, arg, settings)
             except Q.Empty:
-                time.sleep(0.1)
+                if self.executor is not None:
+                    self.sendImage(self.id)
+                else:
+                    time.sleep(0.1)
             except Exception as e:
                 log.error(f"Error processing command: {str(e)}")
             
@@ -134,7 +141,7 @@ class Worker:
                 self.sequence.load(arg, defaults=default_config, overrides=settings)
                 
                 # Get preview
-                self.preview = self.sequence.getPreview().asDomain(ImgDomain.sRGB)
+                self.preview = self.sequence.getPreview().asDomain(ImgDomain.sRGB, ti_buffer=self.tib_buffer)
                 res = self.config['resolution']
                 scale = max(res[0] / self.preview.resolution()[0], res[1] / self.preview.resolution()[1])
                 self.preview = self.preview.scale(scale).crop(res)
@@ -160,25 +167,28 @@ class Worker:
             
             case Commands.Send:
                 # --send address:port id=1 mode=render|baked|preview|live
-                if not arg in self._sock:
-                    self.addConsumer(arg)
+                if self._consumer is None:
+                    self.setConsumer(arg)
                 
                 id = GetSetting(settings, 'id', 0)
                 mode = GetSetting(settings, 'mode', 'preview')
+                self.executor = None
                 if mode == 'preview':
-                    send_array(self._sock[arg], id, self.preview.getWithAlpha())
+                    send_array(self._consumer, id, self.preview.getWithAlpha())
                 elif mode == 'baked':
-                    send_array(self._sock[arg], id, self.baked.getWithAlpha())
+                    send_array(self._consumer, id, self.baked.getWithAlpha())
                 elif mode == 'render':
-                    send_array(self._sock[arg], id, self.render.getWithAlpha())
+                    send_array(self._consumer, id, self.render.getWithAlpha())
                 elif mode == 'live':
-                    send_array(self._sock[arg], id, self.hw.cam.capturePreview().rescale(self.config['resolution']).asFloat().getWithAlpha())
+                    self.id = id
+                    self.executor = Engine(self.hw, self.config['resolution'], EngineModes.Live)
+                    self.sendImage(id)
                 
             case Commands.Lights:
                 # --lights on power=0.5 range=0.2
-                power = min(GetSetting(message.data, 'power', 1/3), 1.0)
-                amount = min(GetSetting(message.data, 'amount', 1/3), 1.0)
-                width = min(GetSetting(message.data, 'width', 1/6), 1.0)
+                power = min(GetSetting(settings, 'power', 1/3), 1.0)
+                amount = min(GetSetting(settings, 'amount', 1/3), 1.0)
+                width = min(GetSetting(settings, 'width', 1/6), 1.0)
 
                 match arg:
                     case 'on'|'rand':
@@ -242,8 +252,10 @@ class Worker:
                 data_sequence = renderer.get()
                 data_key = renderer.name_short
         
-        return data_sequence 
-
+        return data_sequence
+    
+    def sendImage(self, id):
+        send_array(self._consumer, id, self.executor.execute().getWithAlpha())
 
 
 ### Helper ###
