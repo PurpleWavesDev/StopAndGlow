@@ -1,5 +1,6 @@
 import time
 import zmq
+import logging as log
 
 from smvp_ipc import *
 
@@ -12,11 +13,9 @@ def run(port=9271):
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind(f"tcp://*:{port}")
-    
+    remote_address = ""
     initalized = False
-    renderer = None
-    res_x, res_y = (1920, 1080)
-    queue = ProcessingQueue()
+    queue = ProcessingQueue(context)
 
     while True:
         #  Wait for next request from client
@@ -25,7 +24,7 @@ def run(port=9271):
             print("Error receiving data")
             break
         
-        if (not initalized) and message.command != Command.Init:
+        if (not initalized) and message.command != Command.Init and message.command != Command.Ping:
             send(socket, Message(Command.CommandError, {'message': "Not initialized"}))
         
         # Match command
@@ -37,6 +36,8 @@ def run(port=9271):
                 pass
 
             case Command.Init:
+                remote_address = GetSetting(message.data, 'address', 'localhost')
+                log.info(f"Server: Initializing for {remote_address}")
                 if not initalized:
                     # Launch queue worker, this will initialize the hardware
                     queue.launch()
@@ -139,6 +140,7 @@ def run(port=9271):
                 send(socket, Message(Command.CommandAnswer, answer))
             
             case Command.GetRenderSettings:
+                # TODO: Get renderer
                 if renderer is not None:
                     answer = renderer.getDefaultSettings()
                     send(socket, Message(Command.CommandAnswer, answer))
@@ -149,6 +151,8 @@ def run(port=9271):
                 rend_name = message.data['algorithm']
                 try:
                     renderer = [rend for rend in renderers if rend.name_short == rend_name][0]
+                    # TODO: set!
+                    send(socket, Message(Command.CommandAnswer, answer))
                 except:
                     send(socket, Message(Command.CommandError, {'message': 'Unknwon render algorithm selected'}))
 

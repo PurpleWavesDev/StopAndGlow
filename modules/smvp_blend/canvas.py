@@ -468,16 +468,19 @@ def getTextureForIdx(canvas_obj, index):
             # Request update if image has not been set
             if not canvas_frame.preview_updated:
                 command = ipc.Command.ReqPreview
+                canvas_frame.preview_updated = True
         case 'bake': # Baked
             image_name = canvas_frame.render_texture
             # Request new image if it hasn't been updated or got replaced
-            if not canvas_frame.baked_updated:
+            if not canvas_frame.texture_updated:
                 command = ipc.Command.ReqBaked
-                canvas_frame.baked_updated = True
+                canvas_frame.texture_updated = True
         case 'rend': # Render
             image_name = canvas_frame.render_texture
-            # Start render process
-            command = ipc.Command.ReqRender
+            # Request new image if it hasn't been updated or got replaced TODO?!
+            if not canvas_frame.texture_updated:
+                command = ipc.Command.ReqRender
+                canvas_frame.texture_updated = True
     
     # If image is not valid, create a new one and call function recursively
     if not image_name in bpy.data.images:

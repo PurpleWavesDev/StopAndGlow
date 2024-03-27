@@ -22,7 +22,7 @@ class SMVP_CANVAS_FrameCollection(PropertyGroup):
     preview_texture: StringProperty()
     
     preview_updated: BoolProperty(default=False)
-    baked_updated: BoolProperty(default=False)
+    texture_updated: BoolProperty(default=False)
 
 class SMVP_CanvasProps(PropertyGroup):
     is_canvas: BoolProperty()

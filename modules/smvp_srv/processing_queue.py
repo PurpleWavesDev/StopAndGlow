@@ -18,9 +18,8 @@ from .engine import *
 
 
 class ProcessingQueue:
-    def __init__(self):
-        self._worker = Worker()
-        
+    def __init__(self, context=None):
+        self._worker = Worker(context)
         self._queue = multiprocessing.Queue(50)
             
     def putCommand(self, command: Commands, arg, settings={}):
@@ -34,22 +33,22 @@ class ProcessingQueue:
         """Process filled queue without launching a separate process"""
         self._worker.work(self._queue, False)
         
-    def stop(self):
+    def quit(self):
         self._queue.put(Commands.Quit, "")
         self._process.join()
         
         
 
 class Worker:
-    def __init__(self, send_results=False):
+    def __init__(self, context=None):
         # Setup processing queue
         self._consumer = None
-        self._context = zmq.Context()
+        self._context = context if context is not None else zmq.Context()
                 
     def setConsumer(self, address_string):
         # Open new socket to consumer
         address_str = f"tcp://{address_string}"
-        self._consumer = self._context.socket(zmq.PUSH)
+        self._consumer = self._context.socket(zmq.REQ)
         self._consumer.connect(address_str)
                         
     def work(self, queue, keep_running):
@@ -174,11 +173,11 @@ class Worker:
                 mode = GetSetting(settings, 'mode', 'preview')
                 self.executor = None
                 if mode == 'preview':
-                    send_array(self._consumer, id, self.preview.getWithAlpha())
+                    self.sendImg(id, self.preview.getWithAlpha())
                 elif mode == 'baked':
-                    send_array(self._consumer, id, self.baked.getWithAlpha())
+                    self.sendImg(id, self.baked.getWithAlpha())
                 elif mode == 'render':
-                    send_array(self._consumer, id, self.render.getWithAlpha())
+                    self.sendImg(id, self.render.getWithAlpha())
                 elif mode == 'live':
                     self.id = id
                     self.executor = Engine(self.hw, self.config['resolution'], EngineModes.Live)
@@ -259,7 +258,14 @@ class Worker:
     
     def sendImage(self, id):
         time.sleep(0.1)
-        send_array(self._consumer, id, self.executor.execute().getWithAlpha())
+        self.sendImg(id, self.executor.execute().getWithAlpha())
+
+    def sendImg(self, id, img):
+        send_array(self._consumer, id, img)
+        answer = receive(self._consumer)
+        if answer.command != Command.RecvOkay:
+            if answer.command == Command.RecvError:
+                log.error(f"Received error while sending image data: {answer.data['message']}")
 
 
 ### Helper ###
