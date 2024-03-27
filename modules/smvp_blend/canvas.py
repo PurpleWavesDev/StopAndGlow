@@ -108,7 +108,7 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             canvas.frame_list_index = new_index
 
             # Create texture images
-            createFrameTextures(obj, new_index, (1920, 1080))
+            createFrameTextures(obj, new_index, scn.smvp_scene.resolution)
             
             # Insert keyframe
             obj.keyframe_insert(data_path='["frame_keys"]')
@@ -400,7 +400,7 @@ def createFrameTextures(obj, index, resolution):
     preview = bpy.data.images.new(prev_name, width=resolution[0], height=resolution[1], float_buffer=True)
     
     # Add textures to frame list entry
-    item.rendered_texture = texture.name
+    item.render_texture = texture.name
     item.preview_texture = preview.name
     
 
@@ -409,7 +409,7 @@ def deleteFrameEntry(obj, index):
     item = obj.smvp_canvas.frame_list[index]
     
     # Delete textures
-    if item.rendered_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.rendered_texture])
+    if item.render_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.render_texture])
     if item.preview_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.preview_texture])
     
     # Remove entry from canvas list and move index
@@ -434,51 +434,58 @@ def getTexture(canvas_obj, frame):
     canvas = canvas_obj.smvp_canvas
     keyframes = getKeyframes(canvas_obj)
     if len(canvas.frame_list) == 0:
+        # No frames in canvas
         return None
     
+    # Find frame for current position in timeline
     index = 0 
     for x, y in keyframes:
         if x > frame:
             break
         index += 1
-        
-    canvas_frame = canvas.frame_list[max(0, index-1) % len(canvas.frame_list)]
+    return getTextureForIdx(canvas_obj, max(0, index-1) % len(canvas.frame_list))
+    
+def getTextureForIdx(canvas_obj, index):
+    canvas = canvas_obj.smvp_canvas
+    canvas_frame = canvas.frame_list[index]
+    # Get image name for display mode and check if image needs to be requested
     image_name = ""
+    command = None
+    match canvas.display_mode:
+        case 'prev': # Preview
+            image_name = canvas_frame.preview_texture
+            # Request update if image has not been set
+            if not canvas_frame.preview_updated:
+                command = ipc.Command.ReqPreview
+        case 'bake': # Baked
+            image_name = canvas_frame.render_texture
+            # Request new image if it hasn't been updated or got replaced
+            if not canvas_frame.baked_updated:
+                command = ipc.Command.ReqBaked
+                canvas_frame.baked_updated = True
+        case 'rend': # Render
+            image_name = canvas_frame.render_texture
+            # Start render process
+            command = ipc.Command.ReqRender
+
+        case 'live': # Live
+            image_name = canvas.live_texture
+            # Start live capture
+            command = ipc.Command.ReqLive
     
-    if canvas.display_preview:
-        # Check if image exists, create new one if missing
-        image_name = canvas_frame.preview_texture
-        if not image_name in bpy.data.images:
-            print(f"Error: Image {image_name} missing")
-            return None # createFrameTextures(canvas_obj, index, (1920, 1080)) # TODO
-        
-        if not canvas_frame.preview_updated:
-            # Request preview texture
-            id = client.serviceAddReq(image_name)
-            message = ipc.Message(ipc.Command.Preview, {'id': id})
-            client.sendMessage(message)
-            
-            # Frame texture was updated
-            canvas_frame.preview_updated = True
-        
-    else:
-        # Rendered frame
-        image_name = canvas_frame.rendered_texture
-        if not image_name in bpy.data.images:
-            print(f"Error: Image {image_name} missing")
-            return None # createFrameTextures(canvas_obj, index, (1920, 1080)) # TODO
-        
-        if not canvas_frame.updated:
-            # Request rendered texture
-            id = client.serviceAddReq(image_name)
-            message = ipc.Message(ipc.Command.Preview, {'id': id}) # TODO render, nicht preview!!
-            client.sendMessage(message)
-            
-            # Frame texture was updated
-            canvas_frame.updated = True
-            
+    # If image is not valid, create a new one and call function recursively
+    if not image_name in bpy.data.images:
+        print(f"Error: Image {image_name} missing")
+        createFrameTextures(canvas_obj, index, scn.smvp_scene.resolution)
+        getTextureForIdx(canvas_obj, index)
     
-    # Return texture (or none if it got deleted)
+    # If command is set, generate ID for requested image and send request
+    if command is not None:
+        id = client.serviceAddReq(image_name)
+        message = ipc.Message(command, {'id': id})
+        client.sendMessage(message)    
+    
+    # Return texture
     return bpy.data.images[image_name]
         
 

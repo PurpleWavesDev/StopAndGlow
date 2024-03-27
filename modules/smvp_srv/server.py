@@ -97,19 +97,25 @@ def run(port=9271):
                 send(socket, Message(Command.CommandOkay))
             
             ## Preview
-            case Command.Preview:
+            # TODO: Localhost should be address of received message
+            case Command.ReqPreview:
+                # Send preview image
                 queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
                 send(socket, Message(Command.CommandProcessing))
                 
-            case Command.PreviewBaked:
+            case Command.ReqBaked:
                 queue.putCommand(Commands.Capture, 'hdri')
                 queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
                 send(socket, Message(Command.CommandProcessing))
             
-            case Command.PreviewLive:
-                # TODO: Localhost should be address of received message
+            case Command.ReqLive:
                 queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'live'})
                 send(socket, Message(Command.CommandProcessing))
+
+            case Command.ReqRender:
+                queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'render'})
+                send(socket, Message(Command.CommandProcessing))
+
             
             ## LightInfo
             case Command.LightsSet:
@@ -140,9 +146,6 @@ def run(port=9271):
                 else:
                     send(socket, Message(Command.CommandError, {'message': 'No renderer selected'}))
             ##case Command.Process: # Implicitly called?
-            case Command.Render:
-                # Render here
-                send(socket, Message(Command.CommandProcessing))
                 
             ## Live Viewer
             #case Command.ViewerOpen:    

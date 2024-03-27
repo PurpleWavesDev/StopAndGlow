@@ -20,7 +20,7 @@ class ProcessingQueue:
     def __init__(self):
         self._worker = Worker()
         
-        self._queue = multiprocessing.Queue(20)
+        self._queue = multiprocessing.Queue(50)
             
     def putCommand(self, command: Commands, arg, settings={}):
         self._queue.put((command, arg, settings))
@@ -165,12 +165,12 @@ class Worker:
                 
                 id = GetSetting(settings, 'id', 0)
                 mode = GetSetting(settings, 'mode', 'preview')
-                if mode == 'render':
-                    send_array(self._sock[arg], id, self.render.getWithAlpha())
-                if mode == 'baked':
-                    send_array(self._sock[arg], id, self.baked.getWithAlpha())
-                elif mode == 'preview':
+                if mode == 'preview':
                     send_array(self._sock[arg], id, self.preview.getWithAlpha())
+                elif mode == 'baked':
+                    send_array(self._sock[arg], id, self.baked.getWithAlpha())
+                elif mode == 'render':
+                    send_array(self._sock[arg], id, self.render.getWithAlpha())
                 elif mode == 'live':
                     send_array(self._sock[arg], id, self.hw.cam.capturePreview().rescale(self.config['resolution']).asFloat().getWithAlpha())
                 

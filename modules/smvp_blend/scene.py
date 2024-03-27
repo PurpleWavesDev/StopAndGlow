@@ -90,6 +90,11 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
         # Settings TODO only for EEVEE?
         mat.blend_method = 'HASHED'
         mat.shadow_method = 'HASHED'
+        
+        # Create image for live texture
+        tex_name = f"smvp_{obj.smvp_canvas.canvas_id:02d}"
+        resolution = scn.smvp_scene.resolution
+        texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1], float_buffer=True)
                 
         # Set active canvas object if current one is not available / not set
         if not scn.smvp_scene.active_canvas in bpy.data.objects:

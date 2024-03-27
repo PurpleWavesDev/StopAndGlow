@@ -11,27 +11,33 @@ algorithms = []
 class SMVP_SceneProps(PropertyGroup):
     active_canvas: StringProperty()
     canvas_ids: IntProperty()
+    resolution: IntVectorProperty(size=2, default=(1920, 1080))
 
 class SMVP_CANVAS_FrameCollection(PropertyGroup):
     #name: StringProperty() -> Instantiated by default
     seq_path: StringProperty()
     id: IntProperty()
     
-    rendered_texture: StringProperty()
+    render_texture: StringProperty()
     preview_texture: StringProperty()
     
-    updated: BoolProperty(default=False)
     preview_updated: BoolProperty(default=False)
+    baked_updated: BoolProperty(default=False)
 
 class SMVP_CanvasProps(PropertyGroup):
     is_canvas: BoolProperty()
     frame_list_index: IntProperty()
     frame_list: CollectionProperty(type=SMVP_CANVAS_FrameCollection)
+    live_texture: StringProperty()
     
-    display_preview: BoolProperty(default=True)
+    display_mode: EnumProperty(items=[
+        ('prev', 'Preview', '', 0),
+        ('bake', 'Baked', '', 1),
+        ('rend', 'Render', '', 2),
+        ('live', 'Live', '', 3)
+    ], name='Display Modes', default='prev')
     render_type: StringProperty()
     exposure: FloatProperty()
-    preview_exposure: FloatProperty()
     
     canvas_id: IntProperty()
     frame_ids: IntProperty()

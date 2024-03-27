@@ -3,12 +3,11 @@ from enum import Enum
     
 class Command(Enum):
     # General commands
-    Init = 0
     Ping = 1
     Pong = 2
-    Info = 3
-    Err = 4
-    Trace = 5
+    Init = 3
+    State = 4
+
     # Command answers
     CommandOkay = 11
     CommandAnswer = 12
@@ -39,25 +38,23 @@ class Command(Enum):
     # Live Viewer
     ViewerOpen = 51
     ViewerClose = 52
-    # Several viewer modes?
     
-    #
-    Preview = 61
-    PreviewBaked = 62
-    PreviewLive = 63
+    # Image requests
+    ReqPreview = 61
+    ReqBaked = 62
+    ReqRender = 63
+    ReqLive = 64
+    ReqStop = 65
     
-    # Full resoultion footage
+    # Image data (capture & load)
     CaptureLights = 71
     CaptureBaked = 72
-    # Load from disk
     LoadFootage = 75
     
-    # Render loaded footage
+    # Render Algorithmns
     GetRenderAlgorithms = 81
     GetRenderSettings = 82
     SetRenderer = 83
-    Process = 84
-    Render = 85
     
     # Camera settings
     CameraSettings = 91
