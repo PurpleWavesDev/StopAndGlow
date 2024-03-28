@@ -55,18 +55,18 @@ class VIEW3D_PT_capturectl(Panel):
         layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Full Sequence")
         layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked Lights").baked = True
 
-
         row = layout.row(align=True)
         if not active in context.scene.objects:
-            active = "NONE"
+            active = ""
             row.label(text = "", icon = "ERROR") 
-        row.label(text ="Active Canvas: "+ active) 
+            row.label(text="No Canvas active!")
+        elif active != "":
+            row.label(text ="Active Canvas: "+active)
 
         if obj is not None and obj.smvp_canvas.is_canvas:
-                  
             if active != obj.name:
                 #only draw icon to refresh, if selected isn't active
-                row.operator("smvp_canvas.activate_selected", text = "",  icon = "FILE_REFRESH")
+                row.operator("smvp_canvas.set_active", text = "",  icon = "FILE_REFRESH")
 
 
 
@@ -89,8 +89,13 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         algs = scene.smvp_algorithms
-        wm = context.window_manager
-       
+        ghostIcon = ""
+
+        if context.object.smvp_ghost.show_ghost:
+            ghostIcon="GHOST_ENABLED"
+        else:
+            ghostIcon="GHOST_DISABLED"
+      
         row = layout.row()
         row.label(text= "Render Modes")
         row.prop(context.object.smvp_canvas,'display_mode',expand = True)
@@ -100,35 +105,34 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
         if panel:
             panel.prop(algs, "algs_dropdown_items", expand = False)
             panel.operator("mesh.primitive_monkey_add", text="Apply") #TODO operator for this button
-        #layout.prop(wm, 'toggle_render_algs', text=label, toggle=True)
-      
-        header, panel = layout.panel("onion_skinning", default_closed=False)
-        header.label(text="Display Ghostframes", icon='GHOST_ENABLED')
-        if panel:
-            panel.prop(context.scene, "frame_start", text = "pre")
-            panel.prop(context.scene, "frame_end", text = "post") 
-            panel.prop(context.scene, "frame_start", text= "Opacity")
+       
+        header, panel = layout.panel("onion_skinning", default_closed=True)
+        header.prop(context.object.smvp_ghost, 'show_ghost', text="", icon=ghostIcon, toggle=True)
+        header.label(text="Display Ghostframes")
+
+
+
+        if context.object.smvp_ghost.show_ghost and panel:
+            row=panel.row()
+            row.label(text="Previous")
+            row.prop(context.object.smvp_ghost, "previous_frames", text = "")
+            row= panel.row()
+            row.label(text="Post")
+            row.prop(context.object.smvp_ghost, "following_frames", text="") 
+
+            panel.prop(context.object.smvp_ghost, "opacity", text= "Opacity", slider = True)
+            
   
 # TODO find a way to disable subpanel when unchecked - maybe not nessessary anomore?
 # https://blender.stackexchange.com/questions/212075/how-to-enable-or-disable-panels-with-the-click-of-a-button
 
-class VIEW3D_OT_render_algorithms(Operator):
-    """ Render Canvases with chosen Algorithm"""
-    bl_idname = "algs.render"
-    bl_label = "render_algorithms"
+class VIEW3D_OT_ghosting(Operator):
+    """Show Ghostframes"""
+    bl_idname = "ghost.show"
+    bl_label = "ghost_show"
 
     def modal(self, context, event):
-        scene = context.scene
-        algs = scene.smvp_algorithms
-           
-        if context.window_manager.toggle_render_algs:
-            if algs.algs_dropdown_items == 'id00': #default
-                bpy.context.space_data.shading.type = "SOLID"
-
-            if algs.algs_dropdown_items == 'id1':
-                bpy.context.space_data.shading.type = "WIREFRAME"
-
-            return {'FINISHED'} 
+        
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
@@ -232,12 +236,14 @@ classes =(
     
     # Stop Motion VP
     VIEW3D_PT_capturectl,
-    VIEW3D_PT_renderctl, 
-     
+    VIEW3D_PT_renderctl,
+
+    #operator 
+    VIEW3D_OT_ghosting,
+
     # Canvas UI
     SMVP_CANVAS_UL_items,
     SMVP_CANVAS_PT_frameList,
-   # SMVP_CANVAS_PT_canvasProps,
 
     # Menus
     OBJECT_MT_smvp_submenu,

@@ -19,10 +19,6 @@ class VIEW3D_OT_setupScene(Operator):
     bl_label ="Setup SMVP Scene"
     bl_id = "smvpscene.setup"
 
-   
-
-
-
 class SMVP_CANVAS_OT_setCanvasActive(Operator):
     """Sets the selected canvas object active for actions in scene"""
     bl_label = "Set Active"

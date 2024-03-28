@@ -50,6 +50,13 @@ class SMVP_CanvasProps(PropertyGroup):
     
     canvas_id: IntProperty()
     frame_ids: IntProperty()
+
+class SMVP_GhostProps(PropertyGroup):
+    show_ghost: BoolProperty(name="Show Ghostframes", description="Toggle the display of frames before and/or after the current frame", default = False)
+    previous_frames: IntProperty(name="Previous Frames", description="Defines the number of previous frames displayed in Ghost Mode", default=3, min=0, max=10, step=1)
+    following_frames: IntProperty(name="Following Frames", description="Defines the number of following frames displayed in Ghost Mode", default=3, min=0, max=10, step=1)
+    opacity: FloatProperty(name="Ghost Opacity", description= "Opacity of Ghostframes", default=0.5, min=0.0, max=1.0, step=1)
+    falloff: FloatProperty()
     
 
 class SMVP_CameraProps(PropertyGroup):
@@ -90,17 +97,14 @@ class SMVP_Algorithms_Props(PropertyGroup):
     )
    
 
-def update_function(self, context):
-    if self.toggle_render_algs:
-        bpy.ops.algs.render('INVOKE_DEFAULT')
-    return
 
 classes = (
     SMVP_SceneProps,
     SMVP_CANVAS_FrameCollection,
     SMVP_CanvasProps,
     SMVP_CameraProps,
-    SMVP_Algorithms_Props
+    SMVP_Algorithms_Props,
+    SMVP_GhostProps
 )
 
 def register():
@@ -112,14 +116,10 @@ def register():
     Scene.smvp_scene = PointerProperty(type=SMVP_SceneProps, name="SMVP Scene Properties")
     Object.smvp_canvas = PointerProperty(type=SMVP_CanvasProps, name="SMVP Canvas Properties")
     Camera.smvp = PointerProperty(type=SMVP_CameraProps, name="SMVP Camera Properties")
+    Scene.smvp_algorithms = PointerProperty(type= SMVP_Algorithms_Props, name="Algorithms Properties")
+    Object.smvp_ghost = PointerProperty(type= SMVP_GhostProps, name="Ghosting Properties")
 
-     # Add Render Algorithm PointerProperty 
-    Scene.smvp_algorithms = PointerProperty(type= SMVP_Algorithms_Props)
 
-    # Toggle Render Algorithms Button    
-    bpy.types.WindowManager.toggle_render_algs = bpy.props.BoolProperty(
-                                                    default = False,
-                                                    update = update_function)
 
 def unregister():
     from bpy.utils import unregister_class
@@ -130,9 +130,6 @@ def unregister():
     del Scene.smvp_scene
     del Object.smvp_canvas
     del Camera.smvp
+    del Scene.smvp_algorithms
 
-    #del Scene.smvp_algorithms
-    del bpy.types.Scene.smvp_algorithms
-
-    #del Toggle Button
-    del bpy.types.WindowManager.toggle_render_algs
+   
