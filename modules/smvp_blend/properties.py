@@ -9,10 +9,10 @@ from . import client
 algorithms = []
 
 DisplayModeProp = EnumProperty(items=[
-        ('prev', 'Preview', '', 0),
-        ('bake', 'Baked', '', 1),
-        ('rend', 'Render', '', 2),
-        ('live', 'Live', '', 3)
+        ('prev', '', 'Preview',"SHADING_SOLID", 0),
+        ('bake', '', 'Baked Lights', "SHADING_TEXTURE",1),
+        ('rend', '', 'Rendered', "SHADING_RENDERED",2),
+        ('live', '', 'Live View', "SCENE", 3)
     ], name='Display Modes', default='prev')
 
 class SMVP_SceneProps(PropertyGroup):
@@ -77,7 +77,7 @@ def getAlgorithmSettings(self, context) -> dict:
 class SMVP_Algorithms_Props(PropertyGroup):
     
     algs_dropdown_items : bpy.props.EnumProperty(
-        name= "Algorithms",
+        name= "",
         description= "description",
         items= getAlgorithms
     )

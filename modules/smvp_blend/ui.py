@@ -32,67 +32,56 @@ class VIEW3D_PT_domectl(Panel):
 
 
 # -------------------------------------------------------------------
-# Scene, display and capture controls
+# Capture Panel: Setup Scene, Active Canvas and capture controls
 # -------------------------------------------------------------------
 
-class VIEW3D_PT_stop_motion_vp(Panel): 
+class VIEW3D_PT_capturectl(Panel): 
 
     # where to add the panel in the UI
     bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
     bl_region_type = "UI"  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
 
-    bl_category = "Stop Motion"  # found in the Sidebar
-    bl_label = "Stop Motion VP"  # found at the top of the Panel
-
-    def draw(self, context):
-        """define the layout of the panel"""
-        layout = self.layout
-
-        row = layout.row()
-        row.operator(OBJECT_OT_smvpCanvasAdd.bl_idname, text="Setup Scene", icon ="PLUS")
-        row = layout.row()
-        row.operator(WM_OT_smvp_viewer.bl_idname, text="Toggle Live View", icon = "SCENE")
-        row = layout.row()
-        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Full Sequence")
-        row = layout.row()
-        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked Lights").baked = True
-
-
-class VIEW3D_PT_onionskin(Panel):
-
-    bl_space_type = "VIEW_3D" 
-    bl_region_type = "UI"  
-
     bl_category = "Stop Motion" 
-    bl_label = "Show Ghosting" 
+    bl_label = "Capture" 
+    bl_idname = "VIEW3D_PT_capture_ctls" 
+    
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        scn = context.scene
+        active = scn.smvp_scene.active_canvas
 
-    bl_parent_id = "VIEW3D_PT_stop_motion_vp" # makes it into a subpanel
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw_header(self,context):
-        # use layout property to display a checkbox, can be anything
-        self.layout.prop(context.scene.render, "use_border", text="", icon = "GHOST_ENABLED")
- 
-    def draw(self, context):        
-        self.layout.label(text="Display Ghostframes", icon='NONE')
-        row = self.layout.row()
-        row.prop(context.scene, "frame_start", text = "pre")
-        row.prop(context.scene, "frame_end", text = "post") 
-        row = self.layout.row()
-        row.prop(context.scene, "frame_start", text= "Opacity")
-
-# TODO find a way to disable subpanel when unchecked 
-# https://blender.stackexchange.com/questions/212075/how-to-enable-or-disable-panels-with-the-click-of-a-button
+        layout.operator(OBJECT_OT_smvpCanvasAdd.bl_idname, text="Setup Scene", icon ="PLUS")
+        layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Full Sequence")
+        layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked Lights").baked = True
 
 
- 
-class VIEW3D_PT_algorithm(bpy.types.Panel):
-    bl_label = "Choose Algorithm"
-    bl_idname = "VIEW3D_PT_select_algorithm"
+        row = layout.row(align=True)
+        if not active in context.scene.objects:
+            active = "NONE"
+            row.label(text = "", icon = "ERROR") 
+        row.label(text ="Active Canvas: "+ active) 
+
+        if obj is not None and obj.smvp_canvas.is_canvas:
+                  
+            if active != obj.name:
+                #only draw icon to refresh, if selected isn't active
+                row.operator("smvp_canvas.activate_selected", text = "",  icon = "FILE_REFRESH")
+
+
+
+    
+# -------------------------------------------------------------------
+# Renderig Panel: Display Modes, Render Algorithms and Ghosting
+# -------------------------------------------------------------------        
+            
+class VIEW3D_PT_renderctl(bpy.types.Panel):
+    """Choose how to display the Canvases in Scene"""
+    bl_label = "Display"
+    bl_idname = "VIEW3D_PT_render_ctls"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Stop Motion"
-    bl_parent_id = "VIEW3D_PT_stop_motion_vp"
     bl_options = {"DEFAULT_CLOSED"}
  
       
@@ -102,10 +91,26 @@ class VIEW3D_PT_algorithm(bpy.types.Panel):
         algs = scene.smvp_algorithms
         wm = context.window_manager
        
-        layout.prop(algs, "algs_dropdown_items")
-        layout.operator("mesh.primitive_monkey_add", text="Apply")
+        row = layout.row()
+        row.label(text= "Render Modes")
+        row.prop(context.object.smvp_canvas,'display_mode',expand = True)
+
+        header, panel = layout.panel("my_panel_id", default_closed=False)
+        header.label(text="Algorithms")
+        if panel:
+            panel.prop(algs, "algs_dropdown_items", expand = False)
+            panel.operator("mesh.primitive_monkey_add", text="Apply") #TODO operator for this button
         #layout.prop(wm, 'toggle_render_algs', text=label, toggle=True)
+      
+        header, panel = layout.panel("onion_skinning", default_closed=False)
+        header.label(text="Display Ghostframes", icon='GHOST_ENABLED')
+        if panel:
+            panel.prop(context.scene, "frame_start", text = "pre")
+            panel.prop(context.scene, "frame_end", text = "post") 
+            panel.prop(context.scene, "frame_start", text= "Opacity")
   
+# TODO find a way to disable subpanel when unchecked - maybe not nessessary anomore?
+# https://blender.stackexchange.com/questions/212075/how-to-enable-or-disable-panels-with-the-click-of-a-button
 
 class VIEW3D_OT_render_algorithms(Operator):
     """ Render Canvases with chosen Algorithm"""
@@ -129,37 +134,6 @@ class VIEW3D_OT_render_algorithms(Operator):
     def invoke(self, context, event):
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
-
-
-class SMVP_CANVAS_PT_canvasProps(Panel):
-    """Adds a Canvas Properties Panel to the N Bar Interface"""
-    bl_idname = 'OBJECT_PT_canvasprops'
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_label = "Active Canvas"
-    bl_category = "Stop Motion"
-    bl_parent_id = "VIEW3D_PT_stop_motion_vp"
-
-      
-    def draw(self, context):
-        layout = self.layout
-        scn = context.scene
-        obj = context.object
-        active = scn.smvp_scene.active_canvas
-
-
-        row = layout.row(align=True)
-        if not active in context.scene.objects:
-            active = "No active Canvas"
-            row.label(text = "", icon = "ERROR") 
-        row.label(text = active) 
-
-        if obj is not None and obj.smvp_canvas.is_canvas:
-                  
-            if active != obj.name:
-                #only draw icon to refresh, if selected isn't active
-                row.operator("smvp_canvas.activate_selected", text = "",  icon = "FILE_REFRESH")
-
 
 
 # -------------------------------------------------------------------
@@ -257,16 +231,13 @@ classes =(
     VIEW3D_PT_domectl,
     
     # Stop Motion VP
-    VIEW3D_PT_stop_motion_vp,
-    VIEW3D_PT_onionskin,
-        # Render Algorithms
-    VIEW3D_PT_algorithm, 
-    VIEW3D_OT_render_algorithms, 
+    VIEW3D_PT_capturectl,
+    VIEW3D_PT_renderctl, 
      
     # Canvas UI
     SMVP_CANVAS_UL_items,
     SMVP_CANVAS_PT_frameList,
-    SMVP_CANVAS_PT_canvasProps,
+   # SMVP_CANVAS_PT_canvasProps,
 
     # Menus
     OBJECT_MT_smvp_submenu,
