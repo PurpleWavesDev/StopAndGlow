@@ -13,7 +13,7 @@ from .hw import *
 from .data import *
 from .procedure import *
 from .render import *
-from .utils import ti_base as tib
+from .utils import ti_base as tib, GetDatetimeNow
 from .engine import *
 
 
@@ -24,6 +24,9 @@ class ProcessingQueue:
             
     def putCommand(self, command: Commands, arg, settings={}):
         self._queue.put((command, arg, settings))
+        
+    def getConfig(self):
+        return self._worker.getConfig()
     
     def launch(self):
         self._process = Thread(target=Worker.work, args=(self._worker, self._queue, True,))
@@ -42,14 +45,12 @@ class ProcessingQueue:
 class Worker:
     def __init__(self, context=None):
         # Setup processing queue
+        self.config = None
         self._consumer = None
         self._context = context if context is not None else zmq.Context()
                 
-    def setConsumer(self, address_string):
-        # Open new socket to consumer
-        address_str = f"tcp://{address_string}"
-        self._consumer = self._context.socket(zmq.REQ)
-        self._consumer.connect(address_str)
+    def getConfig(self):
+        return self.config
                         
     def work(self, queue, keep_running):
         self._keep_running = keep_running
@@ -105,7 +106,7 @@ class Worker:
             case Commands.Capture:
                 # --capture lights
                 # Name and settings
-                name = GetSetting(settings, 'name', GetDatetimeNow())
+                name = GetSetting(settings, 'name', GetDatetimeNow(), default_for_empty=True)
                 settings = self.config.get() | settings
                 settings['seq_type'] = arg
                 
@@ -215,6 +216,12 @@ class Worker:
                 log.error(f"Unknown command '{command}'")
     
     
+    def setConsumer(self, address_string):
+        # Open new socket to consumer
+        address_str = f"tcp://{address_string}"
+        self._consumer = self._context.socket(zmq.REQ)
+        self._consumer.connect(address_str)
+        
     def process(self, img_seq, arg, settings):
         # --process <type> setting=value
         # Get renderer
@@ -267,8 +274,3 @@ class Worker:
             if answer.command == Command.RecvError:
                 log.error(f"Received error while sending image data: {answer.data['message']}")
 
-
-### Helper ###
-
-def GetDatetimeNow():
-    return datetime.now().strftime("%Y%m%d_%H%M")

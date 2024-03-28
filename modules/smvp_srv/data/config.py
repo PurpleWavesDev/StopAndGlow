@@ -77,9 +77,10 @@ class Config:
         return iter(self._config)
 
 ### General dict helpers ###
-def GetSetting(settings, key, default=None):
+def GetSetting(settings, key, default=None, default_for_empty=False):
     if key in settings:
-        return settings[key]
+        if not default_for_empty or settings[key] != '':
+            return settings[key]
     return default
 
 def SetDefault(settings, key, val):

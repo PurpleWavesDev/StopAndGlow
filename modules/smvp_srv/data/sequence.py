@@ -80,10 +80,6 @@ class Sequence():
         else:
             log.error(f"Can't load sequence '{path}'")
 
-    #                # Delay for DMX repeat signals (two frames per signal) and half of the skipped frames (round down)
-    #                frames_offset = dmx_repeat * 2 + frames_skip // 2
-    #                # frames_skip is odd to mach together with valid frame double the lights frequency
-    #                frames_skip = frames_skip + dmx_repeat*2
                 
     def loadFolder(self, path):
         domain = ImgDomain[self.getMeta('domain')]

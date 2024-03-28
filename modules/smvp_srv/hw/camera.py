@@ -301,7 +301,7 @@ class Cam:
             self.getImage(id, path, name, keep).unload(save=True)
 
 
-    def getVideoSequence(self, path, name, frame_list, frames_skip, dmx_repeat, exposure_list=[], keep=False) -> Sequence:
+    def getVideoSequence(self, path, name, frame_list, exposure_list=[], config=None, keep=False) -> Sequence:
         """Downloads video file and returns sequence referencing it"""
         seq = Sequence()
         if not self._video_capture.empty():
@@ -310,7 +310,15 @@ class Cam:
             Path(path).mkdir(parents=True, exist_ok=True)
             log.debug("Video is being saved to {}".format(file_path))
             capture.camera_file.save(file_path)
-            seq.load(file_path, frame_list, frames_skip, dmx_repeat)
+            
+            if config is None: config = Config.GetDefaults()
+            # Delay for DMX repeat signals (two frames per signal) and half of the skipped frames (round down)
+            frames_offset = config['dmx_repeat'] * 2 + config['frames_skip'] // 2
+            # frames_skip is odd to mach together with valid frame double the lights frequency
+            frames_skip = config['frames_skip'] + config['dmx_repeat']*2
+            
+            video_settings = {'video_frame_list': frame_list, 'video_frames_skip': frames_skip, 'video_frames_offset': frames_offset}
+            seq.load(file_path, overrides=video_settings)
             seq.setMeta('video_file', file_path)
             seq.setMeta('aperture', capture.aperture)
             seq.setMeta('iso', capture.iso)
@@ -321,10 +329,8 @@ class Cam:
                 seq.setMeta(f'exposure', exposure_list[0])
                 for i, expo in enumerate(exposure_list):
                     seq.setMeta(f'exposure_{i}', expo)
-
             if not keep:
                 self.getCam().file_delete(capture.camera_path[0], capture.camera_path[1])
-        
         return seq
 
 

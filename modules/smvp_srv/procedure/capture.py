@@ -108,8 +108,7 @@ class Capture:
             # For HDR, download all sequences with sequence number attached and convert those to a single merged EXR sequence
             if self._config['hdr_capture']:
                 expo_list = [f"1/{expo}" for expo in self._hdr_exposures]
-                sequences = [(self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, self._config['capture_frames_skip'], self._config['capture_dmx_repeat'], exposure_list=expo_list, keep=keep))]
-                
+                sequences = [(self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, exposure_list=expo_list, config=self._config, keep=keep))]
                 for i in range(1, self._config['hdr_bracket_num']):
                     sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(self._config['seq_folder'], name+f"_{i}"), self._id_list, i))
 
@@ -127,7 +126,7 @@ class Capture:
             
             # For SDR sequence, download video file
             else:
-                sequence = self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, self._config['capture_frames_skip'], self._config['capture_dmx_repeat'], keep=keep)
+                sequence = self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, config=self._config, keep=keep)
         else:
             sequence = self._cam.getSequence(self._config['seq_folder'], name, keep=keep)
         

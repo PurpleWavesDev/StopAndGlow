@@ -199,7 +199,7 @@ class SMVP_CANVAS_OT_capture(Operator):
     override: BoolProperty(
         default=False,
         name="Override current frame",
-        description="If set, operator will delete current frame and replace it with the new frame"
+        description="If set, operator will delete current frame and replace it with the captured frame"
         )
 
     def invoke(self, context, event):
@@ -215,10 +215,8 @@ class SMVP_CANVAS_OT_capture(Operator):
                     bpy.ops.smvp_canvas.override_confirm('INVOKE_DEFAULT', capture=True)
                     return {'RUNNING_MODAL'}
 
-        # Open browser, will write selected path into our directory property
-        context.window_manager.fileselect_add(self)
-        # Tells Blender to hang on for the slow user input
-        return {'RUNNING_MODAL'}
+        # Execute capture command
+        return execute()
     
     def execute(self, context):
         obj = context.object
@@ -231,11 +229,14 @@ class SMVP_CANVAS_OT_capture(Operator):
             message = ipc.Message(ipc.Command.CaptureBaked, {'id': id, 'name': self.name})
         else:
             message = ipc.Message(ipc.Command.CaptureLights, {'id': id, 'name': self.name})
-        client.sendMessage(message)
+        answer = client.sendMessage(message)
         
-        return{'FINISHED'}
+        if answer.command == ipc.Command.CommandProcessing:
+            # Add frame to list
+            bpy.ops.smvp_canvas.frame_add(directory=answer.data['path'], override=True)
+            return{'FINISHED'}
 
-
+        self.report({'WARNING'}, f"Received error from server: {answer.data['message']}")
 
 class SMVP_CANVAS_OT_clearFrames(Operator):
     """Clear all frames of the list"""

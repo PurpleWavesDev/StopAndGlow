@@ -23,3 +23,8 @@ def logging_disabled(highest_level=logging.CRITICAL):
         yield
     finally:
         logging.disable(previous_level)
+
+
+def GetDatetimeNow():
+    return datetime.now().strftime("%Y%m%d_%H%M")
+  

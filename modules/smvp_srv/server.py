@@ -6,6 +6,7 @@ from smvp_ipc import *
 
 from .processing_queue import *
 from .commands import *
+from .utils import GetDatetimeNow
 
 
 def run(port=9271):
@@ -86,16 +87,16 @@ def run(port=9271):
 
 
             ## Full resoultion footage
-            case Command.CaptureLights:
-                queue.putCommand(Commands.Capture, 'lights')
-                queue.putCommand(Commands.Save, '')
-                send(socket, Message(Command.CommandOkay))
-            case Command.CaptureBaked:
-                queue.putCommand(Commands.Capture, 'hdri')
-                queue.putCommand(Commands.Save, '')
-                send(socket, Message(Command.CommandOkay))
+            case Command.CaptureLights | Command.CaptureBaked:
+                name = GetSetting(message.data, 'name', GetDatetimeNow(), default_for_empty=True)
+                root = queue.getConfig()['seq_folder']
+                path = os.path.join(root, name)
+                queue.putCommand(Commands.Capture, 'lights' if Command.CaptureLights else 'hdri', {'name': name, 'discard_video': True})
+                #queue.putCommand(Commands.Save, path)
+                send(socket, Message(Command.CommandProcessing, {'path': path}))
             ## Load from disk
             case Command.LoadFootage:
+                # TODO: Check if path is valid
                 queue.putCommand(Commands.Load, message.data['path'])
                 send(socket, Message(Command.CommandOkay))
             
