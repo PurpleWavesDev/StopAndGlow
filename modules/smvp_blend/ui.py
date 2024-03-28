@@ -160,10 +160,6 @@ class SMVP_CANVAS_PT_canvasProps(Panel):
                 #only draw icon to refresh, if selected isn't active
                 row.operator("smvp_canvas.activate_selected", text = "",  icon = "FILE_REFRESH")
 
-    
-        
-            
-
 
 
 # -------------------------------------------------------------------

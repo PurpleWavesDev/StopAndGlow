@@ -8,6 +8,13 @@ from . import client
 
 algorithms = []
 
+DisplayModeProp = EnumProperty(items=[
+        ('prev', 'Preview', '', 0),
+        ('bake', 'Baked', '', 1),
+        ('rend', 'Render', '', 2),
+        ('live', 'Live', '', 3)
+    ], name='Display Modes', default='prev')
+
 class SMVP_SceneProps(PropertyGroup):
     active_canvas: StringProperty()
     canvas_ids: IntProperty()
@@ -30,12 +37,7 @@ class SMVP_CanvasProps(PropertyGroup):
     frame_list: CollectionProperty(type=SMVP_CANVAS_FrameCollection)
     live_texture: StringProperty()
     
-    display_mode: EnumProperty(items=[
-        ('prev', 'Preview', '', 0),
-        ('bake', 'Baked', '', 1),
-        ('rend', 'Render', '', 2),
-        ('live', 'Live', '', 3)
-    ], name='Display Modes', default='prev')
+    display_mode: DisplayModeProp
     render_type: StringProperty()
     exposure: FloatProperty()
     

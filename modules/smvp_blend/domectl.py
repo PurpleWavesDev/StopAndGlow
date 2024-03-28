@@ -94,9 +94,8 @@ class WM_OT_smvp_viewer(bpy.types.Operator):
     bl_options = {"REGISTER"}
 
     def execute(self, context):
-        context.object.smvp_canvas.display_mode = 'live'
-        #message = Message.LightCtlMsg(Command.ViewerLaunch)
-        #client.sendMessage(message)
+        message = Message(Command.ViewerLaunch)
+        client.sendMessage(message)
         return {"FINISHED"}
 
 

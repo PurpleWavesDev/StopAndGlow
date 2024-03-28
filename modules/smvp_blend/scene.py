@@ -26,8 +26,13 @@ class VIEW3D_OT_setupScene(Operator):
 class SMVP_CANVAS_OT_setCanvasActive(Operator):
     """Sets the selected canvas object active for actions in scene"""
     bl_label = "Set Active"
-    bl_idname = "smvp_canvas.activate_selected"
+    bl_idname = "smvp_canvas.set_active"
     bl_description = "Set selected canvas object active in scene"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None and context.object.smvp_canvas.is_canvas
 
     def execute(self, context):
         obj = context.object
@@ -38,8 +43,11 @@ class SMVP_CANVAS_OT_setCanvasActive(Operator):
         if scn.smvp_scene.active_canvas is not obj.name:
             if obj.smvp_canvas.is_canvas:
                 scn.smvp_scene.active_canvas= obj.name
+                return{'FINISHED'}
 
-        return{'FINISHED'}
+        self.report({"WARNING"}, f"No canvas object selected")
+        return{'CANCELLED'}
+
 
 class SMVP_CANVAS_OT_updateScene(Operator):
     """Updates lights and canvas positions for the SMVP server"""
@@ -51,6 +59,37 @@ class SMVP_CANVAS_OT_updateScene(Operator):
         obj = context.object
         updateScene(obj)
         return{'FINISHED'}
+
+
+class SMVP_CANVAS_OT_setDisplayMode(Operator):
+    """Changing the display mode of the selected or active canvas"""
+    bl_label = "Set display mode"
+    bl_idname = "smvp_canvas.display_mode"
+    bl_description = "Changing the display mode of the selected or active canvas"
+
+    display_mode: props.DisplayModeProp
+    
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None and context.object.smvp_canvas.is_canvas) or\
+            context.scene.smvp_scene.active_canvas in bpy.data.objects
+
+    def execute(self, context):
+        scn = context.scene
+        obj = context.object
+        if obj is None or not obj.smvp_canvas.is_canvas:
+            obj = bpy.data.objects[scn.smvp_scene.active_canvas]
+        canvas = obj.smvp_canvas
+        
+        if canvas.display_mode != self.display_mode:
+            # Depending on old display mode, do stuff
+            if canvas.display_mode == 'live':
+                # Stop receiving images
+                pass
+            # Change display mode
+            canvas.display_mode = self.display_mode
+        return{'FINISHED'}
+
 
 # -------------------------------------------------------------------
 #   Object creation Operators
