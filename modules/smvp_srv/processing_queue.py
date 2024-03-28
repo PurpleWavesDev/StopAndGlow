@@ -13,7 +13,9 @@ from .hw import *
 from .data import *
 from .procedure import *
 from .render import *
-from .utils import ti_base as tib, GetDatetimeNow
+from .utils import ti_base as tib
+from .utils.utils import GetDatetimeNow
+
 from .engine import *
 
 

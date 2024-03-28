@@ -354,8 +354,20 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
 
 
 def update_single_canvas_tex(scene, obj):
-    # Apply texture
+    # Get texture to show
     img = getTexture(obj, scene.frame_current)
+    
+    # If ghosting -> select ghosting frames and apply img + ghosting frames
+    if False:#ghosting:
+        frames_before = []
+        frames_after = []
+        keyframes = getKeyframes(canvas_obj)
+        for i in enumerate(keyframes):
+            frame_number = keyframes[i][0]
+            
+        # 
+        for idx in frames_before:
+            getTextureForIdx(obj, id, display_mode='prev')
     try:
         obj.active_material.node_tree.nodes["ImageTexture"].image = img
     except Exception as e:
@@ -487,13 +499,15 @@ def getTexture(canvas_obj, frame):
         index += 1
     return getTextureForIdx(canvas_obj, max(0, index-1) % len(canvas.frame_list))
     
-def getTextureForIdx(canvas_obj, index):
+def getTextureForIdx(canvas_obj, index, display_mode=None):
+    """Returns the texture for the index and display_mode. Uses active display mode if none provided""" 
     canvas = canvas_obj.smvp_canvas
     canvas_frame = canvas.frame_list[index]
     # Get image name for display mode and check if image needs to be requested
     image_name = ""
     command = None
-    match canvas.display_mode:
+    display_mode = canvas.display_mode if display_mode is None else display_mode
+    match display_mode:
         case 'prev': # Preview
             image_name = canvas_frame.preview_texture
             # Request update if image has not been set
@@ -518,7 +532,7 @@ def getTextureForIdx(canvas_obj, index):
         if image_name != "":
             print(f"Error: Image {image_name} missing")
             createFrameTextures(canvas_obj, index, bpy.context.scene.smvp_scene.resolution)
-            getTextureForIdx(canvas_obj, index)
+            getTextureForIdx(canvas_obj, index, display_mode)
     
     # If command is set, generate ID for requested image and send request
     if command is not None:
