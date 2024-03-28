@@ -9,13 +9,12 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
-from .renderer import *
-
+from .processor import *
 from ..data import *
 from ..utils import ti_base as tib
 
 
-class RgbStacker(Renderer):
+class RgbStacker(Processor):
     name = "RGB Stacker"
     name_short = "rgbstack"
 
@@ -23,14 +22,6 @@ class RgbStacker(Renderer):
         self._stacked = ImgBuffer()
         self._domain = ImgDomain.Keep
         self._rescaled = None
-            
-    # Loading, processing etc.
-    def load(self, sequence: Sequence):
-        # Copy frame
-        if len(sequence) == 1:
-            self._stacked = sequence.get(0)
-            self._domain = self._stacked.domain()
-            self._rescaled = None
     
     def get(self) -> Sequence:
         seq = Sequence()
@@ -48,20 +39,3 @@ class RgbStacker(Renderer):
         
         # Stacking
         self._stacked = imgutils.StackChannels([r, g, b])
-        self._rescaled = None
-    
-    # Render settings
-    def getRenderModes(self) -> list:
-        return ("Stacked")
-    
-    def getRenderSettings(self, render_mode) -> RenderSettings:
-        return RenderSettings(is_linear=self._domain == ImgDomain.Lin, with_exposure=True)
-    
-    def render(self, render_mode, buffer, hdri=None):
-        # Return stacked image
-        if self._rescaled is None:
-            y, x = buffer.shape
-            factor = x / self._stacked.resolution()[0]
-            self._rescaled = self._stacked.scale(factor).crop((x, y)).get()
-        buffer.from_numpy(self._rescaled)
-        
