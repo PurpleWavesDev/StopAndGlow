@@ -185,7 +185,7 @@ class SMVP_CANVAS_PT_frameList(Panel):
         row = col.row(align=True)
         row.operator(WM_OT_smvp_viewer.bl_idname, text="Camera Live View", icon = "SCENE")
         row = col.row(align=True)
-        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Full Sequence")
+        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Sequence")
         row = col.row(align=True)
         row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked Lights").baked = True
         row = col.row(align=True)

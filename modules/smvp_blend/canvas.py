@@ -21,6 +21,8 @@ class SMVP_CANVAS_OT_overrideConfirm(Operator):
     bl_label = "Override current frame?"
     bl_options = {'REGISTER', 'INTERNAL'}
 
+    capture: BoolProperty(name="Call capture instead of add", default=False)
+    
     @classmethod
     def poll(cls, context):
         return True
@@ -30,7 +32,10 @@ class SMVP_CANVAS_OT_overrideConfirm(Operator):
     
     def execute(self, context):
         # Call operator again with override set
-        bpy.ops.smvp_canvas.frame_add('INVOKE_DEFAULT', override=True)
+        if capture:
+            bpy.ops.smvp_canvas.capture('INVOKE_DEFAULT', override=True)
+        else:
+            bpy.ops.smvp_canvas.frame_add('INVOKE_DEFAULT', override=True)
         return {'FINISHED'}
     
 class SMVP_CANVAS_OT_addFrame(Operator):
@@ -184,24 +189,48 @@ class SMVP_CANVAS_OT_capture(Operator):
     bl_idname = "smvp_canvas.capture"
     bl_label = "Capture"
     bl_description = "Capture frame data for rendering or with baked lighting"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {'REGISTER'}
     
-    baked: BoolProperty(name="Capture with baked HDRI", default=False)
-    frame: IntProperty(name="Frame number for the captured frame (-1 for current frame)", default=-1) # Or float?
+    baked: BoolProperty(name="Capture with baked lights", default=False)
+    name: StringProperty(
+        name="Sequence name",
+        description="Name of sequence, date and time is used if empty"
+        )
+    override: BoolProperty(
+        default=False,
+        name="Override current frame",
+        description="If set, operator will delete current frame and replace it with the new frame"
+        )
 
+    def invoke(self, context, event):
+        # Add new sequence as frame entry
+        obj = context.object
+        scn = context.scene
+        
+        if not self.override:
+            # Check if there is a keyframe already that would be overwritten
+            keyframes = getKeyframes(obj)
+            for x, y in keyframes:
+                if x == scn.frame_current:
+                    bpy.ops.smvp_canvas.override_confirm('INVOKE_DEFAULT', capture=True)
+                    return {'RUNNING_MODAL'}
+
+        # Open browser, will write selected path into our directory property
+        context.window_manager.fileselect_add(self)
+        # Tells Blender to hang on for the slow user input
+        return {'RUNNING_MODAL'}
+    
     def execute(self, context):
         obj = context.object
         tex = obj.smvp_canvas.frame_list[0].preview_texture
         
         id = client.serviceAddReq(tex)
-        #message = ipc.Message(ipc.Command.PreviewLive, {'id': id})
-        #message = ipc.Message(ipc.Command.PreviewHdri, {'id': id})
         # Send capture message
         message = None
         if self.baked:
-            message = ipc.Message(ipc.Command.CaptureBaked, {'id': id})
+            message = ipc.Message(ipc.Command.CaptureBaked, {'id': id, 'name': self.name})
         else:
-            message = ipc.Message(ipc.Command.CaptureLights, {'id': id})
+            message = ipc.Message(ipc.Command.CaptureLights, {'id': id, 'name': self.name})
         client.sendMessage(message)
         
         return{'FINISHED'}
