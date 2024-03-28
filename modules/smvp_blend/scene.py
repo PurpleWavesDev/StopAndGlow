@@ -8,8 +8,8 @@ from smvp_ipc import *
 
 from . import properties as props
 from . import client
-from . import canvas
-from . import camera
+from .canvas import *
+from .camera import *
 
 
 # -------------------------------------------------------------------
@@ -66,14 +66,15 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
     bl_label = "Set display mode"
     bl_idname = "smvp_canvas.display_mode"
     bl_description = "Changing the display mode of the selected or active canvas"
+    bl_options = {'REGISTER', 'UNDO'}
 
-    display_mode: props.DisplayModeProp
+    display_mode: props.DisplayModeProp()
     
     @classmethod
     def poll(cls, context):
         return (context.object is not None and context.object.smvp_canvas.is_canvas) or\
             context.scene.smvp_scene.active_canvas in bpy.data.objects
-
+    
     def execute(self, context):
         scn = context.scene
         obj = context.object
@@ -81,13 +82,15 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
             obj = bpy.data.objects[scn.smvp_scene.active_canvas]
         canvas = obj.smvp_canvas
         
+        # Stop receiving images for live mode
+        client.serviceRemoveReq(canvas.live_texture)
+        # For rendering mode set texture updated to false
+        if self.display_mode == 'rend':
+            canvas_frame.texture_updated = False
+        # Change of mode and scene update triggered by handler
         if canvas.display_mode != self.display_mode:
-            # Depending on old display mode, do stuff
-            if canvas.display_mode == 'live':
-                # Stop receiving images
-                pass
-            # Change display mode
             canvas.display_mode = self.display_mode
+        update_single_canvas_tex(scn, obj)
         return{'FINISHED'}
 
 
@@ -124,7 +127,7 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
         scn.smvp_scene.canvas_ids += 1
         
         # Set material, create slot and assign
-        mat = canvas.createCanvasMat(obj)
+        mat = createCanvasMat(obj)
         obj.data.materials.append(mat)
         # Settings TODO only for EEVEE?
         mat.blend_method = 'HASHED'
@@ -154,7 +157,7 @@ def update_canvas_textures(scene):
     for obj in bpy.data.objects:
         if obj.smvp_canvas.is_canvas:
             # Canvas found!
-            canvas.update_single_canvas_tex(scene, obj)
+            update_single_canvas_tex(scene, obj)
 
 def updateScene(obj):
     if client.connected:
@@ -213,6 +216,7 @@ def getLights(canvas_obj):
 
 classes = (
     SMVP_CANVAS_OT_setCanvasActive,
+    SMVP_CANVAS_OT_setDisplayMode,
     OBJECT_OT_smvpCanvasAdd,
 )
 

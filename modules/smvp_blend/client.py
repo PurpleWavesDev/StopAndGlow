@@ -110,10 +110,7 @@ def serviceAddReq(image_name) -> int:
     global image_requests
     global request_count
     
-    # Delete old entry
-    old_ids = [id for id, img in image_requests.items() if img == image_name]
-    for id in old_ids:
-        del image_requests[id]
+    serviceRemoveReq(image_name)
     
     # Add new ID
     id = request_count
@@ -121,6 +118,16 @@ def serviceAddReq(image_name) -> int:
     image_requests[id] = image_name
     
     return id
+
+def serviceRemoveReq(image_name):
+    global image_requests
+    global request_count
+    
+    # Delete old entry
+    old_ids = [id for id, img in image_requests.items() if img == image_name]
+    for id in old_ids:
+        del image_requests[id]
+
 
 def serviceRun(port):
     global connected

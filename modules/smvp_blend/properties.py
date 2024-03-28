@@ -7,13 +7,15 @@ from smvp_ipc import *
 from . import client
 
 algorithms = []
-
-DisplayModeProp = EnumProperty(items=[
+display_modes = [
         ('prev', '', 'Preview',"SHADING_SOLID", 0),
         ('bake', '', 'Baked Lights', "SHADING_TEXTURE",1),
         ('rend', '', 'Rendered', "SHADING_RENDERED",2),
         ('live', '', 'Live View', "SCENE", 3)
-    ], name='Display Modes', default='prev')
+    ]
+
+def DisplayModeProp(callback=None):
+    return EnumProperty(items=display_modes, name='Display Modes', default='prev', update=callback) # update or set
 
 class SMVP_SceneProps(PropertyGroup):
     active_canvas: StringProperty()
@@ -31,13 +33,18 @@ class SMVP_CANVAS_FrameCollection(PropertyGroup):
     preview_updated: BoolProperty(default=False)
     texture_updated: BoolProperty(default=False)
 
+def DisplayModeUpdate(self, context):
+    # Call operator
+    bpy.ops.smvp_canvas.display_mode(display_mode=self.display_mode)
+
+    
 class SMVP_CanvasProps(PropertyGroup):
     is_canvas: BoolProperty()
     frame_list_index: IntProperty()
     frame_list: CollectionProperty(type=SMVP_CANVAS_FrameCollection)
     live_texture: StringProperty()
     
-    display_mode: DisplayModeProp
+    display_mode: DisplayModeProp(DisplayModeUpdate)
     render_type: StringProperty()
     exposure: FloatProperty()
     

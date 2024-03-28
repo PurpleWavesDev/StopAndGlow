@@ -352,12 +352,13 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
 
 
 
-
 def update_single_canvas_tex(scene, obj):
     # Apply texture
     img = getTexture(obj, scene.frame_current)
-    if img is not None:
+    try:
         obj.active_material.node_tree.nodes["ImageTexture"].image = img
+    except Exception as e:
+        print(f"Error setting canvas texture: {str(e)}")
 
 
 
