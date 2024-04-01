@@ -53,10 +53,26 @@ class SMVP_CanvasProps(PropertyGroup):
     frame_ids: IntProperty()
 
 class SMVP_GhostProps(PropertyGroup):
-    show_ghost: BoolProperty(name="Show Ghostframes", description="Toggle the display of frames before and/or after the current frame", default = False)
-    previous_frames: IntProperty(name="Previous Frames", description="Defines the number of previous frames displayed in Ghost Mode", default=3, min=0, max=10, step=1)
-    following_frames: IntProperty(name="Following Frames", description="Defines the number of following frames displayed in Ghost Mode", default=3, min=0, max=10, step=1)
-    opacity: FloatProperty(name="Ghost Opacity", description= "Opacity of Ghostframes", default=0.5, min=0.0, max=1.0, step=1)
+    show_ghost: BoolProperty(
+        name="Show Ghostframes", 
+        description="Toggle the display of frames before and/or after the current frame", 
+        default = False
+        )
+    previous_frames: IntProperty(
+        name="Previous Frames", 
+        description="Defines the number of previous frames displayed in Ghost Mode", 
+        default=10, min=0, max=20, step=1
+        )
+    following_frames: IntProperty(
+        name="Following Frames",
+        description="Defines the number of following frames displayed in Ghost Mode",
+        default=10, min=0, max=20, step=1
+        )
+    opacity: FloatProperty(
+        name="Ghost Opacity", 
+        description= "Opacity of Ghostframes", 
+        default=0.5, min=0.0, max=1.0, step=1
+        )
     falloff: FloatProperty()
     
 

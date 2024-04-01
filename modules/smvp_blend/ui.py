@@ -52,7 +52,7 @@ class VIEW3D_PT_capturectl(Panel):
         active = scn.smvp_scene.active_canvas
 
         layout.operator(OBJECT_OT_smvpCanvasAdd.bl_idname, text="Setup Scene", icon ="PLUS")
-        layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Full Sequence")
+        layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Sequence")
         layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked Lights").baked = True
 
         row = layout.row(align=True)
@@ -82,7 +82,7 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Stop Motion"
-    bl_options = {"DEFAULT_CLOSED"}
+    #bl_options = {"DEFAULT_CLOSED"}
  
       
     def draw(self, context):
@@ -91,14 +91,12 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
         algs = scene.smvp_algorithms
         ghostIcon = ""
 
-        if context.object.smvp_ghost.show_ghost:
-            ghostIcon="GHOST_ENABLED"
-        else:
-            ghostIcon="GHOST_DISABLED"
       
         row = layout.row()
         row.label(text= "Render Modes")
         row.prop(context.object.smvp_canvas,'display_mode',expand = True)
+
+
 
         header, panel = layout.panel("my_panel_id", default_closed=False)
         header.label(text="Algorithms")
@@ -106,16 +104,21 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
             panel.prop(algs, "algs_dropdown_items", expand = False)
             panel.operator("mesh.primitive_monkey_add", text="Apply") #TODO operator for this button
        
-        header, panel = layout.panel("onion_skinning", default_closed=True)
+
+
+        if context.object.smvp_ghost.show_ghost:
+            ghostIcon="GHOST_ENABLED"
+        else:
+            ghostIcon="GHOST_DISABLED"
+        header, panel = layout.panel("onion_skinning", default_closed=False)
         header.prop(context.object.smvp_ghost, 'show_ghost', text="", icon=ghostIcon, toggle=True)
         header.label(text="Display Ghostframes")
-
-
 
         if context.object.smvp_ghost.show_ghost and panel:
             row=panel.row()
             row.label(text="Previous")
             row.prop(context.object.smvp_ghost, "previous_frames", text = "")
+
             row= panel.row()
             row.label(text="Post")
             row.prop(context.object.smvp_ghost, "following_frames", text="") 
@@ -123,21 +126,7 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
             panel.prop(context.object.smvp_ghost, "opacity", text= "Opacity", slider = True)
             
   
-# TODO find a way to disable subpanel when unchecked - maybe not nessessary anomore?
-# https://blender.stackexchange.com/questions/212075/how-to-enable-or-disable-panels-with-the-click-of-a-button
 
-class VIEW3D_OT_ghosting(Operator):
-    """Show Ghostframes"""
-    bl_idname = "ghost.show"
-    bl_label = "ghost_show"
-
-    def modal(self, context, event):
-        
-        return {'PASS_THROUGH'}
-
-    def invoke(self, context, event):
-        context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
 
 
 # -------------------------------------------------------------------

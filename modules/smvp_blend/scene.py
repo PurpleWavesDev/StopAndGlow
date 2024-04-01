@@ -90,6 +90,31 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
         return{'FINISHED'}
 
 
+class VIEW3D_OT_ghosting(Operator):
+    """Show Ghostframes"""
+    bl_idname = "ghost.show"
+    bl_label = "ghost_show"
+
+    def modal(self, context, event):
+        
+        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+class SMVP_CANVAS_OT_setGhostMode(Operator):
+    bl_idname = "ghost.on"
+    bl_label= "ghost_on"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, contect):
+        return{'FINISHED'}
+
+
 # -------------------------------------------------------------------
 #   Object creation Operators
 # -------------------------------------------------------------------

@@ -358,7 +358,7 @@ def update_single_canvas_tex(scene, obj):
     img = getTexture(obj, scene.frame_current)
     
     # If ghosting -> select ghosting frames and apply img + ghosting frames
-    if False:#ghosting:
+    if False: # show_ghost:
         frames_before = []
         frames_after = []
         keyframes = getKeyframes(canvas_obj)
@@ -368,6 +368,7 @@ def update_single_canvas_tex(scene, obj):
         # 
         for idx in frames_before:
             getTextureForIdx(obj, id, display_mode='prev')
+
     try:
         obj.active_material.node_tree.nodes["ImageTexture"].image = img
     except Exception as e:
