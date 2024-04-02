@@ -7,11 +7,10 @@ from enum import StrEnum
 class Commands(StrEnum):
     Config = '--config'
     Calibration = '--calibration'
-    Capture = '--capture'
     Preview = '--preview'
+    Capture = '--capture'
     Load = '--load'
     LoadHdri = '--load_hdri'
-    Convert = '--convert'
     Process = '--process'
     Render = '--render'
     View = '--view'
@@ -20,3 +19,5 @@ class Commands(StrEnum):
     Lights = '--lights'
     Sleep = '--sleep'
     Quit = '--quit'
+    LogLevel = '--loglevel'
+    

@@ -1,4 +1,5 @@
 from collections import namedtuple
+import logging as log
 import sys
 import os.path as path
 module_path = path.abspath("./modules")
@@ -30,27 +31,29 @@ class ArgParser:
                     is_arg = True
                 except:
                     if arg != '--help' and arg != '-h':
-                        print(f"Unknown command '{arg}'")
+                        log.error(f"Unknown command '{arg}'")
                     self.print_help = True
                     break
             elif self.commands:
                 # Add argument if it's right after the command string
                 if is_arg:
-                    self.commands[-1] = self.commands[-1]._replace(arg=arg)
-                    print(arg)
-                    print(self.commands[-1])
-                    is_arg = False
-                elif ':' in arg:
+                    # Check for loglevel, set and remove from commands
+                    if self.commands[-1].command == '--loglevel':
+                        print(f"Loglevel: {arg}") # TODO
+                        self.commands.pop()
+                    else:
+                        self.commands[-1] = self.commands[-1]._replace(arg=arg)
+                        is_arg = False
+                elif '=' in arg:
                     # Parse settings
-                    key, val = arg.split(':')
-                    print(key, val)
+                    key, val = arg.split('=')
                     self.commands[-1].settings[key] = val
                 else:
-                    print(f"Error: Expected settings as 'key:value' pair, got '{arg}'")
+                    log.error(f"Expected settings as 'key:value' pair, got '{arg}'")
                     self.print_help = True
                     break
             else:
-                print(f"Error: {arg} is not a valid command")
+                log.error(f"{arg} is not a valid command")
                 self.print_help = True
                 break
 
@@ -58,7 +61,7 @@ class ArgParser:
         if self.print_help:
             self.printHelp()
         else:
-            print(f"Launching {self.name}...")
+            log.info(f"Launching {self.name}...")
             from smvp_srv.processing_queue import ProcessingQueue
             
             queue = ProcessingQueue()
@@ -73,17 +76,16 @@ class ArgParser:
         print(f"""
 {self.name} help
 
-Usage: python {self.cmd_name} <command> <argument> [<setting:value> [...]] [...]
+Usage: python {self.cmd_name} <command> <argument> [<setting=value> [...]] [...]
 Chain commands for each data loading/capturing/processing step.
 
 Commands are:
     --config: 
     --calibration: 
-    --capture: 
     --preview: 
+    --capture: 
     --load: 
     --load_hdri: 
-    --convert: 
     --process: 
     --render: 
     --view: 
@@ -91,6 +93,7 @@ Commands are:
     --send: 
     --lights: 
     --sleep: 
+    --loglevel: 
 """)
 
 

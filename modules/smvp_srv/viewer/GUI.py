@@ -6,20 +6,13 @@ import taichi as ti
 import taichi.math as tm
 import numpy as np
 
-from . import ti_base as tib
-
-from .render import RtiRenderer
+from .. import ti_base as tib
 
 
-class RenderModules(Enum):
-    RTIStandard = 0
-    RTITest = 1
-    HDRIStack = 2
-    
-class Viewer:
+class GUI:
     def __init__(self, res=(1920, 1080)):
         self._framebuf = ti.field(ti.types.vector(3, ti.f32))
-        self._renderer = None
+        self._viewer = None
         self._mode = 0
         self._hdris = None
         self.init(res)
@@ -34,29 +27,14 @@ class Viewer:
             self._img_sequence = image_sequence
         if rti_factors is not None:
             self._rti_factors = rti_factors
-
-    def setHdris(self, hdris: list):
-        self._hdris = hdris
-        
-    def cycleRenderer(self, new_renderer=None, left=False):
-        if new_renderer is not None:
-            match new_renderer:
-                case RenderModules.RTIStandard:
-                    self._renderer = RtiRenderer()
-                    self._renderer.load(self._rti_factors)
-                    self._render_settings = self._renderer.getRenderSettings(0)
-                    
-                case RenderModules.RTITest:
-                    pass
-        
-        self.setMode(0)
-                
-    def setRenderer(self, renderer):
-        self._renderer = renderer
+    
+    def setViewer(self, viewer):
+        self._viewer = viewer
+        self._viewer.setResolution(self._res)
         self.setMode(0)
         
     def cycleMode(self, left=False):
-        count = len(self._renderer.getRenderModes())
+        count = len(self._viewer.getModes())
         if not left:
             self.setMode((self._mode+1) % count)
         else:
@@ -64,14 +42,15 @@ class Viewer:
             
     def setMode(self, mode):
         self._mode = mode
-        self._render_settings = self._renderer.getRenderSettings(mode)
-        log.info(f"Renderer switched to mode {self._renderer.getRenderModes()[mode]}")
+        self._render_settings = self._viewer.getRenderSettings(mode)
+        self._viewer.setMode(mode)
+        log.info(f"viewer switched to mode {self._viewer.getModes()[mode]}")
 
     def launch(self):
-        if self._renderer == None:
-            self.cycleRenderer(RenderModules.RTIStandard)
+        if self._viewer == None:
+            return
 
-        window = ti.ui.Window("DomeCtl Viewer", res=self._res, fps_limit=60)
+        window = ti.ui.Window(name="StopLighting GUI", res=self._res, fps_limit=60)
         canvas = window.get_canvas()
         time_last = time.time()
         
@@ -106,7 +85,7 @@ class Viewer:
                     self.cycleMode(left=True)
                     pixels = buffer_int if self._render_settings.as_int else buffer_float
                 elif self._render_settings.req_keypress_events:
-                    self._renderer.keypressEvent(window.event.key)
+                    self._viewer.keypressEvent(window.event.key)
             
             # Exposure correction
             if window.is_pressed(ti.ui.UP):
@@ -122,14 +101,14 @@ class Viewer:
                     v = (v+1) % 1
                 else:
                     v = (v+time_frame/5) % 1
-                self._renderer.setCoords(u, v)
+                self._viewer.setCoords(u, v)
             
-            # General inputs for renderer
+            # General inputs for viewer
             if self._render_settings.req_inputs:
-                self._renderer.inputs(window, time_frame)
+                self._viewer.inputs(window, time_frame)
             
             ### Rendering ###
-            self._renderer.render(self._mode, pixels, time_frame)
+            self._viewer.render(pixels, time_frame)
             
             ### Draw GUI ###
             #canvas.

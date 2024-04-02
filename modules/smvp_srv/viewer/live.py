@@ -7,33 +7,34 @@ import taichi as ti
 from ..data import *
 from ..utils import *
 from ..hw import Cam
-from .renderer import *
+from .viewer import *
 
 
 
-class LiveView(Renderer):
+class LiveViewer(Viewer):
     def __init__(self, hw):
         self.hw = hw
         self._live_dummy = ImgBuffer(path="../HdM_BA/data/live_dummy.JPG")
         self.fps = 24
         self.timer = 0
         self.scaled_array = list()
-        
-    def load(self, img_seq: Sequence):
+        self.render_mode = 0
+    
+    def setResolution(self, resolution):
         pass
     
-    def get(self) -> Sequence:
-        return Sequence()
-                
     def setSequence(self, img_seq: Sequence):
         self.sequence = img_seq
         #image sequence speichern
 
     # Render settings
-    def getRenderModes(self) -> list:
+    def getModes(self) -> list:
         return ["Live", "Onionskin", "Animation"]
 
-    def getRenderSettings(self, render_mode) -> RenderSettings:
+    def setMode(self, mode):
+        self.render_mode = mode
+        
+    def getRenderSettings(self, mode) -> RenderSettings:
         return RenderSettings(as_int=True, req_keypress_events=True, req_inputs=True)
 
     def keypressEvent(self, event_key):
@@ -62,9 +63,8 @@ class LiveView(Renderer):
         #    self.sequence.append(img, self.sequence.getKeyBounds()[1]+1)
 
     # Rendering
-    def render(self, render_mode, buffer, cur_time, hdri=None):
-       
-        match render_mode:
+    def render(self, buffer, time_frame):
+        match self.render_mode:
             case 0: # Live
                 buffer.from_numpy(self.getLiveImage().rescale((buffer.shape[1], buffer.shape[0])).get())
 
@@ -90,7 +90,7 @@ class LiveView(Renderer):
                     idx = int(self.timer*self.fps % len(self.scaled_array))
                     cur_img = self.scaled_array[idx].get()
                     buffer.from_numpy(cur_img)
-                    self.timer += cur_time
+                    self.timer += time_frame
                     
 
                     

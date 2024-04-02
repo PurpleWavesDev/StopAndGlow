@@ -386,9 +386,9 @@ def load(seq_name, calibration):
             match FLAGS.seq_type:
                 case 'lights':
                     ids = calibration.getIds()
-                case 'hdri':
+                case 'baked':
                     ids = [0, 1, 2]
-                case 'fullrun':
+                case 'all':
                     ids = range(FLAGS.capture_max_addr)
             # TODO: Video parameters via metadata?
             sequence.load(path, ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat) 

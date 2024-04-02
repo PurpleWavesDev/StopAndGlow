@@ -14,83 +14,20 @@
             "justMyCode": true
         },
         {
-            "name": "Capture Lights",
-            "type": "python",
+            "name": "View Sequence",
+            "type": "debugpy",
             "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--capture", "--seq_type=lights"],
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--view", "seq"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
         {
-            "name": "Capture Lights HDR",
-            "type": "python",
+            "name": "Capture Lights & Save",
+            "type": "debugpy",
             "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--capture", "--hdr", "--seq_type=lights", "--seq_folder=../HdM_BA/data/capture/0314_swimming"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Capture Lights HDR & Convert",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--capture", "--hdr", "--seq_type=lights", "--seq_convert", "--convert_to=exr_hd"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Capture HDRI",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--capture", "--hdr", "--seq_type=hdri", "--hdri_name=pretville_cinema_1k.exr", "--hdri_rotation=180", "--seq_convert", "--convert_to=jpg_hd"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Capture & Calibrate",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--capture", "--seq_type=fullrun", "--process", "--eval_type=cal", "--viewer"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Process Calibration",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=cal", "--seq_name=20240306_1849_fullrun.MP4", "--seq_type=fullrun", "--viewer"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Process Calibration Stacking",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=calstack", "--cal_name=lightdome.json", "--cal_stack_names=lightdome_pos2.json,lightdome_pos3.json"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Process Light Stack",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=lightstack", "--seq_name=20240127_1511_lights_linear", "--viewer"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Process RGB Stack",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rgbstack", "--seq_name=20240129_1016_hdri", "--seq_type=hdri", "--viewer"],
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--capture", "seq_type=lights", "--save"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -100,51 +37,6 @@
             "request": "launch",
             "program": "domectl.py",
             "args": ["--loglevel=DEBUG", "--process", "--eval_type=rti", "--seq_name=20240311_1546_lights.MP4", "--hdr", "--eval_dontsave", "--viewer"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Convert to Linear 1k",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=convert", "--convert_to=exr", "--seq_name=20240304_1914_hdri"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Viewer Lightstack",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer", "--seq_name=20240127_1511_lights_linear_rti"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Viewer RTI",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer", "--eval_type=rti", "--eval_name=rti", "--hdri_name=pretville_cinema_1k.exr"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Viewer ML",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer", "--eval_type=ml", "--eval_name=ml", "--hdri_name=pretville_cinema_1k.exr"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Viewer (Live)",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--viewer", "--live", "--seq_name=onionskins"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

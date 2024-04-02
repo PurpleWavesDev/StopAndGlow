@@ -15,6 +15,7 @@ from .procedure import *
 from .render import *
 from .utils import ti_base as tib
 from .utils.utils import GetDatetimeNow
+from .viewer import *
 
 from .engine import *
 
@@ -54,7 +55,7 @@ class Worker:
     def getConfig(self):
         return self.config
                         
-    def work(self, queue, keep_running):
+    def work(self, queue, keep_running) -> bool:
         self._keep_running = keep_running
         # Setup Taichi
         tib.TIBase.gpu = True
@@ -67,8 +68,8 @@ class Worker:
         
         # Sequence data and buffers
         self.sequence = Sequence()
-        self.img_buf = ImgBuffer()
         self.hdri = ImgBuffer(path=os.path.join(self.config['hdri_folder'], self.config['hdri_name']))
+        self.img_buf = ImgBuffer()
         
         # Setup hardware
         calibration = Calibration(path=os.path.join(self.config['cal_folder'], self.config['cal_name']))
@@ -87,35 +88,82 @@ class Worker:
                 else:
                     time.sleep(0.1)
             except Exception as e:
-                log.error(f"Error processing command: {str(e)}")
+                log.error(f"Error processing command '{command} {arg}': {str(e)}")
+                if not self._keep_running:
+                    return False
+            
+        return True
             
             
     def processCommand(self, command, arg, settings):
         match command:
             case Commands.Config:
-                # --config load path=/bla/bla name=config.json
+                # --config load folder=/bla/bla name=config.json
                 # --config set key=value
-                if arg == 'load':
-                    # TODO
-                    GetSetting(settings, 'path', '')
-                    #self.config = Config(path)
-                elif arg == 'set':
-                    for key, val in settings.items():
-                        self.config[key] = val
+                # --config save name=newconf.json
+                log.info(f"Processing '--config {arg}'...")
+                
+                path = GetSetting(settings, 'folder', self.config['config_folder'])
+                name = GetSetting(settings, 'name', self.config['config_name'])
+                match arg:
+                    case 'load':
+                        path = os.path.join(path, name)
+                        if os.path.isfile(path):
+                            self.config = Config(path)
+                        else:
+                            raise Exception(f"File {path} does not exist")
+                    case 'set':
+                        for key, val in settings.items():
+                            self.config[key] = val
+                    case 'save':
+                        self.config.save(path)
+                    case _:
+                        raise Exception(f"Unknown argument '{arg}' for --config command, use load/set/save")
+            
+            
+            case Commands.Calibration:
+                # --calibration load name=cal.json folder=/jada/jada
+                log.info(f"Processing '--calibration {arg}'...")
+                
+                path = GetSetting(settings, 'folder', self.config['cal_folder'])
+                name = GetSetting(settings, 'name', self.config['cal_name'])
+                match arg:
+                    case 'load':
+                        path = os.path.join(path, name)
+                        if os.path.isfile(path):
+                            calibration = Calibration(path)
+                            self.hw.cal._replace(cal=calibration)
+                        else:
+                            raise Exception(f"File {path} does not exist")
+                    case 'save':
+                        self.hw.cal.save(path)
+                    case _:
+                        raise Exception(f"Unknown argument '{arg}' for --calibration command, use load/save")
+
             
             case Commands.Preview:
                 # --preview live/baked
+                log.info(f"Capturing preview '{arg}'")
+                
                 settings = self.config.get() | settings
                 if arg == 'live':
-                    img_buf = self.hw.cam.capturePreview()
+                    self.img_buf = self.hw.cam.capturePreview()
                 elif arg == 'baked':
                     capture = Capture(self.hw, settings)
                     capture.captureSequence(self.hw.cal, self.hdri)
                     baked_seq = capture.downloadSequence(name, keep=False)
-                    img_buf = self.process(baked_seq, 'rgbstack', {})[0]
+                    self.img_buf = self.process(baked_seq, 'rgbstack', {})[0]
+                else:
+                    raise Exception(f"Unknown argument '{arg}' for --preview command, use live/baked")
+
 
             case Commands.Capture:
                 # --capture lights
+                log.info(f"Capturing sequence '{arg}'")
+                
+                if not arg in ['lights', 'all', 'baked']:
+                    raise Exception(f"Unknown argument '{arg}' for --capture command, use lights/all/baked")
+                
                 # Name and settings
                 name = GetSetting(settings, 'name', GetDatetimeNow()+f"_{arg}", default_for_empty=True)
                 settings = self.config.get() | settings
@@ -131,52 +179,106 @@ class Worker:
                     baked_seq = capture.downloadSequence(name, keep=False)
                     stacked = self.process(baked_seq, 'rgbstack', {})
                     self.sequence.setDataSequence('baked', stacked)
-                
+            
+            
             case Commands.Load:
-                # --load <path> seq_type=<lights,baked,fullrun>
+                # --load <path> seq_type=<lights,baked,all>
+                log.info(f"Loading sequence '{arg}'")
+                
+                # Is argument absolute path or relative to seq_folder?
+                path = arg
+                if not os.path.exists(path):
+                    path = os.path.join(self.config['seq_folder'], arg)
+                    if not os.path.exists(path):
+                        raise Exception(f"File/folder '{arg}' not found")
+                
+                # Get config and frame list for video files
                 default_config = self.config.get()
-                if os.path.splitext(arg)[1] != '':
+                if os.path.splitext(path)[1] != '':
                     # Video file, add IDs to defaults according to sequence type
                     match GetSetting(settings, 'seq_type', 'lights'):
                         case 'lights':
                             ids = calibration.getIds()
                         case 'baked':
                             ids = [0, 1, 2]
-                        case 'fullrun':
+                        case 'all':
                             ids = range(config['capture_max_addr'])
                     default_config = {**default_config, **{'video_frame_list', ids}}
                 
                 # Replace sequence and load
                 self.sequence = Sequence()
-                self.sequence.load(arg, defaults=default_config, overrides=settings)
+                self.sequence.load(path, defaults=default_config, overrides=settings)
                 
-                # Get preview
+                # Get preview TODO
                 self.preview = self.sequence.getPreview().asDomain(ImgDomain.sRGB, ti_buffer=self.tib_buffer)
                 res = self.config['resolution']
                 scale = max(res[0] / self.preview.resolution()[0], res[1] / self.preview.resolution()[1])
                 self.preview = self.preview.scale(scale).crop(res)
 
+
             case Commands.LoadHdri:
-                pass
+                # --loadHdri <path>
+                log.info(f"Loading HDRI '{arg}'")
+                
+                # Is argument absolute path or relative to hdri_folder?
+                path = arg
+                if not os.path.isfile(path):
+                    path = os.path.join(self.config['hdri_folder'], arg)
+                    if not os.path.isfile(path):
+                        raise Exception(f"File '{arg}' not found")
+                
+                # Load file
+                self.hdri = ImgBuffer(path)
             
-            
-            case Commands.Convert:
-                # --convert size=4k|hd format=??
-                self.sequence.convertSequence(settings)
             
             case Commands.Process:
-                data_sequence = self.process(self.sequence, arg, settings)
-                if data_sequence is not None:
-                    self.sequence.setDataSequence(data_key, data_sequence)
+                # --process convert size=4k|hd format=??
+                log.info(f"Sequence proessing '{arg}'")
+                
+                if arg == 'convert':
+                    self.sequence.convertSequence(settings)
+                else:
+                    data_sequence = self.process(self.sequence, arg, settings)
+                    if data_sequence is not None:
+                        self.sequence.setDataSequence(data_key, data_sequence)
+            
             
             case Commands.Render:
                 pass
             
             case Commands.View:
-                pass
+                # --view seq/render/preview/live
+                log.info(f"Launching viewer for '{arg}'")
+                
+                resolution = (int(self.config['resolution'][0]), int(self.config['resolution'][1]))
+                gui = GUI(resolution)
+                viewer = None
+                match arg: # TODO: Not all Viewers implemented!
+                    case 'seq':
+                        viewer = SequenceViewer()
+                        viewer.setSequence(self.sequence)
+                    case 'render':
+                        pass
+                    case 'preview':
+                        pass
+                    case 'live':
+                        viewer = LiveViewer(self.hw)
+                    case _:
+                        raise Exception(f"Unknown argument '{arg}' for --view command, use seq/render/preview/live")
+                
+                # Launch GUI
+                gui.setViewer(viewer)
+                gui.launch()
             
             case Commands.Save:
-                self.sequence.saveSequence(name, FLAGS.seq_folder)
+                # --save <path>
+                log.info(f"Saving sequence as '{arg}'")
+                
+                # Abspath?
+                if os.path.isabs(arg):
+                    self.sequence.saveSequence(os.path.basename(arg), os.path.dirname(arg))
+                else:
+                    self.sequence.saveSequence(arg, self.config['seq_folder'])
             
             case Commands.Send:
                 # --send address:port id=1 mode=render|baked|preview|live
@@ -196,9 +298,12 @@ class Worker:
                     self.id = id
                     self.executor = Engine(self.hw, self.config['resolution'], EngineModes.Live)
                     self.sendImage(id)
-                
+            
+            
             case Commands.Lights:
                 # --lights on power=0.5 range=0.2
+                log.info(f"Set Lights to '{arg}'")
+                
                 power = min(GetSetting(settings, 'power', 1/3), 1.0)
                 amount = min(GetSetting(settings, 'amount', 1/3), 1.0)
                 width = min(GetSetting(settings, 'width', 1/5), 1.0)
@@ -218,6 +323,8 @@ class Worker:
                 
             case Commands.Sleep:
                 # --sleep 1.0
+                log.info(f"Sleep for {arg}s")
+                
                 time.sleep(float(arg))
             
             case Commands.Quit:

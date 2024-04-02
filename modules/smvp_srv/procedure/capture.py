@@ -35,10 +35,10 @@ class Capture:
             case 'lights':
                 lights = calibration.getIds()
                 self._id_list = lights
-            case 'fullrun':
+            case 'all':
                 lights = list(range(self._config['capture_max_addr']))
                 self._id_list = lights
-            case 'hdri':
+            case 'baked':
                 self._lgtctl.processHdri(hdri)
                 self._lgtctl.sampleHdri(0)
                 lights = self._lgtctl.getLights() # Would like to get sth like [{1: 10, 5:100}, {1: 50, 5:80}, {1: 100, 5:30}]

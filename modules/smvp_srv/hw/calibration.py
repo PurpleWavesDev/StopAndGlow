@@ -2,6 +2,7 @@ import os
 import json 
 import math
 from numpy.typing import ArrayLike
+from pathlib import Path
 
 class Calibration:
     def __init__(self, path=None):
@@ -33,11 +34,11 @@ class Calibration:
             self._data['fitter'] = {}
         self._changed = False
 
-    def save(self, path, name='calibration.json'):
-        if not os.path.exists(path):
-            os.makedirs(path)
-        full_path = os.path.join(path, name)
-        with open(full_path, "w") as file:
+    def save(self, path):
+        # Create directory
+        Path(os.path.dirname(path)).mkdir(parents=True, exist_ok=True)
+        
+        with open(path, "w") as file:
             json.dump(self._data, file, indent=4)
         self._changed = False
 
