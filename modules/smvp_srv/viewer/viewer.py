@@ -10,6 +10,8 @@ class RenderSettings:
         self.req_inputs=req_inputs
 
 class Viewer:
+    name = "viewer"
+    
     # Viewer modes and render settings
     def setResolution(self, resolution):
         pass

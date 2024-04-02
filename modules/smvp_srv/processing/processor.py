@@ -5,13 +5,12 @@ from ..data import Sequence
 from ..hw import Calibration
 
 class Processor:
-    name = "Processor"
-    name_short = "processor"
+    name = "processor"
     
     # Loading, processing etc.
-    def get(self) -> Sequence:
-        return Sequence()
     def getDefaultSettings() -> dict:
         return {}
     def process(self, img_seq: Sequence, calibration: Calibration, settings=dict()):
         pass
+    def get(self) -> Sequence:
+        return Sequence()

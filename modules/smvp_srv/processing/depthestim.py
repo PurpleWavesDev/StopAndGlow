@@ -23,22 +23,13 @@ class DepthAnythingModels(StrEnum):
 
 class DepthEstimator(Processor):
     """Wrapper of the Depth-Anything framework"""
-    name = "Depth Estimator"
-    name_short = "depth"
+    name = "depth"
     
-    def get(self) -> Sequence:
-        return Sequence()
-
-    def getDefaultSettings() -> dict:
-        return {'model': DepthAnythingModels.large}
-    
-    def process(self, img_seq: Sequence, calibration: Calibration, settings: dict):
-        # Check if a specific model was requested, use large as default
-        log.debug("Initializing Depth Anything")
-
+    def __init__(self):
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        self.model = DepthAnything.from_pretrained('LiheYoung/depth_anything_{}14'.format(settings['model'])).to(self.device).eval()
-        
+        if self.device.type == 'cuda':
+            log.debug("CUDA acceleration for MiDaS enabled")
+
         self.transform = Compose([
             Resize(
                 width=518,
@@ -53,34 +44,44 @@ class DepthEstimator(Processor):
             PrepareForNet(),
         ])
         
-        # Print if CUDA is available
-        if self.device.type == 'cuda':
-            log.debug("CUDA acceleration for MiDaS enabled")
+        self.model = None
+        self.model_type = ""
+        self.sequence = Sequence()
         
-        self.setSequence(img_seq)
 
-    # Rendering
-    #def render(self, render_mode, buffer, hdri=None):
-    #    #buffer.from_torch(self.getDepthTorch(self._sequence.getPreview())) # TODO: Gray scale image to RGB
-    #    buffer.from_numpy(self.getDepth(self._sequence.getPreview()))
-        
-    def getDepth(self, frame: ImgBuffer) -> ArrayLike:
-        depth = self.getDepthTorch(frame).cpu().numpy()
-        depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
-        return depth
+    def getDefaultSettings() -> dict:
+        return {'model': DepthAnythingModels.large}
     
-    def getDepthTorch(self, frame: ImgBuffer):
-        # Apply transform
-        w, h = frame.resolution()
-        frame = self.transform({'image': frame.get()})['image']
-        frame = torch.from_numpy(frame).unsqueeze(0).to(self.device)
+    def process(self, img_seq: Sequence, calibration: Calibration, settings: dict):
+        self.sequence = Sequence()
         
-        # Run model
-        with torch.no_grad():
-            depth = self.model(frame)
+        # Load model if not loaded already
+        new_model_type = GetSetting(settings, 'model', DepthAnythingModels.large)
+        if self.model is None or self.model_type != new_model_type:
+            self.model_type = new_model_type
+            self.model = DepthAnything.from_pretrained(f'LiheYoung/depth_anything_{self.model_type}14').to(self.device).eval()
         
-        # Scale back and normalize
-        depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
-        depth = (depth - depth.min()) / (depth.max() - depth.min())
+        for id, frame in img_seq:
+            # Apply transform
+            w, h = frame.resolution()
+            frame = self.transform({'image': frame.get()})['image']
+            frame = torch.from_numpy(frame).unsqueeze(0).to(self.device)
+            
+            # Run model
+            with torch.no_grad():
+                depth = self.model(frame)
+            
+            # Scale back and normalize
+            depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
+            depth = (depth - depth.min()) / (depth.max() - depth.min())
+            # To numpy, add other channels
+            depth = depth.cpu().numpy()
+            depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
+            
+            # Add to sequence
+            self.sequence.append(depth, id)
+        
+    def get(self) -> Sequence:
+        return self.sequence
         
     

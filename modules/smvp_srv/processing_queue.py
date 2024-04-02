@@ -12,10 +12,11 @@ from .commands import *
 from .hw import *
 from .data import *
 from .procedure import *
+from .processing import *
 from .render import *
+from .viewer import *
 from .utils import ti_base as tib
 from .utils.utils import GetDatetimeNow
-from .viewer import *
 
 from .engine import *
 
@@ -238,29 +239,26 @@ class Worker:
             
             
             case Commands.Process:
-                # --process convert size=4k|hd format=??
-                log.info(f"Sequence proessing '{arg}'")
+                # --process <type> setting=value
+                log.info(f"Processing sequence with '{arg}'")
                 
-                if arg == 'convert':
-                    self.sequence.convertSequence(settings)
-                else:
-                    data_sequence = self.process(self.sequence, arg, settings)
-                    if data_sequence is not None:
-                        self.sequence.setDataSequence(data_key, data_sequence)
+                data_key, data_sequence = self.process(self.sequence, arg, settings)
+                if data_key is not None and data_sequence is not None:
+                    self.sequence.setDataSequence(data_key, data_sequence)
             
             
             case Commands.Render:
                 pass
             
             case Commands.View:
-                # --view seq/render/preview/live
+                # --view sequence/render/preview/live
                 log.info(f"Launching viewer for '{arg}'")
                 
                 resolution = (int(self.config['resolution'][0]), int(self.config['resolution'][1]))
                 gui = GUI(resolution)
                 viewer = None
                 match arg: # TODO: Not all Viewers implemented!
-                    case 'seq':
+                    case 'sequence':
                         viewer = SequenceViewer()
                         viewer.setSequence(self.sequence)
                     case 'render':
@@ -270,7 +268,7 @@ class Worker:
                     case 'live':
                         viewer = LiveViewer(self.hw)
                     case _:
-                        raise Exception(f"Unknown argument '{arg}' for --view command, use seq/render/preview/live")
+                        raise Exception(f"Unknown argument '{arg}' for --view command, use sequence/render/preview/live")
                 
                 # Launch GUI
                 gui.setViewer(viewer)
@@ -349,45 +347,37 @@ class Worker:
         self._consumer.connect(address_str)
         
     def process(self, img_seq, arg, settings):
-        # --process <type> setting=value
-        # Get renderer
-        renderer = None
-        data_sequence = None
-        data_key = ""
+        processor = None
         
         match arg:
+            case 'convert':
+                self.sequence.convertSequence(settings) # TODO
+            case DepthEstimator.name:
+                processor = DepthEstimator()
+            case ExposureBlender.name:
+                processor = ExposureBlender()
+            case RgbStacker.name:
+                processor = RgbStacker()
             case 'cal':
                 if not interactive in settings: settings['interactive'] = True
-                renderer = Calibrate()
+                processor = Calibrate()
             case 'calstack':
                 #stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
                 #self.hw.cal.stitch(stack_cals)
                 #self.hw.cal.save(FLAGS.cal_folder, FLAGS.new_cal_name)
                 pass
-            case 'rgbstack':
-                renderer = RgbStacker()
-            case 'lightstack':
-                renderer = LightStacker()
-            case 'depth':
-                renderer = DepthEstimator()
             case 'rti':
                 if not order in settings: settings['order'] = 4
-                renderer = RtiRenderer()     
-
+                processor = RtiRenderer()     
             case _:
                 log.error(f"Unknwon processor type '{arg}'")
         
-        # Process renderers
-        if renderer is not None:
-            log.info(f"Process image sequence for {renderer.name}")                    
-            # Process
-            renderer.process(img_seq, calibration, settings)
-            # Store data
-            if len(renderer.get()) > 0:
-                data_sequence = renderer.get()
-                data_key = renderer.name_short
-        
-        return data_sequence
+        # Processing
+        if processor is not None:
+            processor.process(img_seq, calibration, settings)
+            # Return data
+            return (processor.name, processor.get())
+        return (None, None)
     
     def sendImage(self, id):
         time.sleep(0.1)

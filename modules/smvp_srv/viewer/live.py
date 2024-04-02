@@ -10,8 +10,9 @@ from ..hw import Cam
 from .viewer import *
 
 
-
 class LiveViewer(Viewer):
+    name = "live"
+    
     def __init__(self, hw):
         self.hw = hw
         self._live_dummy = ImgBuffer(path="../HdM_BA/data/live_dummy.JPG")

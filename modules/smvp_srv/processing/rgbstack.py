@@ -15,20 +15,15 @@ from ..utils import ti_base as tib
 
 
 class RgbStacker(Processor):
-    name = "RGB Stacker"
-    name_short = "rgbstack"
+    name = "rgbstack"
 
     def __init__(self):
         self._stacked = ImgBuffer()
         self._domain = ImgDomain.Keep
         self._rescaled = None
     
-    def get(self) -> Sequence:
-        seq = Sequence()
-        seq.append(self._stacked, 0)
-        # Metadata
-        #seq.setMeta('key', val)
-        return seq
+    def getDefaultSettings() -> dict:
+        return {}
     
     def process(self, img_seq: Sequence, calibration: Calibration, settings={'domain': ImgDomain.Keep}):
         # Get channels and stack them
@@ -39,3 +34,11 @@ class RgbStacker(Processor):
         
         # Stacking
         self._stacked = imgutils.StackChannels([r, g, b])
+
+    def get(self) -> Sequence:
+        seq = Sequence()
+        seq.append(self._stacked, 0)
+        # Metadata
+        #seq.setMeta('key', val)
+        return seq
+    

@@ -8,7 +8,7 @@ from . import worker
 from .timer import Timer
 from .lightctl import LightCtl
 from .calibrate import Calibrate
-from ..render.exposureblend import ExpoBlender
+from ..processing.exposureblend import ExpoBlender
 
 class Capture:
     def __init__(self, hw, config):

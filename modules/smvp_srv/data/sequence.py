@@ -27,7 +27,7 @@ class Sequence():
         # Frame list, additional frames and sequences
         self._frames = dict()
         self._preview = ImgBuffer()
-        self._data: {}
+        self._data = {}
         
         # Metadata
         self._meta = dict()
@@ -274,10 +274,13 @@ class Sequence():
     
     ### Additional sequences and frames ###
     
+    def getDataKeys(self):
+        return list(self._data.keys())
+    
     def getDataSequence(self, key) -> 'Sequence':
         if key in self._data:
             return self._data[key]
-        return None
+        return Sequence()
     
     def setDataSequence(self, key, seq: 'Sequence'):
         self._data[key] = seq

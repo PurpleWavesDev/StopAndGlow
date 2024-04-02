@@ -18,7 +18,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--view", "seq"],
+            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -27,16 +27,16 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--capture", "seq_type=lights", "--save"],
+            "args": ["--loglevel", "DEBUG", "--capture", "lights", "--save"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
         {
-            "name": "Process RTI",
-            "type": "python",
+            "name": "Show depth",
+            "type": "debugpy",
             "request": "launch",
-            "program": "domectl.py",
-            "args": ["--loglevel=DEBUG", "--process", "--eval_type=rti", "--seq_name=20240311_1546_lights.MP4", "--hdr", "--eval_dontsave", "--viewer"],
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--process", "depth", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
