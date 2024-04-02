@@ -34,7 +34,7 @@ class ProcessingQueue:
         self._process = Thread(target=Worker.work, args=(self._worker, self._queue, True,))
         self._process.start()
         
-    def run(self):
+    def execute(self):
         """Process filled queue without launching a separate process"""
         self._worker.work(self._queue, False)
         
