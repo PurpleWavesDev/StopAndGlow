@@ -67,9 +67,7 @@ class Worker:
         
         # Sequence data and buffers
         self.sequence = Sequence()
-        self.render = ImgBuffer()
-        self.preview = ImgBuffer()
-        self.baked = ImgBuffer()
+        self.img_buf = ImgBuffer()
         self.hdri = ImgBuffer(path=os.path.join(self.config['hdri_folder'], self.config['hdri_name']))
         
         # Setup hardware
@@ -105,10 +103,21 @@ class Worker:
                     for key, val in settings.items():
                         self.config[key] = val
             
+            case Commands.Preview:
+                # --preview live/baked
+                settings = self.config.get() | settings
+                if arg == 'live':
+                    img_buf = self.hw.cam.capturePreview()
+                elif arg == 'baked':
+                    capture = Capture(self.hw, settings)
+                    capture.captureSequence(self.hw.cal, self.hdri)
+                    baked_seq = capture.downloadSequence(name, keep=False)
+                    img_buf = self.process(baked_seq, 'rgbstack', {})[0]
+
             case Commands.Capture:
                 # --capture lights
                 # Name and settings
-                name = GetSetting(settings, 'name', GetDatetimeNow(), default_for_empty=True)
+                name = GetSetting(settings, 'name', GetDatetimeNow()+f"_{arg}", default_for_empty=True)
                 settings = self.config.get() | settings
                 settings['seq_type'] = arg
                 
@@ -116,23 +125,22 @@ class Worker:
                 capture = Capture(self.hw, settings)
                 capture.captureSequence(self.hw.cal, self.hdri)
                 # Download
-                if arg != 'hdri': #TODO: Should HDRI be a separate sequence or set as data sequence?
+                if arg != 'baked':
                     self.sequence = capture.downloadSequence(name, keep=False)
                 else:
-                    hdri_seq = capture.downloadSequence(name, keep=False)
-                    stacked = self.process(hdri_seq, 'rgbstack', {})
-                    self.baked = stacked[0]
-                    #self.sequence.setDataSequence()
+                    baked_seq = capture.downloadSequence(name, keep=False)
+                    stacked = self.process(baked_seq, 'rgbstack', {})
+                    self.sequence.setDataSequence('baked', stacked)
                 
             case Commands.Load:
-                # --load <path> seq_type=<lights,hdri,fullrun>
+                # --load <path> seq_type=<lights,baked,fullrun>
                 default_config = self.config.get()
                 if os.path.splitext(arg)[1] != '':
                     # Video file, add IDs to defaults according to sequence type
                     match GetSetting(settings, 'seq_type', 'lights'):
                         case 'lights':
                             ids = calibration.getIds()
-                        case 'hdri':
+                        case 'baked':
                             ids = [0, 1, 2]
                         case 'fullrun':
                             ids = range(config['capture_max_addr'])
@@ -147,6 +155,9 @@ class Worker:
                 res = self.config['resolution']
                 scale = max(res[0] / self.preview.resolution()[0], res[1] / self.preview.resolution()[1])
                 self.preview = self.preview.scale(scale).crop(res)
+
+            case Commands.LoadHdri:
+                pass
             
             
             case Commands.Convert:

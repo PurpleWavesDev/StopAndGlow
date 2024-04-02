@@ -91,7 +91,7 @@ def run(port=9271):
                 name = GetSetting(message.data, 'name', GetDatetimeNow(), default_for_empty=True)
                 root = queue.getConfig()['seq_folder']
                 path = os.path.join(root, name)
-                queue.putCommand(Commands.Capture, 'lights' if Command.CaptureLights else 'hdri', {'name': name, 'discard_video': True})
+                queue.putCommand(Commands.Capture, 'lights' if Command.CaptureLights else 'baked', {'name': name, 'discard_video': True})
                 #queue.putCommand(Commands.Save, path)
                 send(socket, Message(Command.CommandProcessing, {'path': path}))
             ## Load from disk
@@ -115,23 +115,23 @@ def run(port=9271):
             
             
             ## Preview
-            # TODO: Localhost should be address of received message
+            # TODO: Join Request commands
             case Command.ReqPreview:
                 # Send preview image
-                queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
                 send(socket, Message(Command.CommandProcessing))
                 
             case Command.ReqBaked:
-                queue.putCommand(Commands.Capture, 'hdri')
-                queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
+                queue.putCommand(Commands.Capture, 'baked')
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
                 send(socket, Message(Command.CommandProcessing))
             
             case Command.ReqLive:
-                queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'live'})
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'live'})
                 send(socket, Message(Command.CommandProcessing))
 
             case Command.ReqRender:
-                queue.putCommand(Commands.Send, f'localhost:{port+1}', {'id': message.data['id'], 'mode': 'render'})
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'render'})
                 send(socket, Message(Command.CommandProcessing))
             
             
