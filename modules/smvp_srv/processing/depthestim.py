@@ -8,9 +8,9 @@ import torch
 import torch.nn.functional as F
 from torchvision.transforms import Compose
 
+from .processor import *
 from .depth_anything.dpt import DepthAnything
 from .depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
-from .renderer import *
 
 from ..data import *
 from ..utils import ti_base as tib
@@ -21,11 +21,14 @@ class DepthAnythingModels(StrEnum):
     base = 'vitb'
     small = 'vits'
 
-class DepthEstimator(Renderer):
+class DepthEstimator(Processor):
     """Wrapper of the Depth-Anything framework"""
     name = "Depth Estimator"
     name_short = "depth"
     
+    def get(self) -> Sequence:
+        return Sequence()
+
     def getDefaultSettings() -> dict:
         return {'model': DepthAnythingModels.large}
     
@@ -55,20 +58,11 @@ class DepthEstimator(Renderer):
             log.debug("CUDA acceleration for MiDaS enabled")
         
         self.setSequence(img_seq)
-    
-    def setSequence(self, img_seq: Sequence):
-        self._sequence = img_seq
-
-    # Render settings
-    def getRenderModes(self) -> list:
-        return ['depth']
-    def getRenderSettings(self, render_mode) -> RenderSettings:
-        return RenderSettings(is_linear=True, with_exposure=True)    
 
     # Rendering
-    def render(self, render_mode, buffer, hdri=None):
-        #buffer.from_torch(self.getDepthTorch(self._sequence.getPreview())) # TODO: Gray scale image to RGB
-        buffer.from_numpy(self.getDepth(self._sequence.getPreview()))
+    #def render(self, render_mode, buffer, hdri=None):
+    #    #buffer.from_torch(self.getDepthTorch(self._sequence.getPreview())) # TODO: Gray scale image to RGB
+    #    buffer.from_numpy(self.getDepth(self._sequence.getPreview()))
         
     def getDepth(self, frame: ImgBuffer) -> ArrayLike:
         depth = self.getDepthTorch(frame).cpu().numpy()

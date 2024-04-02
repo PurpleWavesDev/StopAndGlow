@@ -9,25 +9,17 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
+from .processor import *
 from ..data import *
-
-from .renderer import *
 from ..utils import ti_base as tib
 
 
-class ExpoBlender(Renderer):
+class ExpoBlender(Processor):
     name = "Exposure Blender"
     name_short = "expoblend"
     
     def __init__(self):
         self._blended = Sequence()
-        self._rescaled = None
-        self._view_idx = 0
-            
-    # Loading, processing etc.
-    def load(self, sequence: Sequence):
-        # Save sequence
-        self._blended = sequence
     
     def get(self) -> Sequence:
         # Metadata
@@ -63,22 +55,7 @@ class ExpoBlender(Renderer):
         buffer.from_numpy(np.stack([seq.getPreview().asDomain(ImgDomain.Lin).get() for seq in seq_list], dtype='float32'))
         exposure_blending(buffer, exposure_times, blend_threshold, blend_factor)
         self._blended.setPreview(ImgBuffer(img=buffer.to_numpy()[0, :], domain=ImgDomain.Lin))
-    
-    # Render settings
-    def getRenderModes(self) -> list:
-        return ("Blended")
-    
-    def getRenderSettings(self, render_mode) -> RenderSettings:
-        return RenderSettings(is_linear=True, with_exposure=True, req_keypress_events=True)
-    
-    def keypressEvent(self, event_key):
-            if event_key in ['a']: # Left
-                self._view_idx = (len(self._sequence)+self._view_idx-1) % len(self._sequence)
-                self._rescaled = None
-            elif event_key in ['d']: # Right
-                self._view_idx = (self._view_idx+1) % len(self._sequence)
-                self._rescaled = None
-    
+        
     def render(self, render_mode, buffer, hdri=None):
         # Return stacked image
         if self._rescaled is None:
