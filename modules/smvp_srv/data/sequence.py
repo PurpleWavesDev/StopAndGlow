@@ -306,8 +306,9 @@ class Sequence():
         return self._meta[key]
     
     def setMeta(self, key: str, value):
-        self._meta[key] = value
-        self._meta_changed = True
+        if not key in self._meta or self._meta[key] != value:
+            self._meta[key] = value
+            self._meta_changed = True
     
     ### Factories ###
     def ContinueVideoSequence(sequence, path, frame_list, sequence_index):

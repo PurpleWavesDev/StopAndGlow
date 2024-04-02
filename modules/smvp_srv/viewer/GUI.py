@@ -6,7 +6,7 @@ import taichi as ti
 import taichi.math as tm
 import numpy as np
 
-from .. import ti_base as tib
+from ..utils import ti_base as tib
 
 
 class GUI:

@@ -7,28 +7,12 @@ import sys
 import io
 import time
 import datetime
-from importlib import reload
 from typing import Any
 
-# Flags and logging
-from absl import app
-from absl import flags
+# Logging
+from importlib import reload
 import logging as log
 
-# Sub-modules
-from .hw import *
-from .procedure import *
-from .data import *
-from .render import *
-from .utils import *
-# Timer & Worker
-from .procedure.timer import Timer
-from .procedure.worker import *
-# Viewer
-from .viewer import *
-
-# Globals
-FLAGS = None
 DEBUG = hasattr(sys, 'gettrace') and sys.gettrace() is not None
 
 
@@ -399,4 +383,4 @@ def load(seq_name, calibration):
 #################### MODES END ####################
 
 if __name__ == '__main__':
-    app.run(main)
+    pass

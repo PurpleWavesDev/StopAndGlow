@@ -88,10 +88,16 @@ class Worker:
                 else:
                     time.sleep(0.1)
             except Exception as e:
-                log.error(f"Error processing command '{command} {arg}': {str(e)}")
+                log.error(f"Command '{command} {arg}': {str(e)}")
                 if not self._keep_running:
                     return False
-            
+        
+        # Delete important buffers explicitly to allow them to save all data
+        # Otherwise, open() can be deleted before destructors can make use of the function (python bug)
+        del self.sequence
+        del self.hw
+        del self.config
+        
         return True
             
             

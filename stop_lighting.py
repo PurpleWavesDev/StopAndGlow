@@ -1,14 +1,21 @@
-from collections import namedtuple
-import logging as log
+# Imports and module path additions
 import sys
 import os.path as path
 module_path = path.abspath("./modules")
 if not module_path in sys.path:
     sys.path.append(module_path)
 
+# General imports
+from collections import namedtuple
+# Logging
+from importlib import reload
+import logging as log
+
+# Stop Lighting imports
 from smvp_srv.commands import *
 
-## Types
+
+## Type-defs
 Cmd = namedtuple('Cmd', ['command', 'arg', 'settings'])
 
 ## Classes
@@ -17,6 +24,8 @@ class ArgParser:
         self.print_help = False
         self.name = name
         self.cmd_name = cmd_name
+        
+        self.initLogging('INFO')
         
     def parse(self, args):
         self.commands = []
@@ -39,7 +48,7 @@ class ArgParser:
                 if is_arg:
                     # Check for loglevel, set and remove from commands
                     if self.commands[-1].command == '--loglevel':
-                        print(f"Loglevel: {arg}") # TODO
+                        self.initLogging(arg)
                         self.commands.pop()
                     else:
                         self.commands[-1] = self.commands[-1]._replace(arg=arg)
@@ -71,7 +80,12 @@ class ArgParser:
             
             # Execute commands
             queue.execute()
-        
+    
+    def initLogging(self, loglevel):
+        # Init logger
+        reload(log)
+        log.basicConfig(level=log._nameToLevel[loglevel], format='[%(levelname)s] %(message)s')
+    
     def printHelp(self):
         print(f"""
 {self.name} help
