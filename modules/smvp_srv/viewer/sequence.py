@@ -40,10 +40,10 @@ class SequenceViewer(Viewer):
             case 0: # Preview
                 self.scaled_buf = self.sequence.getPreview().rescale(self.resolution)
             case 1: # Sequence
-                self.scaled_buf = self.sequence[self.idx].rescale(self.resolution)
+                self.scaled_buf = self.sequence.get(self.idx).rescale(self.resolution)
             case 2: # Data
-                # TODO!
-                self.scaled_buf = self.sequence[self.idx].rescale(self.resolution)
+                # TODO: What if sequence is empty or no data sequences are available?
+                self.scaled_buf = self.sequence.getDataSequence(self.data_keys[self.data_idx]).get(self.idx).rescale(self.resolution)
         
     def getRenderSettings(self, mode) -> RenderSettings:
         return RenderSettings(req_keypress_events=True if mode > 0 else False, with_exposure=True, is_linear=True) # TODO: Linear? Could be metadata of sequence
@@ -66,9 +66,9 @@ class SequenceViewer(Viewer):
         
         # Set image depending on render mode
         if self.render_mode == 1:
-            self.scaled_buf = self.sequence.get(self.idx)
+            self.scaled_buf = self.sequence.get(self.idx).rescale(self.resolution)
         elif self.render_mode == 2 and data_length > 0:
-            self.scaled_buf = self.sequence.getDataSequence(self.data_keys[self.data_idx]).get(self.idx)
+            self.scaled_buf = self.sequence.getDataSequence(self.data_keys[self.data_idx]).get(self.idx).rescale(self.resolution)
 
     # Rendering
     def render(self, buffer, time_frame):

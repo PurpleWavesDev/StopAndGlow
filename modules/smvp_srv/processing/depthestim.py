@@ -61,7 +61,7 @@ class DepthEstimator(Processor):
             self.model_type = new_model_type
             self.model = DepthAnything.from_pretrained(f'LiheYoung/depth_anything_{self.model_type}14').to(self.device).eval()
         
-        for id, frame in img_seq:
+        for frame in [img_seq.getPreview()]:
             # Apply transform
             w, h = frame.resolution()
             frame = self.transform({'image': frame.get()})['image']
@@ -79,7 +79,7 @@ class DepthEstimator(Processor):
             depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
             
             # Add to sequence
-            self.sequence.append(depth, id)
+            self.sequence.append(ImgBuffer(img=depth), 0)
         
     def get(self) -> Sequence:
         return self.sequence
