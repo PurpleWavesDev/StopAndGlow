@@ -52,11 +52,23 @@ class SMVP_CanvasProps(PropertyGroup):
     canvas_id: IntProperty()
     frame_ids: IntProperty()
 
+
+
+
+
+def ghost_update_func(self, context):
+    print("invoke modal")
+    if self.ghost_toggle:
+        VIEW3D_OT_modalGhosting.bl_idname('INVOKE_DEFAULT')
+    return
+
 class SMVP_GhostProps(PropertyGroup):
+      
     show_ghost: BoolProperty(
         name="Show Ghostframes", 
         description="Toggle the display of frames before and/or after the current frame", 
-        default = False
+        default = False,
+        update = ghost_update_func,
         )
     previous_frames: IntProperty(
         name="Previous Frames", 
@@ -74,7 +86,7 @@ class SMVP_GhostProps(PropertyGroup):
         default=0.5, min=0.0, max=1.0, step=1
         )
     falloff: FloatProperty()
-    
+
 
 class SMVP_CameraProps(PropertyGroup):
     canvas_link: StringProperty()
@@ -136,7 +148,11 @@ def register():
     Scene.smvp_algorithms = PointerProperty(type= SMVP_Algorithms_Props, name="Algorithms Properties")
     Object.smvp_ghost = PointerProperty(type= SMVP_GhostProps, name="Ghosting Properties")
 
-
+    bpy.types.WindowManager.ghost_toggle = bpy.props.BoolProperty(
+         default = False,
+         update = ghost_update_func
+    )
+   
 
 def unregister():
     from bpy.utils import unregister_class
@@ -148,5 +164,7 @@ def unregister():
     del Object.smvp_canvas
     del Camera.smvp
     del Scene.smvp_algorithms
+
+    del bpy.types.WindowManager.ghost_toggle
 
    

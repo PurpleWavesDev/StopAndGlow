@@ -83,6 +83,10 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category = "Stop Motion"
     #bl_options = {"DEFAULT_CLOSED"}
+    
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None
  
       
     def draw(self, context):
@@ -111,8 +115,8 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
         else:
             ghostIcon="GHOST_DISABLED"
         header, panel = layout.panel("onion_skinning", default_closed=False)
-        header.prop(context.object.smvp_ghost, 'show_ghost', text="", icon=ghostIcon, toggle=True)
-        header.label(text="Display Ghostframes")
+        header.prop(context.object.smvp_ghost, 'show_ghost', text="Display Ghostframes", icon=ghostIcon, toggle=True)
+       
 
         if context.object.smvp_ghost.show_ghost and panel:
             row=panel.row()
@@ -125,6 +129,7 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
 
             panel.prop(context.object.smvp_ghost, "opacity", text= "Opacity", slider = True)
             
+            panel.operator(SMVP_CANVAS_OT_setGhostMode.bl_idname, text = "Show Ghostframes")
   
 
 
@@ -228,7 +233,7 @@ classes =(
     VIEW3D_PT_renderctl,
 
     #operator 
-    VIEW3D_OT_ghosting,
+    #VIEW3D_OT_ghosting,
 
     # Canvas UI
     SMVP_CANVAS_UL_items,

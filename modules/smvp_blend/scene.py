@@ -90,28 +90,43 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
         return{'FINISHED'}
 
 
-class VIEW3D_OT_ghosting(Operator):
+class VIEW3D_OT_modalGhosting(Operator):
     """Show Ghostframes"""
-    bl_idname = "ghost.show"
-    bl_label = "ghost_show"
+    bl_idname = "object.ghost_modal"
+    bl_label = "Modal Show Ghostframes"
+    
+    def execute(self, context):
+        self.report({'INFO'}, "modal ghost is on")
+        return {'FINISHED'}
 
     def modal(self, context, event):
-        
+        if not context.object.smvp_ghost.show_ghost:
+            context.window_manager.event_timer_remove(self._timer)
+            self.report({'INFO'}, "done")
+            return {'FINISHED'}
+        self.report({'INFO'}, "passthrough")    
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
+        self._timer = context.window_manager.event_timer_add(0.01, window=context.window)
         context.window_manager.modal_handler_add(self)
+        print("modal")
         return {'RUNNING_MODAL'}
+    
+
 
 class SMVP_CANVAS_OT_setGhostMode(Operator):
-    bl_idname = "ghost.on"
-    bl_label= "ghost_on"
+    bl_idname = "object.ghost_on"
+    bl_label= "Show Ghostframes"
+    bl_options = {'REGISTER'}
 
     @classmethod
     def poll(cls, context):
         return True
 
     def execute(self, contect):
+        self.report({'INFO'}, "ghost is on")
+        
         return{'FINISHED'}
 
 
@@ -241,6 +256,8 @@ def getLights(canvas_obj):
 classes = (
     SMVP_CANVAS_OT_setCanvasActive,
     SMVP_CANVAS_OT_setDisplayMode,
+    SMVP_CANVAS_OT_setGhostMode,
+    VIEW3D_OT_modalGhosting,
     OBJECT_OT_smvpCanvasAdd,
 )
 
@@ -251,6 +268,8 @@ def register():
 
     # Event handlers
     bpy.app.handlers.frame_change_pre.append(update_canvas_textures)
+    
+    
 
 
 def unregister():
