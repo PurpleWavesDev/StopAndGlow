@@ -23,11 +23,11 @@ class RgbStacker(Processor):
         self._rescaled = None
     
     def getDefaultSettings() -> dict:
-        return {}
+        return {'domain': ImgDomain.Keep}
     
-    def process(self, img_seq: Sequence, calibration: Calibration, settings={'domain': ImgDomain.Keep}):
+    def process(self, img_seq: Sequence, calibration: Calibration, settings={}):
         # Get channels and stack them
-        self._domain = settings['domain'] if 'domain' in settings else ImgDomain.Keep
+        self._domain = GetSetting(settings, 'domain', ImgDomain.Keep)
         r = img_seq[0].asDomain(self._domain).r()
         g = img_seq[1].asDomain(self._domain).g()
         b = img_seq[2].asDomain(self._domain).b()

@@ -91,7 +91,7 @@ def run(port=9271):
                 name = GetSetting(message.data, 'name', GetDatetimeNow(), default_for_empty=True)
                 root = queue.getConfig()['seq_folder']
                 path = os.path.join(root, name)
-                queue.putCommand(Commands.Capture, 'lights' if Command.CaptureLights else 'baked', {'name': name, 'discard_video': True})
+                queue.putCommand(Commands.Capture, 'lights' if Command.CaptureLights else 'baked', {'name': name, 'discard_video': True}) # TODO: Implement discard_video
                 #queue.putCommand(Commands.Save, path)
                 send(socket, Message(Command.CommandProcessing, {'path': path}))
             ## Load from disk
@@ -120,11 +120,18 @@ def run(port=9271):
                 # Send preview image
                 queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
                 send(socket, Message(Command.CommandProcessing))
+                # Generate alpha and send again
+                queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'alpha', 'rgb': False})
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
                 
             case Command.ReqBaked:
+                # Capture and send
                 queue.putCommand(Commands.Capture, 'baked')
                 queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
                 send(socket, Message(Command.CommandProcessing))
+                # Generate alpha and send again
+                queue.putCommand(Commands.Process, 'depth', {'target': 'baked', 'destination': 'alpha', 'rgb': False})
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
             
             case Command.ReqLive:
                 queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'live'})

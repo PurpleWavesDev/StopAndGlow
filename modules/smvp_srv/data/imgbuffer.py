@@ -35,6 +35,11 @@ class ImgDomain(Enum):
 
     
 class ImgBuffer:
+    def CreateEmpty(self, resolution, with_alpha=False, dtype=IMAGE_DTYPE_FLOAT):
+        if with_alpha:
+            return ImgBuffer(img = np.dstack((np.zeros((resolution[1], resolution[0], 3), dtype=IMAGE_DTYPE_FLOAT), np.ones((resolution[1], resolution[0]), dtype=IMAGE_DTYPE_FLOAT))))
+        return ImgBuffer(img = np.zeros((resolution[1], resolution[0], 3), dtype=dtype))
+    
     def __init__(self, path=None, img: ArrayLike = None, domain: ImgDomain = ImgDomain.Keep):
         self._img=img
         self._domain=domain
@@ -90,16 +95,22 @@ class ImgBuffer:
     def hasImg(self) -> bool:
         return self._img is not None
 
-    def get(self) -> ArrayLike:
+    def get(self, trunk_alpha=False) -> ArrayLike:
         # Lazy loading
         if self._img is None:
             self.load()
+        if trunk_alpha:
+            return self._img[...,0:3]
         return self._img
     
-    def getWithAlpha(self, alpha=None):
-        if alpha is None:
-            return np.dstack((self.get(), np.ones(self._img.shape[0:2], dtype=self._img.dtype)))
-        return np.dstack((self.get(), alpha))
+    def withAlpha(self, alpha=None): # TODO: Alpha as ImgBuffer to match data format etc?
+        if alpha is not None:
+            img = np.dstack((self.get(trunk_alpha=True), alpha))
+        elif not self.hasAlpha():
+            img = np.dstack((self.get(), np.ones(self._img.shape[0:2], dtype=self._img.dtype)))
+        else:
+            img = self.get()
+        return ImgBuffer(path=self._path, img=img, domain=self.domain)
 
     def set(self, img: ArrayLike, domain: ImgDomain = ImgDomain.Keep, overwrite_file=False):
         self._img=img
@@ -208,6 +219,10 @@ class ImgBuffer:
         if self.get() is not None:
             return self._img.shape[2]
         return 0
+    def hasAlpha(self) -> int:
+        if self.get() is not None:
+            return self._img.shape[2] == 4
+        return False
     def resolution(self) -> [int, int]:
         if self.get() is not None:
             return (self._img.shape[1], self._img.shape[0])

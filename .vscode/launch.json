@@ -32,11 +32,11 @@
             "justMyCode": true
         },
         {
-            "name": "Show depth",
+            "name": "Estimate depth for Preview",
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--process", "depth", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--process", "depth", "target=preview", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

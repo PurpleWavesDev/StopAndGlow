@@ -238,14 +238,27 @@ class Worker:
                 self.hdri = ImgBuffer(path)
             
             
+            case Commands.Calibrate:
+                # --calibrate new/stack? setting=value
+                log.info(f"Starting calibration '{arg}'")
+                # TODO!
+                if arg == 'calc':
+                    processor = Calibrate()
+                elif arg == 'interactive':
+                    if not interactive in settings: settings['interactive'] = True
+                    processor = Calibrate()
+                elif arg == 'stack':
+                    stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
+                    self.hw.cal.stitch(stack_cals)
+                    self.hw.cal.save(FLAGS.cal_folder, FLAGS.new_cal_name)
+                
+                 
             case Commands.Process:
                 # --process <type> setting=value
                 log.info(f"Processing sequence with '{arg}'")
                 
-                data_key, data_sequence = self.process(self.sequence, arg, settings)
-                if data_key is not None and data_sequence is not None:
-                    self.sequence.setDataSequence(data_key, data_sequence)
-            
+                self.sequence = self.process(self.sequence, arg, settings)
+                
             
             case Commands.Render:
                 pass
@@ -293,11 +306,11 @@ class Worker:
                 mode = GetSetting(settings, 'mode', 'preview')
                 self.executor = None
                 if mode == 'preview':
-                    self.sendImg(id, self.preview.getWithAlpha())
+                    self.sendImg(id, self.sequence.getPreview().withAlpha().get())
                 elif mode == 'baked':
-                    self.sendImg(id, self.baked.getWithAlpha())
+                    self.sendImg(id, self.baked.withAlpha().get())
                 elif mode == 'render':
-                    self.sendImg(id, self.render.getWithAlpha())
+                    self.sendImg(id, self.render.withAlpha().get())
                 elif mode == 'live':
                     self.id = id
                     self.executor = Engine(self.hw, self.config['resolution'], EngineModes.Live)
@@ -358,14 +371,6 @@ class Worker:
                 processor = ExposureBlender()
             case RgbStacker.name:
                 processor = RgbStacker()
-            case 'cal':
-                if not interactive in settings: settings['interactive'] = True
-                processor = Calibrate()
-            case 'calstack':
-                #stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
-                #self.hw.cal.stitch(stack_cals)
-                #self.hw.cal.save(FLAGS.cal_folder, FLAGS.new_cal_name)
-                pass
             case 'rti':
                 if not order in settings: settings['order'] = 4
                 processor = RtiRenderer()     
@@ -374,14 +379,36 @@ class Worker:
         
         # Processing
         if processor is not None:
-            processor.process(img_seq, calibration, settings)
-            # Return data
-            return (processor.name, processor.get())
-        return (None, None)
+            target = GetSetting(settings, 'target', 'sequence')
+            match target:
+                case 'sequence':
+                    processor.process(img_seq, calibration, settings)
+                    
+                    if GetSetting(settings, 'destination') == 'alpha':
+                        for id, processed in processor.get():
+                            img_seq[id] = img_seq[id].withAlpha(processed.get())
+                    
+                case 'preview':
+                    preview_seq = Sequence()
+                    preview_seq.append(img_seq.getPreview(), 0)
+                    processor.process(preview_seq, calibration, settings)
+                    
+                    if GetSetting(settings, 'destination') == 'alpha':
+                        img_seq.setPreview(img_seq.getPreview().withAlpha(processor.get()[0].get()))
+                case _:
+                    log.warning(f"Processing target '{target}' not implemented")
+                    
+            # Set data
+            data_seq = processor.get()
+            if GetSetting(settings, 'destination', 'data') == 'data':
+                if len(data_seq) > 0:
+                    img_seq.setDataSequence(processor.name, data_seq)
+        return img_seq
+
     
     def sendImage(self, id):
         time.sleep(0.1)
-        self.sendImg(id, self.executor.execute().getWithAlpha())
+        self.sendImg(id, self.executor.execute().withAlpha().get())
 
     def sendImg(self, id, img):
         send_array(self._consumer, id, img)

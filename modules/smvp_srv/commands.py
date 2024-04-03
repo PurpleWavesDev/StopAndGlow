@@ -11,6 +11,7 @@ class Commands(StrEnum):
     Capture = '--capture'
     Load = '--load'
     LoadHdri = '--load_hdri'
+    Calibrate = '--calibrate'
     Process = '--process'
     Render = '--render'
     View = '--view'

@@ -50,7 +50,7 @@ class DepthEstimator(Processor):
         
 
     def getDefaultSettings() -> dict:
-        return {'model': DepthAnythingModels.large}
+        return {'model': DepthAnythingModels.large, 'rgb': True}
     
     def process(self, img_seq: Sequence, calibration: Calibration, settings: dict):
         self.sequence = Sequence()
@@ -61,7 +61,7 @@ class DepthEstimator(Processor):
             self.model_type = new_model_type
             self.model = DepthAnything.from_pretrained(f'LiheYoung/depth_anything_{self.model_type}14').to(self.device).eval()
         
-        for frame in [img_seq.getPreview()]:
+        for id, frame in img_seq:
             # Apply transform
             w, h = frame.resolution()
             frame = self.transform({'image': frame.get()})['image']
@@ -76,10 +76,13 @@ class DepthEstimator(Processor):
             depth = (depth - depth.min()) / (depth.max() - depth.min())
             # To numpy, add other channels
             depth = depth.cpu().numpy()
-            depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
+            if GetSetting(settings, 'rgb', True, dtype=bool):
+                depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
+            else:
+                depth = np.repeat(depth[..., np.newaxis], 1, axis=-1)
             
             # Add to sequence
-            self.sequence.append(ImgBuffer(img=depth), 0)
+            self.sequence.append(ImgBuffer(img=depth), id)
         
     def get(self) -> Sequence:
         return self.sequence
