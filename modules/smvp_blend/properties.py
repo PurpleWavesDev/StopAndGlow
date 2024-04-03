@@ -148,10 +148,7 @@ def register():
     Scene.smvp_algorithms = PointerProperty(type= SMVP_Algorithms_Props, name="Algorithms Properties")
     Object.smvp_ghost = PointerProperty(type= SMVP_GhostProps, name="Ghosting Properties")
 
-    bpy.types.WindowManager.ghost_toggle = bpy.props.BoolProperty(
-         default = False,
-         update = ghost_update_func
-    )
+
    
 
 def unregister():

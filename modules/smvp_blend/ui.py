@@ -110,15 +110,13 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
        
 
 
-        if context.object.smvp_ghost.show_ghost:
-            ghostIcon="GHOST_ENABLED"
-        else:
-            ghostIcon="GHOST_DISABLED"
+        ghostIcon=  "GHOST_ENABLED" if context.window_manager.ghost_toggle else "GHOST_DISABLED"
+          
         header, panel = layout.panel("onion_skinning", default_closed=False)
-        header.prop(context.object.smvp_ghost, 'show_ghost', text="Display Ghostframes", icon=ghostIcon, toggle=True)
+        header.prop(context.window_manager, 'ghost_toggle', text="Display Ghostframes", icon=ghostIcon, toggle=True)
        
 
-        if context.object.smvp_ghost.show_ghost and panel:
+        if context.window_manager.ghost_toggle and panel:
             row=panel.row()
             row.label(text="Previous")
             row.prop(context.object.smvp_ghost, "previous_frames", text = "")
@@ -129,7 +127,6 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
 
             panel.prop(context.object.smvp_ghost, "opacity", text= "Opacity", slider = True)
             
-            panel.operator(SMVP_CANVAS_OT_setGhostMode.bl_idname, text = "Show Ghostframes")
   
 
 
@@ -233,7 +230,7 @@ classes =(
     VIEW3D_PT_renderctl,
 
     #operator 
-    #VIEW3D_OT_ghosting,
+   # VIEW3D_OT_modalGhosting,
 
     # Canvas UI
     SMVP_CANVAS_UL_items,
@@ -251,6 +248,8 @@ def register():
     
     # Add menus
     bpy.types.VIEW3D_MT_add.append(smvp_objects_menu)
+
+   
     
    
 

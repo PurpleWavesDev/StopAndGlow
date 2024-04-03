@@ -132,6 +132,8 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             return {"CANCELLED"}
 
       
+
+
 class SMVP_CANVAS_OT_actions(Operator):
     """Move items up and down, add and remove"""
     bl_idname = "smvp_canvas.frame_action"
@@ -182,6 +184,41 @@ class SMVP_CANVAS_OT_actions(Operator):
         update_single_canvas_tex(context.scene, obj)
         return {"RUNNING_MODAL"}
 
+
+class SMVP_CANVAS_OT_ghosting(Operator):
+    """Show Ghostframes"""
+    bl_idname = "object.ghost_modal"
+    bl_label = "Modal Show Ghostframes"
+    
+    def execute(self, context):
+        #probably don't need this one
+        return {'FINISHED'}
+
+    def modal(self, context, event):
+        # textur anzeigen, aber nicht immer neu berechnen
+        # if ghostframe not none for current frame make ghostframe
+        # wie behalte ich die frametexturen im cache, so dass ich eine animation zeigen kann?
+        # update button zum neu berechnen?   
+
+        if not context.window_manager.ghost_toggle:
+            # stop when False 
+            # turn display mode back to before
+            self.report({'INFO'}, "done")
+            return {'FINISHED'}
+
+        self.report({'INFO'}, "passthrough")    
+        return {'PASS_THROUGH'}#passthrough so blender still works 
+
+    def invoke(self, context, event): #just for listening for events??
+        # maybe start the ghost mode here?
+        self.report({'INFO'}, "invoke")
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+def update_ghost_func(self, context):
+    if self.ghost_toggle:
+        bpy.ops.object.ghost_modal('INVOKE_DEFAULT')
+    return
 
 
 class SMVP_CANVAS_OT_capture(Operator):
@@ -568,6 +605,7 @@ classes = (
     SMVP_CANVAS_OT_clearFrames,
     SMVP_CANVAS_OT_removeDuplicates,
     SMVP_CANVAS_OT_selectFrame,
+    SMVP_CANVAS_OT_ghosting
 )
 
 def register():
