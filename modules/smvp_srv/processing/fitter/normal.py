@@ -22,14 +22,7 @@ class NormalFitter(PseudoinverseFitter):
         u, v = coord
         line = [u, v, 1]
     
-    def renderLight(self, buffer, coords, slices=1):
-        u, v = coords
-        sampleLight(buffer, self._coefficients, u, v)
-    
-    def renderHdri(self, hdri, rotation, slices=1):
-        pass
-    
-
+# TODO?
 @ti.kernel
 def sampleLight(pix: ti.types.ndarray(dtype=tt.vector(3, ti.f32), ndim=2), coeff: ti.template(), u: ti.f32, v: ti.f32):
     for y, x in pix:

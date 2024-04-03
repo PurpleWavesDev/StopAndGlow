@@ -101,14 +101,6 @@ class PseudoinverseFitter(ABC):
     def fillLightMatrix(self, line, coord):
         raise NotImplementedError()
     
-    @abstractmethod
-    def renderLight(self, buffer, coords, slices=1):
-        raise NotImplementedError()
-    
-    @abstractmethod
-    def renderHdri(self, buffer, hdri, rotation, slices=1):
-        raise NotImplementedError()
-        
 @ti.kernel
 def computeCoefficientSlice(sequence: ti.template(), coefficients: ti.template(), inverse: ti.types.ndarray(dtype=ti.f32, ndim=2), row_offset: ti.i32):
     # Iterate over pixels and factor count

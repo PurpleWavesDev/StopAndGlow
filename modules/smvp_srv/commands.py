@@ -18,6 +18,7 @@ class Commands(StrEnum):
     Save = '--save'
     Send = '--send'
     Lights = '--lights'
+    Camera = '--camera'
     Sleep = '--sleep'
     Quit = '--quit'
     LogLevel = '--loglevel'

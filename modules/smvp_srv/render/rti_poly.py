@@ -1,36 +1,54 @@
-from .pseudoinverse import PseudoinverseFitter
-from ...hw.calibration import *
+import logging as log
+import numpy as np
 
 import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
-from ...utils import ti_base as tib
 
-class PolyFitter(PseudoinverseFitter):
-    name = "Polynomial Fitter"
+from ..utils import ti_base as tib
+from ..data import *
+from ..hw.calibration import *
+
+from .fitter import *
+from .bsdf import *
+
+
+class RTIPoly(BSDF):
+    name = 'rti'
     
-    def __init__(self, settings):
-        super().__init__(settings)
-        # Settings: Limit polynom order
-        self._order = max(2, min(6, settings['order'])) if 'order' in settings else 3
+    def __init__(self):
+        self._fitter = None
     
-    def getCoefficientCount(self) -> int:
-        """Returns number of coefficients"""
-        return (self._order+1)*(self._order+2) // 2
-        #return (order+1)**2 // 2 + (order+1) // 2
-            
-    def fillLightMatrix(self, line, coord):
-        u, v = coord
-        # Start with order 0 and 1 
-        line[0] = 1
-        line[1] = u
-        line[2] = v
-        # Higher orders
-        idx = 3
-        for n in range(2, self._order+1):
-            for i in range(n+1):
-                line[idx] = u**(n-i) * v**i
-                idx += 1
+    def load(self, data: Sequence, calibration: Calibration, settings={}):
+        self._fitter.loadCoefficients(rti_seq)
+        pass
+    
+    @ti.func
+    def sample(self, x: ti.i32, y: ti.i32, n1: ti.f32, n2: ti.f32) -> tib.pixvec:
+        return [0, 0, 0]
+
+    
+
+    def renderLight(self, light_pos) -> ImgBuffer:
+        # Init Taichi field
+        res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
+        #pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
+        pixels = ti.ndarray(tm.vec3, (res_y, res_x))
+        
+        u, v = Latlong2UV(light_pos)
+        trti.sampleLight(pixels, self._rti_factors, u, v)
+        
+        return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)
+    
+    def renderHdri(self, hdri, rotation) -> ImgBuffer:
+        # Init Taichi field
+        res_x, res_y = (self._rti_factors.shape[2], self._rti_factors.shape[1])
+        #pixels = ti.Vector.field(n=3, dtype=ti.f32, shape=(res_y, res_x))
+        pixels = ti.ndarray(tm.vec3, (res_y, res_x))
+
+        trti.sampleHdri(pixels, self._rti_factors, hdri, rotation)
+        
+        return ImgBuffer(img=pixels.to_numpy(), domain=ImgDomain.Lin)
     
     def renderLight(self, buffer, coords, slices=1):
         u, v = coords

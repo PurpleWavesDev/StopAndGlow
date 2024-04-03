@@ -26,6 +26,8 @@ class VIEW3D_PT_domectl(Panel):
         row = self.layout.row()
         row.operator(WM_OT_smvp_launch.bl_idname, text="Launch service")
         row = self.layout.row()
+        row.operator(OBJECT_OT_smvpCanvasAdd.bl_idname, text="Setup Scene", icon ="PLUS")
+        row = self.layout.row()
         row.operator(WM_OT_smvp_lightctl.bl_idname, text="Lights on", icon = "OUTLINER_OB_LIGHT").light_state = "TOP"
         row = self.layout.row()
         row.operator(WM_OT_smvp_lightctl.bl_idname, text="Lights off", icon = "OUTLINER_DATA_LIGHT").light_state = "OFF"
@@ -51,9 +53,10 @@ class VIEW3D_PT_capturectl(Panel):
         scn = context.scene
         active = scn.smvp_scene.active_canvas
 
-        layout.operator(OBJECT_OT_smvpCanvasAdd.bl_idname, text="Setup Scene", icon ="PLUS")
-        layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Sequence")
-        layout.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked Lights").baked = True
+        row = self.layout.row()
+        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture")
+        row = self.layout.row()
+        row.operator(SMVP_CANVAS_OT_updateScene.bl_idname, icon="RECOVER_LAST", text="Update")
 
         row = layout.row(align=True)
         if not active in context.scene.objects:

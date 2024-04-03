@@ -1,0 +1,19 @@
+import numpy as np
+
+import taichi as ti
+import taichi.math as tm
+import taichi.types as tt
+
+from ..utils import ti_base as tib
+from ..data import *
+from ..hw.calibration import *
+
+class BSDF:
+    name = "bsdf"
+    
+    def load(self, sequence: Sequence, calibration: Calibration, settings={}):
+        pass
+    
+    @ti.func
+    def sample(self, x: ti.i32, y: ti.i32, n1: ti.f32, n2: ti.f32) -> tib.pixvec:
+        return [0, 0, 0]

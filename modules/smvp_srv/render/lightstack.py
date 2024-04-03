@@ -9,13 +9,26 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
-from ..data import *
 from ..utils import ti_base as tib
+from ..data import *
+from ..hw.calibration import *
 
-from .renderer import *
-#from . import renderer.ti_stack as tstack
+from .bsdf import *
 
 
+class Lightstack(BSDF):
+    name = 'lightstack'
+    
+    def __init__(self):
+        pass
+    
+    def load(self, data: Sequence, calibration: Calibration, settings={}):
+        pass
+    
+    @ti.func
+    def sample(self, x: ti.i32, y: ti.i32, n1: ti.f32, n2: ti.f32) -> tib.pixvec:
+        return [0, 0, 0]
+    
 class LightStacker(Renderer):
     name = "Light Stacker"
     name_short = "lightstack"
@@ -24,7 +37,7 @@ class LightStacker(Renderer):
         self._u_min = self._u_max = self._v_min = self._v_max = None
         
     # Loading, processing etc.
-    def load(self, seq: Sequence):
+    def load(self, sequence: Sequence, calibration: Calibration, settings={}):
         # Init Taichi fields
         res_x, res_y = (1024, 512)
         self._data_id = ti.field(dtype=ti.i16, shape=(res_y, res_x, count))
@@ -34,7 +47,7 @@ class LightStacker(Renderer):
         self._latlong_min = rti_seq.getMeta('latlong_min', (0, 0))
         self._latlong_max = rti_seq.getMeta('latlong_max', (1, 1))
     
-    def get(self) -> Sequence:
+    def sample(self) -> Sequence:
         seq = Sequence()
         
         # Metadata

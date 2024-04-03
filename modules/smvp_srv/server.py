@@ -103,13 +103,13 @@ def run(port=9271):
             
             ## LightInfo
             case Command.LightsSet:
+                # Reset light data
+                queue.putCommand(Commands.Render, 'reset')
+                # Add each light separately
+                for light in message.data:
+                    queue.putCommand(Commands.Render, 'light', light)
                 send(socket, Message(Command.CommandOkay))
-                pass
-                message.data['sun'] # Rotation, spread(?)
-                message.data['point'] # Position, size(?)
-                #message.data['spot'] # Position, rotation, angle, falloff(?), size(?)
-                queue.putCommand(Commands.Lights)
-            
+                
             #case Command.LightsHdriRotation:
             #case Command.LightsHdriTexture:
             

@@ -9,9 +9,9 @@ from . import client
 algorithms = []
 display_modes = [
         ('prev', '', 'Preview',"SHADING_SOLID", 0),
-        ('bake', '', 'Baked Lights', "SHADING_TEXTURE",1),
-        ('rend', '', 'Rendered', "SHADING_RENDERED",2),
-        ('live', '', 'Live View', "SCENE", 3)
+        ('live', '', 'Live View', "SCENE", 1),
+        ('bake', '', 'Baked Lights', "LIGHT", 2), # LIGHT / SHADING_TEXTURE / MATERIAL?
+        ('rend', '', 'Rendered', "SHADING_RENDERED", 3),
     ]
 
 def DisplayModeProp(callback=None):

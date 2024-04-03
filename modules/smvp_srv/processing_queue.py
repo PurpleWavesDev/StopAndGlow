@@ -261,7 +261,17 @@ class Worker:
                 
             
             case Commands.Render:
-                pass
+                match arg:
+                    case 'reset':
+                        pass
+                    case 'light':
+                        pass
+                    case 'hdri':
+                        pass
+                    case 'hdri_data':
+                        pass
+                    case 'render':
+                        pass
             
             case Commands.View:
                 # --view sequence/render/preview/live
@@ -337,6 +347,9 @@ class Worker:
                         self.lightctl.setRing(90-90*amount, 135*width, int(power*255))
                     case 'off':
                         self.hw.lights.off()
+            
+            case Commands.Camera:
+                pass
                 
             case Commands.Sleep:
                 # --sleep 1.0

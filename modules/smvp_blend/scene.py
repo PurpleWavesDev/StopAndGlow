@@ -47,13 +47,13 @@ class SMVP_CANVAS_OT_setCanvasActive(Operator):
 
 class SMVP_CANVAS_OT_updateScene(Operator):
     """Updates lights and canvas positions for the SMVP server"""
-    bl_label = "Updates scene"
+    bl_label = "Update Scene"
     bl_idname = "smvp.update_scene"
     bl_description = "Updates lights and canvas positions for the SMVP server"
 
     def execute(self, context):
-        obj = context.object
-        updateScene(obj)
+        #obj = context.object
+        updateScene()
         return{'FINISHED'}
 
 
@@ -80,9 +80,9 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
         
         # Stop receiving images for live mode
         client.serviceRemoveReq(canvas.live_texture)
-        # For rendering mode set texture updated to false
-        if self.display_mode == 'rend':
-            canvas_frame.texture_updated = False
+        # For rendering mode set texture updated to false; TODO: Avoid re-rendering
+        #if self.display_mode == 'rend':
+        #    canvas_frame.texture_updated = False
         # Change of mode and scene update triggered by handler
         if canvas.display_mode != self.display_mode:
             canvas.display_mode = self.display_mode
@@ -178,11 +178,13 @@ def update_canvas_textures(scene):
             # Canvas found!
             update_single_canvas_tex(scene, obj)
 
-def updateScene(obj):
+def updateScene():
     if client.connected:
         # Get lights and send to server
-        light_data = getLights(obj)
-        Message(Command.LightsSet, light_data)
+        light_data = getLights()
+        print(light_data)
+        #for lgt in light_data:
+        message = Message(Command.LightsSet, light_data)
         client.sendMessage(message)
         
         # Mark rendered frames as not updated
@@ -194,25 +196,25 @@ def updateScene(obj):
 # -------------------------------------------------------------------
 #   Helpers
 # -------------------------------------------------------------------
-def getLights(canvas_obj):
-    center_pos = canvas_obj.matrix_world.translation
+def getLights():
+    #center_pos = canvas_obj.matrix_world.translation
     #canvas_rot = canvas_obj.rotation_euler.to_matrix().invert().to_4x4()
     #mat_transl_rot = 
     
-    light_data = {'point': [], 'sun': []}
+    light_data = []
     for light in bpy.data.objects:
         if light.type == 'LIGHT':
             match light.data.type:
                 case 'POINT':
                     # Relative position (factoring in scale), size(?), power, color
-                    relative_pos = light.matrix_world.translation - center_pos
+                    relative_pos = light.matrix_world.translation# - center_pos
                     # Rotate with canvas rotation
                     #relative_pos.rotate(canvas_rot)
                     # Scale by canvsa scale
                     #relative_pos *= scale
                     power = light.data.energy # multiplied with custom factor stop_lighting_factor
                     color = light.data.color# from_srgb_to_scene_linear() # convert ?
-                    light_data['point'].append({'position': relative_pos, 'power': power, 'color': (color.r, color.g, color.b)})
+                    light_data.append({'type': 'point', 'position': list(relative_pos), 'power': float(power), 'color': list(color)})
                 case 'SUN':
                     # Direction, spread(?), power, color
                     vec = mathutils.Vector((0.0, 0.0, 1.0))
@@ -220,7 +222,7 @@ def getLights(canvas_obj):
                     latlong = (math.degrees(math.asin(vec[2])), math.degrees(math.acos(vec[1])) if vec[0] > 0 else 360 - math.degrees(math.acos(vec[1]))) # TODO
                     power = light.data.energy # multiplied with custom factor stop_lighting_factor
                     color = light.data.color# from_srgb_to_scene_linear() # convert ?
-                    light_data['sun'].append({'latlong': latlong, 'power': power, 'color': (color.r, color.g, color.b)})
+                    light_data.append({'type': 'sun', 'latlong': latlong, 'power': power, 'color': (color.r, color.g, color.b)})
                 case 'SPOT':
                     pass
                 case 'AREA':
@@ -236,6 +238,7 @@ def getLights(canvas_obj):
 classes = (
     SMVP_CANVAS_OT_setCanvasActive,
     SMVP_CANVAS_OT_setDisplayMode,
+    SMVP_CANVAS_OT_updateScene,
     SMVP_CANVAS_OT_setGhostMode,
     OBJECT_OT_smvpCanvasAdd,
 )

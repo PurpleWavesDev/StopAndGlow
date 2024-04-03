@@ -2,7 +2,7 @@ import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
 
-        
+# TODO: Class missing
 #def FourierSeries(order, u, v):
 #    series = np.array([1], dtype=np.float32)
 #    for n in range(1, order+1):
@@ -16,7 +16,7 @@ import taichi.types as tt
 #    return 4*order*order+1
 
 
-        
+# TODO: Move to render submodule
 @ti.func
 def sampleUVFour(A: ti.template(), y: ti.i32, x: ti.i32, u: ti.f32, v: ti.f32):
     rgb = A[0, y, x]
