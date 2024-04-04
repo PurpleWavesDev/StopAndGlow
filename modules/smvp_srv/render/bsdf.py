@@ -8,6 +8,7 @@ from ..utils import ti_base as tib
 from ..data import *
 from ..hw.calibration import *
 
+@ti.dataclass
 class BSDF:
     name = "bsdf"
     

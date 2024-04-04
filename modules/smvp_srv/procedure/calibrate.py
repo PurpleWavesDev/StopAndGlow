@@ -9,9 +9,9 @@ import taichi as ti
 from ..data import *
 from ..hw import Calibration
 from ..utils import *
-from ..render.renderer import *
+from ..viewer.viewer import *
 
-class Calibrate(Renderer):
+class Calibrate(Viewer):
     def __init__(self):
         self._recalc = False
         self._cal = Calibration()

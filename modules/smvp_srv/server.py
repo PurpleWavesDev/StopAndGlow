@@ -6,6 +6,7 @@ from smvp_ipc import *
 
 from .processing_queue import *
 from .commands import *
+from .render import bsdf
 from .utils.utils import GetDatetimeNow
 
 
@@ -138,13 +139,14 @@ def run(port=9271):
                 send(socket, Message(Command.CommandProcessing))
 
             case Command.ReqRender:
+                queue.putCommand(Commands.Render, 'render')
                 queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'render'})
                 send(socket, Message(Command.CommandProcessing))
             
             
             ## Render Algorithmns
             case Command.GetRenderAlgorithms:
-                answer = {'algorithms': [(rend.name_short, rend.name) for rend in renderers]}
+                answer = {'algorithms': [(name, name_long) for name, name_long, _ in bsdfs]}
                 send(socket, Message(Command.CommandAnswer, answer))
             
             case Command.GetRenderSettings:
@@ -156,10 +158,10 @@ def run(port=9271):
                     send(socket, Message(Command.CommandError, {'message': 'No renderer selected'}))
             
             case Command.SetRenderer:
-                rend_name = message.data['algorithm']
+                algorithm = message.data['algorithm']
                 try:
-                    renderer = [rend for rend in renderers if rend.name_short == rend_name][0]
-                    # TODO: set!
+                    [None for name, _, _ in bsdfs if name == algorithm][0]
+                    queue.putCommand(Commands.Render, 'config', message.data)
                     send(socket, Message(Command.CommandAnswer, answer))
                 except:
                     send(socket, Message(Command.CommandError, {'message': 'Unknwon render algorithm selected'}))

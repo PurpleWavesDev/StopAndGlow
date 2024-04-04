@@ -109,7 +109,7 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
         header.label(text="Algorithms")
         if panel:
             panel.prop(algs, "algs_dropdown_items", expand = False)
-            panel.operator("mesh.primitive_monkey_add", text="Apply") #TODO operator for this button
+            panel.operator(SMVP_CANVAS_OT_applyRenderAlgorithm.bl_idname)
        
 
 

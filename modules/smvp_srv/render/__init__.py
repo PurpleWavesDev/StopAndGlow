@@ -1,6 +1,6 @@
 from .renderer import *
-# Renderers
+# BSDFs
 from .lightstack import *
-from .rti import *
+from .rti_poly import *
 
-renderers = (LightStacker, RtiRenderer)
+bsdfs = [('stack', 'Light Stack', LightstackBsdf), ('poly', 'RTI Polynominal', RTIPolyBsdf)]

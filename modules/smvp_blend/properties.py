@@ -145,7 +145,7 @@ def register():
     Scene.smvp_scene = PointerProperty(type=SMVP_SceneProps, name="SMVP Scene Properties")
     Object.smvp_canvas = PointerProperty(type=SMVP_CanvasProps, name="SMVP Canvas Properties")
     Camera.smvp = PointerProperty(type=SMVP_CameraProps, name="SMVP Camera Properties")
-    Scene.smvp_algorithms = PointerProperty(type= SMVP_Algorithms_Props, name="Algorithms Properties")
+    Scene.smvp_algorithms = PointerProperty(type=SMVP_Algorithms_Props, name="Algorithms Properties")
     Object.smvp_ghost = PointerProperty(type= SMVP_GhostProps, name="Ghosting Properties")
 
 

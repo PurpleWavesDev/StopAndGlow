@@ -2,8 +2,9 @@ class Scene:
     def __init__(self):
         self._lights = []
         
-    def clearLights(self):
-        pass
+    def clear(self):
+        self._lights.clear()
     
-    def addLight(self, light):
-        pass
+    def addLight(self, light_data):
+        print(light_data)
+    

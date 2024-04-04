@@ -90,6 +90,47 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
         return{'FINISHED'}
 
 
+# TODO: OP for canvas object or globally? Can server handle object based render algorithms (probably not)?
+class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
+    """Applys the selected render algorithm"""
+    bl_label = "Apply Algorithm"
+    bl_idname = "smvp_canvas.apply_algorithm"
+    bl_description = "Applys the selected render algorithm"
+    bl_options = {'REGISTER'}
+    
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None and context.object.smvp_canvas.is_canvas) or\
+            context.scene.smvp_scene.active_canvas in bpy.data.objects
+    
+    def execute(self, context):
+        scn = context.scene
+        obj = context.object
+        if obj is None or not obj.smvp_canvas.is_canvas:
+            obj = bpy.data.objects[scn.smvp_scene.active_canvas]
+        canvas = obj.smvp_canvas
+        
+        message = Message(Command.SetRenderer, {'algorithm': scn.smvp_algorithms.algs_dropdown_items})
+        client.sendMessage(message)
+        return{'FINISHED'}
+
+
+class SMVP_CANVAS_OT_setGhostMode(Operator):
+    bl_idname = "object.ghost_on"
+    bl_label= "Show Ghostframes"
+    bl_options = {'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, contect):
+        self.report({'INFO'}, "ghost is on")
+        
+        return{'FINISHED'}
+
+
+
 
 
     
@@ -238,8 +279,9 @@ def getLights():
 classes = (
     SMVP_CANVAS_OT_setCanvasActive,
     SMVP_CANVAS_OT_setDisplayMode,
-    SMVP_CANVAS_OT_updateScene,
+    SMVP_CANVAS_OT_applyRenderAlgorithm,
     SMVP_CANVAS_OT_setGhostMode,
+    SMVP_CANVAS_OT_updateScene,
     OBJECT_OT_smvpCanvasAdd,
 )
 

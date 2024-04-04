@@ -62,7 +62,6 @@ class Worker:
         tib.TIBase.gpu = True
         tib.TIBase.debug = True
         tib.TIBase.init()
-        self.tib_buffer = None
         
         # Default config
         self.config = Config()
@@ -70,14 +69,20 @@ class Worker:
         # Sequence data and buffers
         self.sequence = Sequence()
         self.hdri = ImgBuffer(path=os.path.join(self.config['hdri_folder'], self.config['hdri_name']))
-        self.img_buf = ImgBuffer()
+        self.img_buf = ImgBuffer.CreateEmpty(self.config['resolution'], True)
         
         # Setup hardware
         calibration = Calibration(path=os.path.join(self.config['cal_folder'], self.config['cal_name']))
         self.hw = HW(Cam(), Lights(), calibration)
         self.lightctl = LightCtl(self.hw)
+        
+        # For client communication and continuous execution
+        self.req_id = 0
         self.executor = None
-        self.id = 0
+        
+        # Rendering
+        self.renderer = Renderer()
+        self.ti_buffer = ti.ndarray(ti.types.vector(3, ti.f32), (self.config['resolution'][1], self.config['resolution'][0])) # Cannot loop over the object <class 'taichi.lang.matrix.VectorNdarray'> in Taichi scope. Only Taichi fields (via template) or dense arrays (via types.ndarray) are supported.
 
         while self._keep_running or not queue.empty():
             try:
@@ -85,11 +90,11 @@ class Worker:
                 self.processCommand(command, arg, settings)
             except Q.Empty:
                 if self.executor is not None:
-                    self.sendImage(self.id)
+                    self.sendImage(self.req_id)
                 else:
                     time.sleep(0.1)
             except Exception as e:
-                log.error(f"Command '{command} {arg}': {str(e)}")
+                log.error(f" Command '{command} {arg}': {str(e)}")
                 if not self._keep_running:
                     return False
         
@@ -217,7 +222,7 @@ class Worker:
                 self.sequence.load(path, defaults=default_config, overrides=settings)
                 
                 # Get preview TODO
-                self.preview = self.sequence.getPreview().asDomain(ImgDomain.sRGB, ti_buffer=self.tib_buffer)
+                self.preview = self.sequence.getPreview().asDomain(ImgDomain.sRGB, ti_buffer=self.ti_buffer)
                 res = self.config['resolution']
                 scale = max(res[0] / self.preview.resolution()[0], res[1] / self.preview.resolution()[1])
                 self.preview = self.preview.scale(scale).crop(res)
@@ -262,16 +267,24 @@ class Worker:
             
             case Commands.Render:
                 match arg:
+                    case 'config':
+                        if 'algorithm' in settings:
+                            bsdf = [bsdf for name, _, bsdf in bsdfs if name == settings['algorithm']]
+                            if len(bsdf) == 1:
+                                bsdf = bsdf[0]()
+                                bsdf.load(self.sequence, self.hw.cal) # TODO: What if sequence has no bsdf data?
+                                self.renderer.setBsdf(bsdf)
                     case 'reset':
-                        pass
+                        self.renderer.getScene().clear()
                     case 'light':
-                        pass
+                        self.renderer.getScene().addLight(settings)
                     case 'hdri':
                         pass
                     case 'hdri_data':
                         pass
                     case 'render':
-                        pass
+                        self.renderer.initRender(self.ti_buffer)
+                        self.renderer.sample() # TODO
             
             case Commands.View:
                 # --view sequence/render/preview/live
@@ -320,9 +333,11 @@ class Worker:
                 elif mode == 'baked':
                     self.sendImg(id, self.baked.withAlpha().get())
                 elif mode == 'render':
-                    self.sendImg(id, self.render.withAlpha().get())
+                    # TODO: Straight from buffer? Alpha channel?
+                    rendered = ImgBuffer(img=self.ti_buffer.to_numpy())
+                    self.sendImg(id, rendered.withAlpha().get())
                 elif mode == 'live':
-                    self.id = id
+                    self.req_id = id
                     self.executor = Engine(self.hw, self.config['resolution'], EngineModes.Live)
                     self.sendImage(id)
             

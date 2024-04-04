@@ -35,7 +35,7 @@ class ImgDomain(Enum):
 
     
 class ImgBuffer:
-    def CreateEmpty(self, resolution, with_alpha=False, dtype=IMAGE_DTYPE_FLOAT):
+    def CreateEmpty(resolution, with_alpha=False, dtype=IMAGE_DTYPE_FLOAT):
         if with_alpha:
             return ImgBuffer(img = np.dstack((np.zeros((resolution[1], resolution[0], 3), dtype=IMAGE_DTYPE_FLOAT), np.ones((resolution[1], resolution[0]), dtype=IMAGE_DTYPE_FLOAT))))
         return ImgBuffer(img = np.zeros((resolution[1], resolution[0], 3), dtype=dtype))
