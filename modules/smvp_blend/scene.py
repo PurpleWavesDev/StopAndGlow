@@ -125,28 +125,6 @@ class SMVP_CANVAS_OT_setGhostMode(Operator):
         return True
 
     def execute(self, contect):
-        self.report({'INFO'}, "ghost is on")
-        
-        return{'FINISHED'}
-
-
-
-
-
-    
-
-
-class SMVP_CANVAS_OT_setGhostMode(Operator):
-    bl_idname = "object.ghost_on"
-    bl_label= "Show Ghostframes"
-    bl_options = {'REGISTER'}
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def execute(self, contect):
-        self.report({'INFO'}, "ghost is on")
         
         return{'FINISHED'}
 

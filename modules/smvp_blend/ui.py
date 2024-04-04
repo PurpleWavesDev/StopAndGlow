@@ -39,9 +39,8 @@ class VIEW3D_PT_domectl(Panel):
 
 class VIEW3D_PT_capturectl(Panel): 
 
-    # where to add the panel in the UI
-    bl_space_type = "VIEW_3D"  # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
-    bl_region_type = "UI"  # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
+    bl_space_type = "VIEW_3D" 
+    bl_region_type = "UI" 
 
     bl_category = "Stop Motion" 
     bl_label = "Capture" 
@@ -89,7 +88,8 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
     
     @classmethod
     def poll(cls, context):
-        return context.object is not None
+        return (context.object is not None and context.object.smvp_canvas.is_canvas) or\
+            context.scene.smvp_scene.active_canvas in bpy.data.objects
  
       
     def draw(self, context):
@@ -97,23 +97,20 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
         scene = context.scene
         algs = scene.smvp_algorithms
         ghostIcon = ""
-
+        obj = context.object
       
         row = layout.row()
         row.label(text= "Render Modes")
         row.prop(context.object.smvp_canvas,'display_mode',expand = True)
 
 
-
-        header, panel = layout.panel("my_panel_id", default_closed=False)
+        header, panel = layout.panel("algs_panel_id", default_closed=False)
         header.label(text="Algorithms")
         if panel:
             panel.prop(algs, "algs_dropdown_items", expand = False)
-            panel.operator(SMVP_CANVAS_OT_applyRenderAlgorithm.bl_idname)
-       
-
-
-        ghostIcon=  "GHOST_ENABLED" if context.window_manager.ghost_toggle else "GHOST_DISABLED"
+            panel.operator(SMVP_CANVAS_OT_applyRenderAlgorithm.bl_idname)  
+        
+        ghostIcon=  "GHOST_ENABLED" if obj.smvp_ghost.show_ghost else "GHOST_DISABLED"
           
         header, panel = layout.panel("onion_skinning", default_closed=False)
         header.prop(context.window_manager, 'ghost_toggle', text="Display Ghostframes", icon=ghostIcon, toggle=True)

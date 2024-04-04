@@ -187,37 +187,39 @@ class SMVP_CANVAS_OT_actions(Operator):
 
 class SMVP_CANVAS_OT_ghosting(Operator):
     """Show Ghostframes"""
-    bl_idname = "object.ghost_modal"
+    bl_idname = "object.show_ghostframes"
     bl_label = "Modal Show Ghostframes"
     
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None and context.object.smvp_canvas.is_canvas) or\
+            context.scene.smvp_scene.active_canvas in bpy.data.objects
+    
     def execute(self, context):
-        #probably don't need this one
+        scn = context.scene
+        obj = context.object
+               
+        obj.smvp_ghost.show_ghost = True
+        update_single_canvas_tex(scn, obj) #does this keep calling the fuction while true?
         return {'FINISHED'}
 
     def modal(self, context, event):
-        # textur anzeigen, aber nicht immer neu berechnen
-        # if ghostframe not none for current frame make ghostframe
-        # wie behalte ich die frametexturen im cache, so dass ich eine animation zeigen kann?
-        # update button zum neu berechnen?   
-
+        obj = context.object
+        obj.smvp_ghost.show_ghost = True
         if not context.window_manager.ghost_toggle:
-            # stop when False 
-            # turn display mode back to before
-            self.report({'INFO'}, "done")
+            obj.smvp_ghost.show_ghost = False
+            # SMVP_CANVAS_OT_setDisplayMode.bl_idname() can't call operator like that
             return {'FINISHED'}
+           
+        return {'PASS_THROUGH'}
 
-        self.report({'INFO'}, "passthrough")    
-        return {'PASS_THROUGH'}#passthrough so blender still works 
-
-    def invoke(self, context, event): #just for listening for events??
-        # maybe start the ghost mode here?
-        self.report({'INFO'}, "invoke")
+    def invoke(self, context, event):         
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
 def update_ghost_func(self, context):
     if self.ghost_toggle:
-        bpy.ops.object.ghost_modal('INVOKE_DEFAULT')
+        bpy.ops.object.show_ghostframes('INVOKE_DEFAULT')
     return
 
 
@@ -395,16 +397,18 @@ def update_single_canvas_tex(scene, obj):
     img = getTexture(obj, scene.frame_current)
     
     # If ghosting -> select ghosting frames and apply img + ghosting frames
-    if False: # show_ghost:
+    if obj.smvp_ghost.show_ghost:
         frames_before = []
         frames_after = []
         keyframes = getKeyframes(canvas_obj)
+        
         for i in enumerate(keyframes):
             frame_number = keyframes[i][0]
             
-        # 
+        
         for idx in frames_before:
             getTextureForIdx(obj, id, display_mode='prev')
+            
 
     try:
         obj.active_material.node_tree.nodes["ImageTexture"].image = img

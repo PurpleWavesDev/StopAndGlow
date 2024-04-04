@@ -68,7 +68,6 @@ class SMVP_GhostProps(PropertyGroup):
         name="Show Ghostframes", 
         description="Toggle the display of frames before and/or after the current frame", 
         default = False,
-        update = ghost_update_func,
         )
     previous_frames: IntProperty(
         name="Previous Frames", 
