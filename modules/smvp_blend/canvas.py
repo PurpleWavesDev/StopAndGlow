@@ -3,6 +3,7 @@ import os
 import bpy
 from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
+import numpy as np
 
 import smvp_ipc as ipc
 
@@ -208,7 +209,7 @@ class SMVP_CANVAS_OT_ghosting(Operator):
         obj.smvp_ghost.show_ghost = True
         if not context.window_manager.ghost_toggle:
             obj.smvp_ghost.show_ghost = False
-            # SMVP_CANVAS_OT_setDisplayMode.bl_idname() can't call operator like that
+            bpy.ops.smvp_canvas.display_mode(display_mode=obj.display_mode)
             return {'FINISHED'}
            
         return {'PASS_THROUGH'}
@@ -396,26 +397,52 @@ def update_single_canvas_tex(scene, obj):
     # Get texture to show
     img = getTexture(obj, scene.frame_current)
     
-    # If ghosting -> select ghosting frames and apply img + ghosting frames
     if obj.smvp_ghost.show_ghost:
-        frames_before = []
-        frames_after = []
-        keyframes = getKeyframes(canvas_obj)
+        frames= []
+        keyframes = getKeyframes(obj)
+        w,h = img.size
+        cur_img_data = np.zeros((w,h,4), 'f') #numpy arrays 
+        prev_img_data = np.zeros((w,h,4), 'f')
+        foll_img_data = np.zeros((w,h,4), 'f')
+        key_img_data = np.zeros((w,h,4), 'f')
+        new_img_data = np.zeros((w,h,4), 'f')
+        op = obj.smvp_ghost.opacity
+               
+        img.pixels.foreach_get(cur_img_data.ravel()) #copy data from img into array
+
+        for i, key in enumerate(keyframes):
+            framedistance = scene.frame_current - key[0] #[0] ist x wert - timeline
+            if framedistance <= obj.smvp_ghost.previous_frames:
+                if -framedistance > obj.smvp_ghost.following_frames:
+                    break
+                frames.append((i,framedistance))
+        #new_img_data=cur_img_data
+        for idx, distance in frames:
+            getTextureForIdx(obj, idx, display_mode='prev').pixels.foreach_get(key_img_data.ravel())
+            prev_img_data = prev_img_data*op+ key_img_data*(1-op)
+            if distance <= 0:
+              #  prev_img_data=np.power(prev_img_data, 2.2)
+                break
         
-        for i in enumerate(keyframes):
-            frame_number = keyframes[i][0]
+        for idx, distance in reversed(frames):
+            getTextureForIdx(obj, idx, display_mode='prev').pixels.foreach_get(key_img_data.ravel())
+            foll_img_data = foll_img_data*op+ key_img_data*(1-op)
+            if distance >= 0:
+                break
             
-        
-        for idx in frames_before:
-            getTextureForIdx(obj, id, display_mode='prev')
-            
+           
+        new_img_data = prev_img_data*(0.5*op) + foll_img_data*(0.5*op) + cur_img_data*(1-op)
+        img = bpy.data.images[obj.smvp_canvas.ghost_texture]
+        img.pixels.foreach_set(new_img_data.ravel())
 
     try:
         obj.active_material.node_tree.nodes["ImageTexture"].image = img
     except Exception as e:
         print(f"Error setting canvas texture: {str(e)}")
 
-
+def rgb2_lumin_grey(orig_img):
+    luminosity_constant = [0.21,0.72,0.07]
+    return np.dot(orig_img[...,3], luminosity_constant).astype(np.uint8)
 
 # -------------------------------------------------------------------
 #   Shader, Material, Image Texture Helpers
@@ -544,7 +571,7 @@ def getTexture(canvas_obj, frame):
 def getTextureForIdx(canvas_obj, index, display_mode=None):
     """Returns the texture for the index and display_mode. Uses active display mode if none provided""" 
     canvas = canvas_obj.smvp_canvas
-    canvas_frame = canvas.frame_list[index]
+    canvas_frame = canvas.frame_list[index%len(canvas.frame_list)]
     # Get image name for display mode and check if image needs to be requested
     image_name = ""
     command = None

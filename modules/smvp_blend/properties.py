@@ -72,12 +72,12 @@ class SMVP_GhostProps(PropertyGroup):
     previous_frames: IntProperty(
         name="Previous Frames", 
         description="Defines the number of previous frames displayed in Ghost Mode", 
-        default=10, min=0, max=20, step=1
+        default=10, min=0, soft_max=20, step=1
         )
     following_frames: IntProperty(
         name="Following Frames",
         description="Defines the number of following frames displayed in Ghost Mode",
-        default=10, min=0, max=20, step=1
+        default=10, min=0, soft_max=20, step=1
         )
     opacity: FloatProperty(
         name="Ghost Opacity", 

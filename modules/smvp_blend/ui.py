@@ -98,10 +98,12 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
         algs = scene.smvp_algorithms
         ghostIcon = ""
         obj = context.object
+        if obj is None or not obj.smvp_canvas.is_canvas:
+            obj = bpy.data.objects[scn.smvp_scene.active_canvas]
       
         row = layout.row()
         row.label(text= "Render Modes")
-        row.prop(context.object.smvp_canvas,'display_mode',expand = True)
+        row.prop(obj.smvp_canvas,'display_mode',expand = True)
 
 
         header, panel = layout.panel("algs_panel_id", default_closed=False)
@@ -111,21 +113,22 @@ class VIEW3D_PT_renderctl(bpy.types.Panel):
             panel.operator(SMVP_CANVAS_OT_applyRenderAlgorithm.bl_idname)  
         
         ghostIcon=  "GHOST_ENABLED" if obj.smvp_ghost.show_ghost else "GHOST_DISABLED"
+        ghostLabel= "Hide Ghostframes" if obj.smvp_ghost.show_ghost else "Display Ghostframes"
           
         header, panel = layout.panel("onion_skinning", default_closed=False)
-        header.prop(context.window_manager, 'ghost_toggle', text="Display Ghostframes", icon=ghostIcon, toggle=True)
+        header.operator(SMVP_CANVAS_OT_setGhostMode.bl_idname, text= ghostLabel, icon=ghostIcon)
        
 
-        if context.window_manager.ghost_toggle and panel:
+        if panel:
             row=panel.row()
             row.label(text="Previous")
-            row.prop(context.object.smvp_ghost, "previous_frames", text = "")
+            row.prop(obj.smvp_ghost, "previous_frames", text = "")
 
             row= panel.row()
             row.label(text="Post")
-            row.prop(context.object.smvp_ghost, "following_frames", text="") 
+            row.prop(obj.smvp_ghost, "following_frames", text="") 
 
-            panel.prop(context.object.smvp_ghost, "opacity", text= "Opacity", slider = True)
+            panel.prop(obj.smvp_ghost, "opacity", text= "Opacity", slider = True)
             
   
 

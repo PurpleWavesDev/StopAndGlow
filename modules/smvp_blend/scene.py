@@ -17,7 +17,7 @@ from .camera import *
 # -------------------------------------------------------------------
 class VIEW3D_OT_setupScene(Operator):
     bl_label ="Setup SMVP Scene"
-    bl_id = "smvpscene.setup"
+    bl_id = "smvp.setup_scene"
 
 class SMVP_CANVAS_OT_setCanvasActive(Operator):
     """Sets the selected canvas object active for actions in scene"""
@@ -120,7 +120,7 @@ class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
 
 
 class SMVP_CANVAS_OT_setGhostMode(Operator):
-    bl_idname = "object.ghost_on"
+    bl_idname = "smvp_canvas.ghost_on"
     bl_label= "Show Ghostframes"
     bl_options = {'REGISTER'}
 
@@ -128,7 +128,10 @@ class SMVP_CANVAS_OT_setGhostMode(Operator):
     def poll(cls, context):
         return True
 
-    def execute(self, contect):
+    def execute(self, context):
+        context.object.smvp_ghost.show_ghost = not context.object.smvp_ghost.show_ghost 
+       
+        update_single_canvas_tex(context.scene, context.object)
         
         return{'FINISHED'}
 
