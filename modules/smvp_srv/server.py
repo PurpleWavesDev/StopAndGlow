@@ -162,7 +162,7 @@ def run(port=9271):
                 try:
                     [None for name, _, _ in bsdfs if name == algorithm][0]
                     queue.putCommand(Commands.Render, 'config', message.data)
-                    send(socket, Message(Command.CommandAnswer, answer))
+                    send(socket, Message(Command.CommandOkay))
                 except:
                     send(socket, Message(Command.CommandError, {'message': 'Unknwon render algorithm selected'}))
 

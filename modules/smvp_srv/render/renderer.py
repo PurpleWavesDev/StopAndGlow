@@ -56,7 +56,7 @@ class Renderer:
         factor = power * color
         
         for y, x in self._buffer:
-            self._buffer[y, x] += self._bsdf.sample(u, v) * factor
+            self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor
     
     @ti.kernel
     def samplePoint(self):

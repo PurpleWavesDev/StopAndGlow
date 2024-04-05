@@ -53,7 +53,7 @@ class SMVP_CANVAS_OT_updateScene(Operator):
 
     def execute(self, context):
         #obj = context.object
-        updateScene()
+        updateScene(context.scene)
         return{'FINISHED'}
 
 
@@ -110,8 +110,12 @@ class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
             obj = bpy.data.objects[scn.smvp_scene.active_canvas]
         canvas = obj.smvp_canvas
         
+        # Send set renderer command
         message = Message(Command.SetRenderer, {'algorithm': scn.smvp_algorithms.algs_dropdown_items})
         client.sendMessage(message)
+        # Update object
+        setUpdateFlags(obj)
+        updateTextures(scn)
         return{'FINISHED'}
 
 
@@ -190,27 +194,35 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
 # -------------------------------------------------------------------
 #   Event handlers
 # -------------------------------------------------------------------
-def update_canvas_textures(scene):
+def updateTextures(scene):
     #bpy.data.materials["Video"].node_tree.nodes["texture"].inputs[1].default_value = frame_numscene.frame_current
     for obj in bpy.data.objects:
         if obj.smvp_canvas.is_canvas:
             # Canvas found!
             update_single_canvas_tex(scene, obj)
 
-def updateScene():
+def updateScene(scene):
     if client.connected:
         # Get lights and send to server
         light_data = getLights()
-        print(light_data)
         #for lgt in light_data:
         message = Message(Command.LightsSet, light_data)
         client.sendMessage(message)
-        
-        # Mark rendered frames as not updated
-        for obj in bpy.data.objects:
-            if obj.smvp_canvas.is_canvas:
-                for i in range(len(obj.smvp_canvas.frame_list)):
-                    obj.smvp_canvas.frame_list[i].updated = False
+    
+    # Set Texture 
+    for obj in bpy.data.objects:
+        if obj.smvp_canvas.is_canvas:
+            setUpdateFlags(obj)
+    
+    # Trigger image requests
+    updateTextures(scene)
+    
+def setUpdateFlags(canvas_obj, preview=False):
+    # Mark rendered frames as not updated
+    for i in range(len(canvas_obj.smvp_canvas.frame_list)):
+        canvas_obj.smvp_canvas.frame_list[i].texture_updated = False
+        if preview:
+            canvas_obj.smvp_canvas.frame_list[i].preview_updated = False
         
 # -------------------------------------------------------------------
 #   Helpers
@@ -269,7 +281,7 @@ def register():
         register_class(cls)
 
     # Event handlers
-    bpy.app.handlers.frame_change_pre.append(update_canvas_textures)
+    bpy.app.handlers.frame_change_pre.append(updateTextures)
     bpy.types.WindowManager.ghost_toggle = bpy.props.BoolProperty(default = False, update = update_ghost_func)   
     
 

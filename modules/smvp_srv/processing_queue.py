@@ -82,7 +82,11 @@ class Worker:
         
         # Rendering
         self.renderer = Renderer()
-        self.ti_buffer = ti.ndarray(ti.types.vector(3, ti.f32), (self.config['resolution'][1], self.config['resolution'][0])) # Cannot loop over the object <class 'taichi.lang.matrix.VectorNdarray'> in Taichi scope. Only Taichi fields (via template) or dense arrays (via types.ndarray) are supported.
+        #self.ti_buffer = ti.ndarray(ti.types.vector(3, ti.f32), (self.config['resolution'][1], self.config['resolution'][0])) # Cannot loop over the object <class 'taichi.lang.matrix.VectorNdarray'> in Taichi scope. Only Taichi fields (via template) or dense arrays (via types.ndarray) are supported.
+        self.ti_buffer = ti.field(tib.pixvec)
+        ti.root.dense(ti.ij, (self.config['resolution'][1], self.config['resolution'][0])).place(self.ti_buffer)
+        self.ti_buffer.from_numpy(self.img_buf.get())
+        self.ti_buffer.to_numpy()
 
         while self._keep_running or not queue.empty():
             try:
