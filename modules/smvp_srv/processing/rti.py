@@ -5,21 +5,23 @@ import taichi as ti
 import taichi.math as tm
 
 from ..data import *
+from ..utils import *
 from ..utils import ti_base as tib
 
-from .renderer import *
+from .processor import *
 from .fitter import *
 
 
-class RtiRenderer(Renderer):
-    name = "RTI Renderer"
-    name_short = "rti"
+class RtiProcessor(Processor):
+    name = "rti"
+        
+    def getDefaultSettings() -> dict:
+        return {'order': 3}
     
     def __init__(self):
         self._fitter = None
         self._normals = None
         self._u_min = self._u_max = self._v_min = self._v_max = None
-        
     
     def initFitter(self, fitter, settings):
         """Initializes requested fitter instance"""
@@ -28,27 +30,6 @@ class RtiRenderer(Renderer):
                 self._fitter = PolyFitter(settings)
         self._normals = NormalFitter()
         
-    # Loading, processing etc.
-    def load(self, rti_seq: Sequence):
-        # Load metadata, get fitter
-        self._u_min, self._v_min = rti_seq.getMeta('latlong_min', (0, 0))
-        self._u_max, self._v_max = rti_seq.getMeta('latlong_max', (1, 1))
-        fitter = rti_seq.getMeta('fitter', '')
-        if fitter == '':
-            log.warning(f"No metadata provided which fitter has to be used, defaulting to '{PolyFitter.__name__}'.")
-            fitter = PolyFitter.__name__
-        self.initFitter(fitter, {})
-        
-        # Load data
-        self._fitter.loadCoefficients(rti_seq)
-    
-    def get(self) -> Sequence:
-        if self._fitter:
-            seq = self._fitter.getCoefficients()
-            seq.setMeta('latlong_min', (self._u_min, self._v_min))
-            seq.setMeta('latlong_max', (self._u_max, self._v_max))
-            return seq
-        return Sequence()
     
     def process(self, img_seq: Sequence, calibration: Calibration, settings={}):
         # Validate image sequence 
@@ -59,21 +40,30 @@ class RtiRenderer(Renderer):
         #lights = {light['id']: Latlong2UV(light['latlong']) for light in calibration if light['id'] in img_seq.getKeys()}
 
         # Settings and initialization
-        fitter = settings['fitter'] if 'fitter' in settings else PolyFitter.__name__
-        recalc = settings['recalc_inverse'] if 'recalc_inverse' in settings else False        
+        fitter = GetSetting(settings, 'fitter', PolyFitter.__name__)
+        recalc = GetSetting(settings, 'recalc_inverse', False)        
         self.initFitter(fitter, settings)        
         log.info(f"Generating RTI coefficients with {self._fitter.name}")
         
         # Compute inverse
-        self._normals.computeInverse(calibration)
+        self._normals.computeInverse(calibration) # Takes long
         self._fitter.computeInverse(calibration, recalc)
         
         # Compute coefficients
-        self._normals.computeCoefficients(img_seq, slices=4)
+        self._normals.computeCoefficients(img_seq, slices=4) # Takes super long
         self._fitter.computeCoefficients(img_seq, slices=4)
         
         # Save coord bounds
         coord_min, coord_max = calibration.getCoordBounds()
-        self._u_min, self._v_min = utils.NormalizeLatlong(coord_min)
-        self._u_max, self._v_max = utils.NormalizeLatlong(coord_max)
+        self._u_min, self._v_min = mutils.NormalizeLatlong(coord_min)
+        self._u_max, self._v_max = mutils.NormalizeLatlong(coord_max)
+
+    
+    def get(self) -> Sequence:
+        if self._fitter:
+            seq = self._fitter.getCoefficients()
+            seq.setMeta('latlong_min', (self._u_min, self._v_min))
+            seq.setMeta('latlong_max', (self._u_max, self._v_max))
+            return seq
+        return Sequence()
     

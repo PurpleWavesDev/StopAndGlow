@@ -6,6 +6,7 @@ import numpy as np
 import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
+from ...utils import *
 from ...utils import ti_base as tib
 
 from ...hw.calibration import *
@@ -91,7 +92,7 @@ class PseudoinverseFitter(ABC):
             # Create array and fill it with light positions
             A = np.zeros((light_count, coefficient_count))
             for i, light in enumerate(calibration.getLights()):
-                coord = utils.NormalizeLatlong(light['latlong'])
+                coord = mutils.NormalizeLatlong(light['latlong'])
                 self.fillLightMatrix(A[i], coord)
                 
             # Calculate inverse

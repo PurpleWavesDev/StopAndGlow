@@ -82,7 +82,9 @@ class Sequence():
 
                 
     def loadFolder(self, path):
-        domain = ImgDomain[self.getMeta('domain')]
+        self._base_dir = path
+        self._seq_name = os.path.basename(os.path.normpath(path))
+        domain = ImgDomain[self.getMeta('domain', ImgDomain.Keep.name)]
         
         # Search for frames in folder
         for f in os.listdir(path):
@@ -101,6 +103,11 @@ class Sequence():
                     pass
                 else:
                     log.warn(f"Found file without sequence numbering: {f}")
+            else:
+                # Load folder as data sequence
+                data_seq = Sequence()
+                data_seq.loadFolder(p)
+                self.setDataSequence(f, data_seq)
         
         # Sort it
         self._frames = dict(sorted(self._frames.items()))
@@ -116,9 +123,9 @@ class Sequence():
         frame_list = self.getMeta('video_frame_list')
         
         # Define paths and sequence names
-        base_dir = os.path.dirname(path)
-        seq_name = os.path.splitext(os.path.basename(path))[0]                    
-        self._img_name_base = os.path.join(base_dir, seq_name, seq_name)
+        self._seq_name = os.path.splitext(os.path.basename(path))[0]                    
+        self._base_dir = os.path.join(os.path.dirname(path), self._seq_name)
+        self._img_name_base = os.path.join(self._base_dir, self._seq_name)
             
         # Load video
         self._vidcap = cv.VideoCapture(path)
@@ -223,6 +230,12 @@ class Sequence():
         # TODO: Gets overwritten when using a video that is not loaded yet
         self[self.getKeys()[index]] = img
     
+    def name(self):
+        return self._seq_name
+    
+    def directory(self):
+        return self._base_dir
+    
     def saveSequence(self, name: str, base_path: str, format: ImgFormat = ImgFormat.Keep):
         path = os.path.join(base_path, name, name)
         for id in self.getKeys():
@@ -325,9 +338,9 @@ class Sequence():
         seq._frames = {key: ImgBuffer() for key in frame_list}
         
         # Define paths and sequence names
-        base_dir = os.path.dirname(path)
-        seq_name = os.path.splitext(os.path.basename(path))[0]                   
-        seq._img_name_base = os.path.join(base_dir, seq_name, seq_name)
+        self._seq_name = os.path.splitext(os.path.basename(path))[0]                    
+        self._base_dir = os.path.join(os.path.dirname(path), self._seq_name)
+        self._img_name_base = os.path.join(self._base_dir, self._seq_name)
         # Get Metadata from other video sequence
         seq._meta = sequence._meta
         expo_meta = seq.getMeta(f'exposure_{sequence_index}')

@@ -23,20 +23,38 @@
             "justMyCode": true
         },
         {
+            "name": "Process RTI, save and view",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome_pos1.json", "--load", "fisch_untersichtig_expoblend", "--process", "rti", "--save", "data", "--view", "sequence"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Render RTI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--render", "config", "algorithm=poly", "--view", "render"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Estimate Depth for Preview and view",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--process", "depth", "target=preview", "--view", "sequence"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Capture Lights & Save",
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
             "args": ["--loglevel", "DEBUG", "--capture", "lights", "--save"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Estimate depth for Preview",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--process", "depth", "target=preview", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

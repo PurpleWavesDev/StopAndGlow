@@ -10,10 +10,8 @@ from ..hw.calibration import *
 
 @ti.dataclass
 class BSDF:
-    name = "bsdf"
-    
-    def load(self, sequence: Sequence, calibration: Calibration, settings={}):
-        pass
+    def load(self, sequence: Sequence, calibration: Calibration, settings={}) -> bool:
+        return True
     
     @ti.func
     def sample(self, x: ti.i32, y: ti.i32, n1: ti.f32, n2: ti.f32) -> tib.pixvec:

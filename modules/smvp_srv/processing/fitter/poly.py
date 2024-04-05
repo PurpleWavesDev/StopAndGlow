@@ -1,10 +1,12 @@
-from .pseudoinverse import PseudoinverseFitter
 from ...hw.calibration import *
+from ...data import *
+from ...utils import ti_base as tib
+
+from .pseudoinverse import PseudoinverseFitter
 
 import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
-from ...utils import ti_base as tib
 
 class PolyFitter(PseudoinverseFitter):
     name = "Polynomial Fitter"
@@ -12,7 +14,7 @@ class PolyFitter(PseudoinverseFitter):
     def __init__(self, settings):
         super().__init__(settings)
         # Settings: Limit polynom order
-        self._order = max(2, min(6, settings['order'])) if 'order' in settings else 3
+        self._order = max(2, min(6, GetSetting(settings, 'order', 3)))
     
     def getCoefficientCount(self) -> int:
         """Returns number of coefficients"""

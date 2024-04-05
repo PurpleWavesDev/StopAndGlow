@@ -81,10 +81,7 @@ class Worker:
         self.executor = None
         
         # Rendering
-        self.renderer = Renderer()
-        #self.ti_buffer = ti.ndarray(ti.types.vector(3, ti.f32), (self.config['resolution'][1], self.config['resolution'][0])) # Cannot loop over the object <class 'taichi.lang.matrix.VectorNdarray'> in Taichi scope. Only Taichi fields (via template) or dense arrays (via types.ndarray) are supported.
-        self.ti_buffer = ti.field(tib.pixvec)
-        ti.root.dense(ti.ij, (self.config['resolution'][1], self.config['resolution'][0])).place(self.ti_buffer)
+        self.renderer = Renderer(BSDF(), self.config['resolution'])
 
         while self._keep_running or not queue.empty():
             try:
@@ -115,7 +112,7 @@ class Worker:
                 # --config load folder=/bla/bla name=config.json
                 # --config set key=value
                 # --config save name=newconf.json
-                log.info(f"Processing '--config {arg}'...")
+                log.info(f"Processing '--config {arg}' ...")
                 
                 path = GetSetting(settings, 'folder', self.config['config_folder'])
                 name = GetSetting(settings, 'name', self.config['config_name'])
@@ -137,7 +134,7 @@ class Worker:
             
             case Commands.Calibration:
                 # --calibration load name=cal.json folder=/jada/jada
-                log.info(f"Processing '--calibration {arg}'...")
+                log.info(f"Processing '--calibration {arg}' ...")
                 
                 path = GetSetting(settings, 'folder', self.config['cal_folder'])
                 name = GetSetting(settings, 'name', self.config['cal_name'])
@@ -145,8 +142,8 @@ class Worker:
                     case 'load':
                         path = os.path.join(path, name)
                         if os.path.isfile(path):
-                            calibration = Calibration(path)
-                            self.hw.cal._replace(cal=calibration)
+                            self.hw.cal.load(path)
+                            print(f"Loaded calibration file with {len(self.hw.cal)} lights")
                         else:
                             raise Exception(f"File {path} does not exist")
                     case 'save':
@@ -267,10 +264,14 @@ class Worker:
                             bsdf = [bsdf for name, _, bsdf in bsdfs if name == settings['algorithm']]
                             if len(bsdf) == 1:
                                 bsdf = bsdf[0]()
-                                bsdf.load(self.sequence, self.hw.cal) # TODO: What if sequence has no bsdf data?
-                                self.renderer.setBsdf(bsdf)
+                                if bsdf.load(self.sequence, self.hw.cal):
+                                    self.renderer = Renderer(bsdf, self.config['resolution'])
+                                else:
+                                    # TODO: What if sequence has no bsdf data?
+                                    log.error("No data for BSDF!")
+                        # TODO: Error message if nothing got loaded!
                     case 'reset':
-                        self.renderer.getScene().clear()
+                        self.renderer.reset()
                     case 'light':
                         self.renderer.getScene().addLight(settings)
                     case 'hdri':
@@ -278,7 +279,7 @@ class Worker:
                     case 'hdri_data':
                         pass
                     case 'render':
-                        self.renderer.initRender(self.ti_buffer)
+                        self.renderer.initRender()
                         self.renderer.sample() # TODO
             
             case Commands.View:
@@ -293,7 +294,8 @@ class Worker:
                         viewer = SequenceViewer()
                         viewer.setSequence(self.sequence)
                     case 'render':
-                        pass
+                        viewer = RenderViewer()
+                        viewer.setRenderer(self.renderer)
                     case 'preview':
                         pass
                     case 'live':
@@ -306,15 +308,28 @@ class Worker:
                 gui.launch()
             
             case Commands.Save:
-                # --save <path>
-                log.info(f"Saving sequence as '{arg}'")
+                # --save all/sequence/data name=<name> basepath=<basepath>
+                log.info(f"Saving sequences '{arg}'")
                 
-                # Abspath?
-                if os.path.isabs(arg):
-                    self.sequence.saveSequence(os.path.basename(arg), os.path.dirname(arg))
+                # Name and path
+                name = GetSetting(settings, 'name')
+                if name is None:
+                    name = self.sequence.name()
+                
+                path = GetSetting(settings, 'basepath')
+                if path is None:
+                    path = os.path.normpath(self.sequence.directory())
                 else:
-                    self.sequence.saveSequence(arg, self.config['seq_folder'])
+                    path = os.path.normpath(os.path.join(path, name))
             
+                # Save sequences
+                if arg == 'all' or arg == 'sequence':
+                    # path: Parent of sequence directory -> joined with name is same directory again
+                    self.sequence.saveSequence(name, os.path.dirname(path))
+                if arg == 'all' or arg == 'data':
+                    for key in self.sequence.getDataKeys():
+                        self.sequence.getDataSequence(key).saveSequence(key, path)
+                
             case Commands.Send:
                 # --send address:port id=1 mode=render|baked|preview|live
                 if self._consumer is None:
@@ -335,7 +350,7 @@ class Worker:
                     self.sendImg(id, self.baked.withAlpha().get())
                 elif mode == 'render':
                     # TODO: Straight from buffer? Alpha channel?
-                    rendered = ImgBuffer(img=self.ti_buffer.to_numpy())
+                    rendered = ImgBuffer(img=self.renderer.get())
                     self.sendImg(id, rendered.withAlpha().get())
                 elif mode == 'live':
                     self.req_id = id
@@ -396,13 +411,12 @@ class Worker:
                 self.sequence.convertSequence(settings) # TODO
             case DepthEstimator.name:
                 processor = DepthEstimator()
-            case ExposureBlender.name:
-                processor = ExposureBlender()
+            case ExpoBlender.name:
+                processor = ExpoBlender()
             case RgbStacker.name:
                 processor = RgbStacker()
-            case 'rti':
-                if not order in settings: settings['order'] = 4
-                processor = RtiRenderer()     
+            case RtiProcessor.name:
+                processor = RtiProcessor()     
             case _:
                 log.error(f"Unknwon processor type '{arg}'")
         
@@ -411,7 +425,7 @@ class Worker:
             target = GetSetting(settings, 'target', 'sequence')
             match target:
                 case 'sequence':
-                    processor.process(img_seq, calibration, settings)
+                    processor.process(img_seq, self.hw.cal, settings)
                     
                     if GetSetting(settings, 'destination') == 'alpha':
                         for id, processed in processor.get():
@@ -420,7 +434,7 @@ class Worker:
                 case 'preview':
                     preview_seq = Sequence()
                     preview_seq.append(img_seq.getPreview(), 0)
-                    processor.process(preview_seq, calibration, settings)
+                    processor.process(preview_seq, self.hw.cal, settings)
                     
                     if GetSetting(settings, 'destination') == 'alpha':
                         img_seq.setPreview(img_seq.getPreview().withAlpha(processor.get()[0].get()))
@@ -431,7 +445,7 @@ class Worker:
             data_seq = processor.get()
             if GetSetting(settings, 'destination', 'data') == 'data':
                 if len(data_seq) > 0:
-                    img_seq.setDataSequence(processor.name, data_seq)
+                    img_seq.setDataSequence(processor.name, data_seq) # TODO more names like rti_poly to allow for more fitters to save their data
         return img_seq
 
     

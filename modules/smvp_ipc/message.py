@@ -15,9 +15,10 @@ class Command(Enum):
     CommandProgress = 14
     CommandComplete = 15
     CommandError = 16
-    RecvOkay = 16
-    RecvStop = 16
-    RecvError = 16
+    CommandDisconnect = 17
+    RecvOkay = 18
+    RecvStop = 19
+    RecvError = 20
     
     # Config commands
     # Resolution, Paths, Cals, .. ??

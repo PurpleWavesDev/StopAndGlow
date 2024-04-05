@@ -26,13 +26,17 @@ class Calibration:
         self._changed = True
         
     def load(self, path):
+        self._id_min=-1
+        self._id_max=-1
+        self._lat_min = self._lat_max = self._long_min = self._long_max = -1
+        self._changed = False
+        
         with open(path, "r") as file:
             self._data = json.load(file)
         for light in self._data['lights']:
             self._findMinMax(light['id'], light['latlong'])
         if not 'fitter' in self._data:
             self._data['fitter'] = {}
-        self._changed = False
 
     def save(self, path):
         # Create directory

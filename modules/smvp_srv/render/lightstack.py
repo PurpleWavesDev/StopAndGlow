@@ -18,14 +18,11 @@ from .bsdf import *
 
 @ti.dataclass
 class LightstackBsdf:
-    name = 'lightstack'
-    name_long = 'Lightstack'
-    
     def __init__(self):
         pass
     
-    def load(self, data: Sequence, calibration: Calibration, settings={}):
-        pass
+    def load(self, data: Sequence, calibration: Calibration, settings={}) -> bool:
+        return True
     
     @ti.func
     def sample(self, x: ti.i32, y: ti.i32, n1: ti.f32, n2: ti.f32) -> tib.pixvec:

@@ -202,6 +202,11 @@ def updateTextures(scene):
             update_single_canvas_tex(scene, obj)
 
 def updateScene(scene):
+    # Set Texture 
+    for obj in bpy.data.objects:
+        if obj.smvp_canvas.is_canvas:
+            setUpdateFlags(obj)
+    
     if client.connected:
         # Get lights and send to server
         light_data = getLights()
@@ -209,13 +214,8 @@ def updateScene(scene):
         message = Message(Command.LightsSet, light_data)
         client.sendMessage(message)
     
-    # Set Texture 
-    for obj in bpy.data.objects:
-        if obj.smvp_canvas.is_canvas:
-            setUpdateFlags(obj)
-    
-    # Trigger image requests
-    updateTextures(scene)
+        # Trigger image requests
+        updateTextures(scene)
     
 def setUpdateFlags(canvas_obj, preview=False):
     # Mark rendered frames as not updated
@@ -223,6 +223,11 @@ def setUpdateFlags(canvas_obj, preview=False):
         canvas_obj.smvp_canvas.frame_list[i].texture_updated = False
         if preview:
             canvas_obj.smvp_canvas.frame_list[i].preview_updated = False
+
+def depthgraphUpdated(scene):
+    pass
+    #if client.connected:
+    #    updateScene()
         
 # -------------------------------------------------------------------
 #   Helpers
@@ -282,6 +287,9 @@ def register():
 
     # Event handlers
     bpy.app.handlers.frame_change_pre.append(updateTextures)
+    bpy.app.handlers.depsgraph_update_post.append(depthgraphUpdated)
+    
+    
     bpy.types.WindowManager.ghost_toggle = bpy.props.BoolProperty(default = False, update = update_ghost_func)   
     
 

@@ -52,7 +52,7 @@ def smvpConnect(address, port) -> bool:
     server_address = f"tcp://{address}:{port}"
     val = send_sock.connect(server_address)
     # Set timeout and disconnect after timeout option
-    send_sock.setsockopt(zmq.RCVTIMEO, 10000)
+    send_sock.setsockopt(zmq.RCVTIMEO, 1000)
     send_sock.setsockopt(zmq.LINGER, 0)
     # Send an init message and wait for answer
     message = Message(Command.Init, {'address': getHostname()})
@@ -99,6 +99,9 @@ def sendMessage(message, reconnect=True, force=False) -> Message|None:
             if answer.command == Command.CommandError:
                 # Print error message
                 print("Received error from smvp server" + f": {answer.data['message']}" if 'message' in answer.data else "")
+            elif answer.command == Command.CommandDisconnect:
+                print("SMVP Server disconnected" + f": {answer.data['message']}" if 'message' in answer.data else "")
+                smvpDisconnect()
             return answer
         except Exception as err:
             print(f"SMVP Communication error: {str(err)}")

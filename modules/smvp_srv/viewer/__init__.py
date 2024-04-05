@@ -3,3 +3,4 @@ from .GUI import *
 from .viewer import *
 from .live import *
 from .sequence import *
+from .render import *

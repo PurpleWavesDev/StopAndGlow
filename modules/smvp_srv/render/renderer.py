@@ -9,35 +9,29 @@ from .bsdf import *
 
 @ti.data_oriented
 class Renderer:
-    def __init__(self):
-        self._bsdf = None
-        self._scene = Scene()
-        
-    def setBsdf(self, bsdf: BSDF):
+    def __init__(self, bsdf=BSDF(), resolution=[1920, 1080]):
         self._bsdf = bsdf
-    
+        self._scene = Scene()
+        self._buffer = ti.field(tib.pixvec)
+        ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._buffer)
+        
     def getScene(self):
         return self._scene
 
-    ## Rendering
-    def initRender(self, buffer=None, sample_count=10):
-        # TODO: Make buffer spares according to alpha mask
-        if buffer is None:
-            if self._buffer is None:
-                # Create new buffer
-                self._buffer = ti.types.ndarray(dtype=tt.vector(3, ti.f32), ndim=2)
-            else:
-                # Reset buffer
-                pass
-        else:
-            # Apply buffer
-            self._buffer = buffer
+    ## Rendering    
+    def initRender(self, samples=10):  
+        # Reset buffer
+        self._buffer.fill(0.0)
+    
+    def reset(self):
+        self._scene.clear()
     
     def sample(self) -> bool:
-        self.sampleSun(0.5, 0.5, 0.0, 1.0, [1.0,1.0,1.0])
         for lgt in self._scene.getSunLights():
-            u, v = lgt['direction']
-            self.sampleSun(u, v, lgt['angle'], lgt['power'], lgt['color'])
+            u, v = lgt.direction
+            #u, v = 
+            #self.sampleSun(0.5, 0.5, 0.0, 1.0, [1.0,1.0,1.0]) # Test
+            self.sampleSun(u, v, lgt.spread, lgt.power, lgt.color)
         
         for lgt in self._scene.getPointLights():
             self.samplePoint()
@@ -49,6 +43,12 @@ class Renderer:
             self.sampleArea()
             
         self.sampleHdri()
+    
+    def get(self):
+        return self._buffer.to_numpy()
+    
+    def getBuffer(self):
+        return self._buffer
 
     ## Sample kernels
     @ti.kernel

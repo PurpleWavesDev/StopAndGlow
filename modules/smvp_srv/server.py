@@ -15,10 +15,17 @@ def run(port=9271):
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind(f"tcp://*:{port}")
+
+    try:
+        execute(socket, port, context)
+    except Exception as e:
+        send(socket, Message(Command.CommandDisconnect, {'message': f"Error: {str(e)}"}))
+        
+
+def execute(socket, port, context):
     remote_address = ""
     initalized = False
     queue = ProcessingQueue(context)
-
     while True:
         #  Wait for next request from client
         message = receive(socket)

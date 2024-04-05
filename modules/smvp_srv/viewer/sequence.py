@@ -43,7 +43,8 @@ class SequenceViewer(Viewer):
                 self.scaled_buf = self.sequence.get(self.idx).rescale(self.resolution)
             case 2: # Data
                 # TODO: What if sequence is empty or no data sequences are available?
-                self.scaled_buf = self.sequence.getDataSequence(self.data_keys[self.data_idx]).get(self.idx).rescale(self.resolution)
+                if self.data_keys and len(self.sequence.getDataSequence(self.data_keys[self.data_idx])) > 0:
+                    self.scaled_buf = self.sequence.getDataSequence(self.data_keys[self.data_idx]).get(self.idx).rescale(self.resolution)
         
     def getRenderSettings(self, mode) -> RenderSettings:
         return RenderSettings(req_keypress_events=True if mode > 0 else False, with_exposure=True, is_linear=True) # TODO: Linear? Could be metadata of sequence
