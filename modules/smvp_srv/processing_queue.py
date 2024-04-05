@@ -85,8 +85,6 @@ class Worker:
         #self.ti_buffer = ti.ndarray(ti.types.vector(3, ti.f32), (self.config['resolution'][1], self.config['resolution'][0])) # Cannot loop over the object <class 'taichi.lang.matrix.VectorNdarray'> in Taichi scope. Only Taichi fields (via template) or dense arrays (via types.ndarray) are supported.
         self.ti_buffer = ti.field(tib.pixvec)
         ti.root.dense(ti.ij, (self.config['resolution'][1], self.config['resolution'][0])).place(self.ti_buffer)
-        self.ti_buffer.from_numpy(self.img_buf.get())
-        self.ti_buffer.to_numpy()
 
         while self._keep_running or not queue.empty():
             try:
@@ -224,13 +222,6 @@ class Worker:
                 # Replace sequence and load
                 self.sequence = Sequence()
                 self.sequence.load(path, defaults=default_config, overrides=settings)
-                
-                # Get preview TODO
-                self.preview = self.sequence.getPreview().asDomain(ImgDomain.sRGB, ti_buffer=self.ti_buffer)
-                res = self.config['resolution']
-                scale = max(res[0] / self.preview.resolution()[0], res[1] / self.preview.resolution()[1])
-                self.preview = self.preview.scale(scale).crop(res)
-
 
             case Commands.LoadHdri:
                 # --loadHdri <path>
@@ -331,9 +322,15 @@ class Worker:
                 
                 id = GetSetting(settings, 'id', 0)
                 mode = GetSetting(settings, 'mode', 'preview')
+                resolution = self.config['resolution']
                 self.executor = None
+                
                 if mode == 'preview':
-                    self.sendImg(id, self.sequence.getPreview().withAlpha().get())
+                    preview = self.sequence.getPreview()
+                    if preview.resolution() != resolution:
+                        # Scale to current resolution
+                        preview.set(preview.rescale(resolution, crop=True).asDomain(ImgDomain.Lin).withAlpha().get())
+                    self.sendImg(id, preview.get())
                 elif mode == 'baked':
                     self.sendImg(id, self.baked.withAlpha().get())
                 elif mode == 'render':

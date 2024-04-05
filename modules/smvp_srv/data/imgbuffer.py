@@ -112,12 +112,11 @@ class ImgBuffer:
             img = self.get()
         return ImgBuffer(path=self._path, img=img, domain=self.domain)
 
-    def set(self, img: ArrayLike, domain: ImgDomain = ImgDomain.Keep, overwrite_file=False):
+    def set(self, img: ArrayLike, domain: ImgDomain = ImgDomain.Keep):
         self._img=img
         if domain != ImgDomain.Keep:
             self._domain = domain
-        if overwrite_file:
-            self._from_file=False
+        self._from_file=False
 
     def load(self):
         if self._path is not None:
@@ -177,10 +176,12 @@ class ImgBuffer:
             img = self.get() if as_float is False else self.asFloat().get()
             match self._domain:
                 case ImgDomain.sRGB:
-                    if ti_buffer is not None:
+                    if ti_buffer is not None:  # TODO: Remove?
                         ti_buffer.from_numpy(img)
                         tib.sRGB2Lin(ti_buffer)
                         img = ti_buffer.to_numpy()
+                    elif img.dtype == IMAGE_DTYPE_FLOAT:
+                        tib.sRGB2Lin(img)
                     else:
                         img = colour.cctf_decoding(img, 'sRGB')
                 case ImgDomain.Rec709:
@@ -190,10 +191,12 @@ class ImgBuffer:
                     
             match domain:
                 case ImgDomain.sRGB:
-                    if ti_buffer is not None:
+                    if ti_buffer is not None:  # TODO: Remove?
                         ti_buffer.from_numpy(img)
                         tib.lin2sRGB(ti_buffer, 1)
                         img = ti_buffer.to_numpy()
+                    elif img.dtype == IMAGE_DTYPE_FLOAT:
+                        tib.lin2sRGB(img, 1)
                     else:
                         img = colour.cctf_encoding(img, 'sRGB')
                 case ImgDomain.Rec709:
@@ -246,16 +249,23 @@ class ImgBuffer:
         self.get()[coord[1]][coord[0]] = val
         
     def scale(self, factor, high_qual=True) -> ArrayLike:
+        """Scales image uniformly with factor for both dimensions"""
         interpol = cv.INTER_NEAREST if not high_qual else cv.INTER_AREA if factor < 1 else cv.INTER_LINEAR
         img = cv.resize(self.get(), dsize=None, fx=factor, fy=factor, interpolation=interpol)
         return ImgBuffer(path=self._path, img=img, domain=self._domain)
 
-    def rescale(self, resolution, high_qual=True) :
-        interpol = cv.INTER_NEAREST if not high_qual else cv.INTER_LINEAR
-        img = cv.resize(self.get(), dsize=resolution, interpolation=interpol)
+    def rescale(self, resolution, high_qual=True, crop=False):
+        """Scales image to new resolution. If crop is set, image is cropped to new aspect ratio instead of distorted."""
+        if crop:
+            scale = max(resolution[0] / self.resolution()[0], resolution[1] / self.resolution()[1])
+            return self.scale(scale, high_qual).crop(resolution)
+        else:
+            interpol = cv.INTER_NEAREST if not high_qual else cv.INTER_LINEAR
+            img = cv.resize(self.get(), dsize=resolution, interpolation=interpol)
         return ImgBuffer(path=self._path, img=img, domain=self._domain)
 
     def crop(self, resolution):
+        """Crops image to new resolution, without scaling. Crop is performed around the center."""
         old_res = self.resolution()
         crop = np.array(old_res) - np.array(resolution)
         crop_from = crop // 2

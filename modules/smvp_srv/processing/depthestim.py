@@ -64,7 +64,7 @@ class DepthEstimator(Processor):
         for id, frame in img_seq:
             # Apply transform
             w, h = frame.resolution()
-            frame = self.transform({'image': frame.get()})['image']
+            frame = self.transform({'image': frame.get()[...,0:3]})['image']
             frame = torch.from_numpy(frame).unsqueeze(0).to(self.device)
             
             # Run model
