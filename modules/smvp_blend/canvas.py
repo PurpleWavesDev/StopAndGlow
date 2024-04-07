@@ -10,7 +10,6 @@ import smvp_ipc as ipc
 from . import properties as props
 from . import client
 
-DEFAULT_RESOULTION = (1920, 1080)
 
 # -------------------------------------------------------------------
 #   Frame UI List Operators
@@ -125,7 +124,7 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             context.area.tag_redraw()
             
             # Update texture
-            update_single_canvas_tex(context.scene, obj)
+            updateCanvas(context.scene, obj)
             return {"FINISHED"}
             
         else:
@@ -182,7 +181,7 @@ class SMVP_CANVAS_OT_actions(Operator):
                     obj.smvp_canvas.frame_list_index -= 1
                 self.report({'INFO'}, info)
             
-        update_single_canvas_tex(context.scene, obj)
+        updateCanvas(context.scene, obj)
         return {"RUNNING_MODAL"}
 
 
@@ -200,7 +199,7 @@ class SMVP_CANVAS_OT_ghosting(Operator):
         obj = context.scene.sl_canvas
                
         obj.smvp_ghost.show_ghost = True
-        update_single_canvas_tex(scn, obj) #does this keep calling the fuction while true?
+        updateCanvas(scn, obj) #does this keep calling the fuction while true?
         return {'FINISHED'}
 
     def modal(self, context, event):
@@ -261,13 +260,12 @@ class SMVP_CANVAS_OT_capture(Operator):
         obj = context.object
         tex = obj.smvp_canvas.frame_list[0].preview_texture
         
-        id = client.serviceAddReq(tex)
         # Send capture message
         message = None
         if self.baked:
-            message = ipc.Message(ipc.Command.CaptureBaked, {'id': id, 'name': self.name})
+            message = ipc.Message(ipc.Command.CaptureBaked, {'name': self.name})
         else:
-            message = ipc.Message(ipc.Command.CaptureLights, {'id': id, 'name': self.name})
+            message = ipc.Message(ipc.Command.CaptureLights, {'name': self.name})
         answer = client.sendMessage(message)
         
         if answer.command == ipc.Command.CommandProcessing:
@@ -334,7 +332,7 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
             obj.smvp_canvas.frame_list_index = min(obj.smvp_canvas.frame_list_index, len(obj.smvp_canvas.frame_list)-1)
             info = ', '.join(map(str, removed_items))
             self.report({'INFO'}, "Removed indices: %s" % (info))
-            update_single_canvas_tex(context.scene, obj)
+            updateCanvas(context.scene, obj)
         else:
             self.report({'INFO'}, "No duplicates")
         return{'FINISHED'}
@@ -392,7 +390,10 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
 
 
 
-def update_single_canvas_tex(scene, obj):
+# -------------------------------------------------------------------
+#   Update functions / Canvas API
+# -------------------------------------------------------------------
+def updateCanvas(scene, obj):
     # Get texture to show
     img = getTexture(obj, scene.frame_current)
     
@@ -439,9 +440,7 @@ def update_single_canvas_tex(scene, obj):
     except Exception as e:
         print(f"Error setting canvas texture: {str(e)}")
 
-def rgb2_lumin_grey(orig_img):
-    luminosity_constant = [0.21,0.72,0.07]
-    return np.dot(orig_img[...,3], luminosity_constant).astype(np.uint8)
+
 
 # -------------------------------------------------------------------
 #   Shader, Material, Image Texture Helpers
@@ -498,6 +497,7 @@ def createCanvasMat(obj):
 
     return mat
 
+
 def createFrameTextures(obj, index, resolution):
     """Creates textures for frame"""    
     item = obj.smvp_canvas.frame_list[index]
@@ -513,37 +513,10 @@ def createFrameTextures(obj, index, resolution):
     # Add textures to frame list entry
     item.render_texture = texture.name
     item.preview_texture = preview.name
-    
 
-def deleteFrameEntry(obj, index):
-    """Deletes the entry at index of the canvas object frame list"""
-    item = obj.smvp_canvas.frame_list[index]
-    
-    # Delete textures
-    if item.render_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.render_texture])
-    if item.preview_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.preview_texture])
-    
-    # Remove entry from canvas list and move index
-    obj.smvp_canvas.frame_list.remove(index)
-    if obj.smvp_canvas.frame_list_index >= index:
-        obj.smvp_canvas.frame_list_index -= 1
-    
-    try:
-        # Delete index-th keyframe
-        frame_num = getKeyframes(obj)[index][0]
-        obj.keyframe_delete('["frame_keys"]', frame=frame_num)
-    except:
-        pass
-
-def clearFrames(scn, obj):
-    for i in reversed(range(len(obj.smvp_canvas.frame_list))):
-        deleteFrameEntry(obj, i)
-    obj.smvp_canvas.frame_list_index = 0
-    update_single_canvas_tex(scn, obj)
 
 def getTexture(canvas_obj, frame):
     canvas = canvas_obj.smvp_canvas
-    keyframes = getKeyframes(canvas_obj)
     
     if canvas.display_mode == 'live':
         # No need to look for current key, start live capture with canvas texture
@@ -561,16 +534,18 @@ def getTexture(canvas_obj, frame):
     
     # Find frame for current position in timeline
     index = 0 
+    keyframes = getKeyframes(canvas_obj)
     for x, y in keyframes:
         if x > frame:
             break
         index += 1
-    return getTextureForIdx(canvas_obj, max(0, index-1) % len(canvas.frame_list))
-    
+    return getTextureForIdx(canvas_obj, max(0, index-1))
+
+
 def getTextureForIdx(canvas_obj, index, display_mode=None):
     """Returns the texture for the index and display_mode. Uses active display mode if none provided""" 
     canvas = canvas_obj.smvp_canvas
-    canvas_frame = canvas.frame_list[index%len(canvas.frame_list)]
+    canvas_frame = canvas.frame_list[index % len(canvas.frame_list)]
     # Get image name for display mode and check if image needs to be requested
     image_name = ""
     command = None
@@ -610,7 +585,38 @@ def getTextureForIdx(canvas_obj, index, display_mode=None):
     
     # Return texture
     return bpy.data.images[image_name]
-        
+    
+    
+
+# -------------------------------------------------------------------
+#   Frames & Keyframes Helpers
+# -------------------------------------------------------------------
+def deleteFrameEntry(obj, index):
+    """Deletes the entry at index of the canvas object frame list"""
+    item = obj.smvp_canvas.frame_list[index]
+    
+    # Delete textures
+    if item.render_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.render_texture])
+    if item.preview_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.preview_texture])
+    
+    # Remove entry from canvas list and move index
+    obj.smvp_canvas.frame_list.remove(index)
+    if obj.smvp_canvas.frame_list_index >= index:
+        obj.smvp_canvas.frame_list_index -= 1
+    
+    try:
+        # Delete index-th keyframe
+        frame_num = getKeyframes(obj)[index][0]
+        obj.keyframe_delete('["frame_keys"]', frame=frame_num)
+    except:
+        pass
+
+
+def clearFrames(scn, obj):
+    for i in reversed(range(len(obj.smvp_canvas.frame_list))):
+        deleteFrameEntry(obj, i)
+    obj.smvp_canvas.frame_list_index = 0
+    updateCanvas(scn, obj)
 
 
 def getKeyframes(obj, data_path='["frame_keys"]'):
@@ -620,6 +626,13 @@ def getKeyframes(obj, data_path='["frame_keys"]'):
         return [keyframe.co for keyframe in fc.keyframe_points]
     except:
         return []
+
+
+def rgb2_lumin_grey(orig_img):
+    luminosity_constant = [0.21,0.72,0.07]
+    return np.dot(orig_img[...,3], luminosity_constant).astype(np.uint8)
+
+
 
 # -------------------------------------------------------------------
 #   Register & Unregister

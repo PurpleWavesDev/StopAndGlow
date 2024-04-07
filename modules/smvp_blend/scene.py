@@ -82,7 +82,7 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
         # Change of mode and scene update triggered by handler
         if canvas.display_mode != self.display_mode:
             canvas.display_mode = self.display_mode
-        update_single_canvas_tex(scn, obj)
+        updateCanvas(scn, obj)
         return{'FINISHED'}
 
 
@@ -124,7 +124,7 @@ class SMVP_CANVAS_OT_setGhostMode(Operator):
     def execute(self, context):
         context.object.smvp_ghost.show_ghost = not context.object.smvp_ghost.show_ghost 
        
-        update_single_canvas_tex(context.scene, context.object)
+        updateCanvas(context.scene, context.object)
         
         return{'FINISHED'}
 
@@ -190,12 +190,27 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
 # -------------------------------------------------------------------
 #   Event handlers
 # -------------------------------------------------------------------
+def frameChange(scene):
+    updateTextures(scene)
+
+def depthgraphUpdated(scene):
+    # Check if active canvas object is still valid and remove in case it isnt
+    if scene.sl_canvas is not None and not scene.sl_canvas.name in scene.objects:
+        scene.sl_canvas = None
+    
+    #if client.connected:
+    #    updateScene()
+
+
+# -------------------------------------------------------------------
+#   Scene API and Helpers
+# -------------------------------------------------------------------
 def updateTextures(scene):
     #bpy.data.materials["Video"].node_tree.nodes["texture"].inputs[1].default_value = frame_numscene.frame_current
     for obj in bpy.data.objects:
         if obj.smvp_canvas.is_canvas:
             # Canvas found!
-            update_single_canvas_tex(scene, obj)
+            updateCanvas(scene, obj)
 
 def updateScene(scene):
     # Set Texture 
@@ -219,18 +234,6 @@ def setUpdateFlags(canvas_obj, preview=False):
         canvas_obj.smvp_canvas.frame_list[i].texture_updated = False
         if preview:
             canvas_obj.smvp_canvas.frame_list[i].preview_updated = False
-
-def depthgraphUpdated(scene):
-    # Check if active canvas object is still valid and remove in case it isnt
-    if scene.sl_canvas is not None and not scene.sl_canvas.name in scene.objects:
-        scene.sl_canvas = None
-    
-    #if client.connected:
-    #    updateScene()
-        
-# -------------------------------------------------------------------
-#   Helpers
-# -------------------------------------------------------------------
 def getLights():
     #center_pos = canvas_obj.matrix_world.translation
     #canvas_rot = canvas_obj.rotation_euler.to_matrix().invert().to_4x4()
@@ -285,7 +288,7 @@ def register():
         register_class(cls)
 
     # Event handlers
-    bpy.app.handlers.frame_change_pre.append(updateTextures)
+    bpy.app.handlers.frame_change_pre.append(frameChange)
     bpy.app.handlers.depsgraph_update_post.append(depthgraphUpdated)
     
     
