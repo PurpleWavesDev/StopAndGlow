@@ -35,11 +35,10 @@ class SMVP_CANVAS_OT_setCanvasActive(Operator):
         canvas = obj.smvp_canvas
         scn = context.scene
 
-        # fill property 'active_canvas' with name of selected canvas 
-        if scn.smvp_scene.active_canvas is not obj.name:
-            if obj.smvp_canvas.is_canvas:
-                scn.smvp_scene.active_canvas= obj.name
-                return{'FINISHED'}
+        # Set property 'sl_canvas' with selected canvas 
+        if obj.smvp_canvas.is_canvas:
+            scn.sl_canvas = obj
+            return{'FINISHED'}
 
         self.report({"WARNING"}, f"No canvas object selected")
         return{'CANCELLED'}
@@ -68,14 +67,11 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
     
     @classmethod
     def poll(cls, context):
-        return (context.object is not None and context.object.smvp_canvas.is_canvas) or\
-            context.scene.smvp_scene.active_canvas in bpy.data.objects
+        return context.scene.sl_canvas is not None
     
     def execute(self, context):
         scn = context.scene
-        obj = context.object
-        if obj is None or not obj.smvp_canvas.is_canvas:
-            obj = bpy.data.objects[scn.smvp_scene.active_canvas]
+        obj = scn.sl_canvas
         canvas = obj.smvp_canvas
         
         # Stop receiving images for live mode
@@ -100,14 +96,11 @@ class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
     
     @classmethod
     def poll(cls, context):
-        return (context.object is not None and context.object.smvp_canvas.is_canvas) or\
-            context.scene.smvp_scene.active_canvas in bpy.data.objects
+        return context.scene.sl_canvas is not None
     
     def execute(self, context):
         scn = context.scene
-        obj = context.object
-        if obj is None or not obj.smvp_canvas.is_canvas:
-            obj = bpy.data.objects[scn.smvp_scene.active_canvas]
+        obj = scn.sl_canvas
         canvas = obj.smvp_canvas
         
         # Send set renderer command
@@ -185,8 +178,8 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
         obj.smvp_canvas.ghost_texture = ghost.name
                 
         # Set active canvas object if current one is not available / not set
-        if not scn.smvp_scene.active_canvas in bpy.data.objects:
-            scn.smvp_scene.active_canvas = obj.name
+        if scn.sl_canvas is None:
+            scn.sl_canvas = obj
         
         return {"FINISHED"}
     
@@ -228,7 +221,10 @@ def setUpdateFlags(canvas_obj, preview=False):
             canvas_obj.smvp_canvas.frame_list[i].preview_updated = False
 
 def depthgraphUpdated(scene):
-    pass
+    # Check if active canvas object is still valid and remove in case it isnt
+    if scene.sl_canvas is not None and not scene.sl_canvas.name in scene.objects:
+        scene.sl_canvas = None
+    
     #if client.connected:
     #    updateScene()
         

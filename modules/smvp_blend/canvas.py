@@ -193,19 +193,18 @@ class SMVP_CANVAS_OT_ghosting(Operator):
     
     @classmethod
     def poll(cls, context):
-        return (context.object is not None and context.object.smvp_canvas.is_canvas) or\
-            context.scene.smvp_scene.active_canvas in bpy.data.objects
+        return context.scene.sl_canvas is not None
     
     def execute(self, context):
         scn = context.scene
-        obj = context.object
+        obj = context.scene.sl_canvas
                
         obj.smvp_ghost.show_ghost = True
         update_single_canvas_tex(scn, obj) #does this keep calling the fuction while true?
         return {'FINISHED'}
 
     def modal(self, context, event):
-        obj = context.object
+        obj = context.scene.sl_canvas
         obj.smvp_ghost.show_ghost = True
         if not context.window_manager.ghost_toggle:
             obj.smvp_ghost.show_ghost = False

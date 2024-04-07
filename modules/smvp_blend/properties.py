@@ -6,6 +6,7 @@ from smvp_ipc import *
 
 from . import client
 
+## Lists for properties (static & dynamic)
 algorithms = []
 display_modes = [
         ('prev', '', 'Preview',"SHADING_SOLID", 0),
@@ -14,11 +15,22 @@ display_modes = [
         ('rend', '', 'Rendered', "SHADING_RENDERED", 3),
     ]
 
+## Property functions and callbacks
 def DisplayModeProp(callback=None):
     return EnumProperty(items=display_modes, name='Display Modes', default='prev', update=callback) # update or set
 
+def DisplayModeUpdate(self, context):
+    # Call operator
+    bpy.ops.smvp_canvas.display_mode(display_mode=self.display_mode)
+
+## Property pollers
+def IsCanvasPoll(self, obj):
+    return obj.smvp_canvas.is_canvas
+    
+
+
+## Property classes
 class SMVP_SceneProps(PropertyGroup):
-    active_canvas: StringProperty()
     canvas_ids: IntProperty()
     resolution: IntVectorProperty(size=2, default=(1920, 1080))
 
@@ -33,11 +45,6 @@ class SMVP_CANVAS_FrameCollection(PropertyGroup):
     preview_updated: BoolProperty(default=False)
     texture_updated: BoolProperty(default=False)
 
-def DisplayModeUpdate(self, context):
-    # Call operator
-    bpy.ops.smvp_canvas.display_mode(display_mode=self.display_mode)
-
-    
 class SMVP_CanvasProps(PropertyGroup):
     is_canvas: BoolProperty()
     frame_list_index: IntProperty()
@@ -139,6 +146,13 @@ def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
+    
+    # Register custom object types (defined thorugh pollers)
+    bpy.types.Scene.sl_canvas = bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        poll=IsCanvasPoll
+    )
+
     
     # Assign properties
     Scene.smvp_scene = PointerProperty(type=SMVP_SceneProps, name="SMVP Scene Properties")

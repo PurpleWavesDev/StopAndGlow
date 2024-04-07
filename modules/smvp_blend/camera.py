@@ -37,7 +37,7 @@ class SMVP_CAMERA_OT_addLinked(Operator):
         if self.canvas_obj != "":
             cam_data.smvp.canvas_link = self.canvas_obj
         else:
-            cam_data.smvp.canvas_link = scn.smvp_scene.active_canvas
+            cam_data.smvp.canvas_link = scn.sl_canvas.name
         # Link to scene and set active
         scn.collection.objects.link(cam_obj)
         cam_obj.select_set(True)    
@@ -46,7 +46,7 @@ class SMVP_CAMERA_OT_addLinked(Operator):
         
     @classmethod
     def poll(cls, context):
-        return context.scene.smvp_scene.active_canvas != ""
+        return context.scene.sl_canvas is not None
 
 
 
