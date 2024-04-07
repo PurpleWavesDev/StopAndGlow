@@ -161,7 +161,7 @@ def serviceRun(port):
                         # ID got removed, send stop
                         ipc.send(recv_sock, Message(Command.RecvStop))
                     elif not image_requests[id] in bpy.data.images:
-                        # Image messing
+                        # Image missing
                         ipc.send(recv_sock, Message(Command.RecvStop))
                         print(f"SMVP receiver warning: Image {image_requests[id]} not found")
                     else:

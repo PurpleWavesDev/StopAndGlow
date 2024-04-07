@@ -258,7 +258,7 @@ class SMVP_CANVAS_OT_capture(Operator):
     
     def execute(self, context):
         obj = context.object
-        tex = obj.smvp_canvas.frame_list[0].preview_texture
+        tex = obj.smvp_canvas.frame_list[0].canvas_texture
         
         # Send capture message
         message = None
@@ -518,15 +518,17 @@ def createFrameTextures(obj, index, resolution):
 def getTexture(canvas_obj, frame):
     canvas = canvas_obj.smvp_canvas
     
-    if canvas.display_mode == 'live':
-        # No need to look for current key, start live capture with canvas texture
-        image_name = canvas.live_texture
+    # Live and baked lights
+    if canvas.display_mode in ['live', 'bake']:
+        # Start live capture with preview texture
+        image_name = canvas.canvas_texture
         if image_name in bpy.data.images:
             id = client.serviceAddReq(image_name)
-            message = ipc.Message(ipc.Command.ReqLive, {'id': id})
+            message = ipc.Message(ipc.Command.ReqLive, {'id': id}) if canvas.display_mode == 'live' else ipc.Message(ipc.Command.ReqBaked, {'id': id, 'preview': True})
             client.sendMessage(message)    
             return bpy.data.images[image_name]
         return None
+
         
     if len(canvas.frame_list) == 0:
         # No frames in canvas
@@ -557,12 +559,6 @@ def getTextureForIdx(canvas_obj, index, display_mode=None):
             if not canvas_frame.preview_updated:
                 command = ipc.Command.ReqPreview
                 canvas_frame.preview_updated = True
-        case 'bake': # Baked
-            image_name = canvas_frame.render_texture
-            # Request new image if it hasn't been updated or got replaced
-            if not canvas_frame.texture_updated:
-                command = ipc.Command.ReqBaked
-                canvas_frame.texture_updated = True
         case 'rend': # Render
             image_name = canvas_frame.render_texture
             # Request new image if it hasn't been updated or got replaced TODO?!
@@ -580,7 +576,7 @@ def getTextureForIdx(canvas_obj, index, display_mode=None):
     # If command is set, generate ID for requested image and send request
     if command is not None:
         id = client.serviceAddReq(image_name)
-        message = ipc.Message(command, {'id': id})
+        message = ipc.Message(command, {'id': id, 'sequence': canvas_frame.seq_path})
         client.sendMessage(message)    
     
     # Return texture

@@ -13,6 +13,12 @@ from .camera import *
 
 
 # -------------------------------------------------------------------
+#   Global data
+# -------------------------------------------------------------------
+scene_light_data = []
+
+
+# -------------------------------------------------------------------
 #   Operators
 # -------------------------------------------------------------------
 class VIEW3D_OT_setupScene(Operator):
@@ -75,7 +81,7 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
         canvas = obj.smvp_canvas
         
         # Stop receiving images for live mode
-        client.serviceRemoveReq(canvas.live_texture)
+        client.serviceRemoveReq(canvas.canvas_texture)
         # For rendering mode set texture updated to false; TODO: Avoid re-rendering
         #if self.display_mode == 'rend':
         #    canvas_frame.texture_updated = False
@@ -174,7 +180,7 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
         resolution = scn.smvp_scene.resolution
         texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1], float_buffer=True)
         ghost = bpy.data.images.new(ghosting_name, width=resolution[0], height=resolution[1], float_buffer=True)
-        obj.smvp_canvas.live_texture = texture.name
+        obj.smvp_canvas.canvas_texture = texture.name
         obj.smvp_canvas.ghost_texture = ghost.name
                 
         # Set active canvas object if current one is not available / not set
@@ -212,28 +218,43 @@ def updateTextures(scene):
             # Canvas found!
             updateCanvas(scene, obj)
 
+
 def updateScene(scene):
-    # Set Texture 
-    for obj in bpy.data.objects:
-        if obj.smvp_canvas.is_canvas:
-            setUpdateFlags(obj)
+    global scene_light_data
     
     if client.connected:
-        # Get lights and send to server
-        light_data = getLights()
-        #for lgt in light_data:
-        message = Message(Command.LightsSet, light_data)
-        client.sendMessage(message)
+        # Get lights and check if anything has changed since last call
+        new_lights = getLights()
+        if len(new_lights) != len(scene_light_data) or new_lights != scene_light_data:
+            # Assign light data
+            scene_light_data = new_lights
+            # Send to server
+            message = Message(Command.LightsSet, scene_light_data)
+            client.sendMessage(message)
+        
+            # Set update flags for all render textures of all canvases (TODO: or just active one?)
+            for obj in bpy.data.objects:
+                if obj.smvp_canvas.is_canvas:
+                    setUpdateFlags(obj)
+        
+            # Trigger image requests # TODO: Or just single canvas?
+            updateTextures(scene)
+            
+        # Otherwise only check for moved canvases and update these TODO: Server dosn't know about canvases and their transforms yet
+        else:
+            pass
+            # updateCanvas(scene, canvas)
     
-        # Trigger image requests
-        updateTextures(scene)
-    
+
+
 def setUpdateFlags(canvas_obj, preview=False):
     # Mark rendered frames as not updated
     for i in range(len(canvas_obj.smvp_canvas.frame_list)):
         canvas_obj.smvp_canvas.frame_list[i].texture_updated = False
         if preview:
             canvas_obj.smvp_canvas.frame_list[i].preview_updated = False
+
+
 def getLights():
     #center_pos = canvas_obj.matrix_world.translation
     #canvas_rot = canvas_obj.rotation_euler.to_matrix().invert().to_4x4()

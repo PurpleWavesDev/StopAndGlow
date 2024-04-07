@@ -49,7 +49,7 @@ class SMVP_CanvasProps(PropertyGroup):
     is_canvas: BoolProperty()
     frame_list_index: IntProperty()
     frame_list: CollectionProperty(type=SMVP_CANVAS_FrameCollection)
-    live_texture: StringProperty()
+    canvas_texture: StringProperty()
     ghost_texture: StringProperty()
     
     display_mode: DisplayModeProp(DisplayModeUpdate)
