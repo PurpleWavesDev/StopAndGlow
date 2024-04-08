@@ -4,7 +4,7 @@ import math
 
 def NormalizeLatlong(latlong) -> [float, float]:
     """Returns Lat-Long coordinates in the range of 0 to 1"""
-    return ((latlong[0]+90) / 180, (latlong[1]) / 360)
+    return ((latlong[0]+90) / 180, (latlong[1]+180)%360 / 360)
 
 def LatlongRadians(latlong) -> [float, float]:
     """Returns Lat-Long coordinates as radians in the range of -Pi/2 to Pi/2 Latitude and -Pi to Pi Longitude"""

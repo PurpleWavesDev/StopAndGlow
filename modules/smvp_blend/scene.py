@@ -296,20 +296,19 @@ def getLights():
             pos = list(light.matrix_world.translation)
             
             match light.data.type:
-                case 'POINT':
-                    # Position, size, power, color
-                    light_data.append({'type': 'point', 'position': pos, 'size': 0.0, 'power': power, 'color': color})
                 case 'SUN':
                     # Rotation, spread, power, color
                     rot = mathutils.Vector((0.0, 0.0, 1.0))
                     rot.rotate(light.rotation_euler)
-                    latlong = (math.degrees(math.asin(rot[2])), math.degrees(math.acos(rot[1])) if rot[0] > 0 else 360 - math.degrees(math.acos(rot[1]))) # TODO
-                    light_data.append({'type': 'sun', 'rotation': list(rot), 'latlong': latlong, 'spread': 0.0, 'power': power, 'color': color})
+                    light_data.append({'type': 'sun', 'dir': list(rot), 'spread': 0.0, 'power': power, 'color': color})
+                case 'POINT':
+                    # Position, size, power, color
+                    light_data.append({'type': 'point', 'pos': pos, 'size': 0.0, 'power': power, 'color': color})
                 case 'SPOT' | 'AREA':
                     # Position, rotation, size, power, color
                     rot = mathutils.Vector((0.0, 0.0, 1.0))
                     rot.rotate(light.rotation_euler)
-                    light_data.append({'type': light.data.type.lower(), 'position': pos, 'rotation': list(rot), 'power': power, 'color': color})
+                    light_data.append({'type': light.data.type.lower(), 'pos': pos, 'dir': list(rot), 'power': power, 'color': color})
     
     return light_data
 
