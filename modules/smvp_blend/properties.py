@@ -31,8 +31,11 @@ def IsCanvasPoll(self, obj):
 
 ## Property classes
 class SMVP_SceneProps(PropertyGroup):
-    canvas_ids: IntProperty()
+    # Settings
     resolution: IntVectorProperty(size=2, default=(1920, 1080))
+    update_rate: FloatProperty(default=5.0)
+    # Internal props
+    canvas_ids: IntProperty()
     connected: BoolProperty(get=lambda self: client.connected)
 
 class SMVP_CANVAS_FrameCollection(PropertyGroup):
@@ -55,7 +58,7 @@ class SMVP_CanvasProps(PropertyGroup):
     
     display_mode: DisplayModeProp(DisplayModeUpdate)
     render_type: StringProperty()
-    exposure: FloatProperty()
+    #exposure: FloatProperty()
     
     canvas_id: IntProperty()
     frame_ids: IntProperty()

@@ -16,6 +16,7 @@ from .camera import *
 #   Global data
 # -------------------------------------------------------------------
 scene_light_data = []
+update_scene = False
 
 
 # -------------------------------------------------------------------
@@ -114,7 +115,7 @@ class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
         client.sendMessage(message)
         # Update object
         setUpdateFlags(obj)
-        updateTextures(scn)
+        updateCanvas(scn, obj)
         return{'FINISHED'}
 
 
@@ -202,18 +203,38 @@ def frameChange(scene):
     updateTextures(scene)
 
 def depthgraphUpdated(scene):
+    global update_scene
+    
     # Check if active canvas object is still valid and remove in case it isnt
     if scene.sl_canvas is not None and not scene.sl_canvas.name in scene.objects:
         scene.sl_canvas = None
     
-    # Update lights and update flags of canvases
-    updateScene(scene)
+    update_scene = True
+    
+
+def timerCallback():
+    global update_scene
+    scene = bpy.context.scene
+    
+    # Update active canvas (live or render) TODO: only send out calls when frames got received
+    if scene.sl_canvas is not None:
+        match scene.sl_canvas.smvp_canvas.display_mode:
+            case 'rend':
+                if update_scene:
+                    # Update lights and update flags of canvases
+                    updateScene(scene)
+                    update_scene = False
+            case 'live':
+                updateCanvas(scene, scene.sl_canvas)
+        
+    return 1.0 / scene.smvp_scene.update_rate
 
 
 # -------------------------------------------------------------------
 #   Scene API and Helpers
 # -------------------------------------------------------------------
 def updateTextures(scene):
+    """Function to call when current frame has changed"""
     #bpy.data.materials["Video"].node_tree.nodes["texture"].inputs[1].default_value = frame_numscene.frame_current
     for obj in bpy.data.objects:
         if obj.smvp_canvas.is_canvas:
@@ -222,6 +243,7 @@ def updateTextures(scene):
 
 
 def updateScene(scene):
+    """Function to call when scene has changed"""
     global scene_light_data
     
     if client.connected:
@@ -235,12 +257,15 @@ def updateScene(scene):
             client.sendMessage(message)
         
             # Set update flags for all render textures of all canvases (TODO: or just active one?)
-            for obj in bpy.data.objects:
-                if obj.smvp_canvas.is_canvas:
-                    setUpdateFlags(obj)
+            #for obj in bpy.data.objects:
+            #    if obj.smvp_canvas.is_canvas:
+            #        setUpdateFlags(obj)
+            if scene.sl_canvas is not None:
+                setUpdateFlags(scene.sl_canvas)
         
             # Trigger image requests # TODO: Or just single canvas?
-            updateTextures(scene)
+            #updateTextures(scene)
+            updateCanvas(scene, scene.sl_canvas)
             
         # Otherwise only check for moved canvases and update these TODO: Server dosn't know about canvases and their transforms yet
         else:
@@ -250,11 +275,12 @@ def updateScene(scene):
 
 
 def setUpdateFlags(canvas_obj, preview=False):
-    # Mark rendered frames as not updated
+    """Mark all frames as not updated"""
     for i in range(len(canvas_obj.smvp_canvas.frame_list)):
         canvas_obj.smvp_canvas.frame_list[i].texture_updated = False
         if preview:
             canvas_obj.smvp_canvas.frame_list[i].preview_updated = False
+            
 
 
 def getLights():
@@ -264,30 +290,26 @@ def getLights():
     
     light_data = []
     for light in bpy.data.objects:
-        if light.type == 'LIGHT':
+        if light.type == 'LIGHT' and light.visible_get(): # TODO: Hiding for renders (light.visible_get())
+            power = float(light.data.energy) # multiplied with custom factor stop_lighting_factor
+            color = list(light.data.color)# from_srgb_to_scene_linear() # convert ?
+            pos = list(light.matrix_world.translation)
+            
             match light.data.type:
                 case 'POINT':
-                    # Relative position (factoring in scale), size(?), power, color
-                    relative_pos = light.matrix_world.translation# - center_pos
-                    # Rotate with canvas rotation
-                    #relative_pos.rotate(canvas_rot)
-                    # Scale by canvsa scale
-                    #relative_pos *= scale
-                    power = light.data.energy # multiplied with custom factor stop_lighting_factor
-                    color = light.data.color# from_srgb_to_scene_linear() # convert ?
-                    light_data.append({'type': 'point', 'position': list(relative_pos), 'power': float(power), 'color': list(color)})
+                    # Position, size, power, color
+                    light_data.append({'type': 'point', 'position': pos, 'size': 0.0, 'power': power, 'color': color})
                 case 'SUN':
-                    # Direction, spread(?), power, color
-                    vec = mathutils.Vector((0.0, 0.0, 1.0))
-                    vec.rotate(light.rotation_euler)
-                    latlong = (math.degrees(math.asin(vec[2])), math.degrees(math.acos(vec[1])) if vec[0] > 0 else 360 - math.degrees(math.acos(vec[1]))) # TODO
-                    power = light.data.energy # multiplied with custom factor stop_lighting_factor
-                    color = light.data.color# from_srgb_to_scene_linear() # convert ?
-                    light_data.append({'type': 'sun', 'latlong': latlong, 'power': power, 'color': (color.r, color.g, color.b)})
-                case 'SPOT':
-                    pass
-                case 'AREA':
-                    pass
+                    # Rotation, spread, power, color
+                    rot = mathutils.Vector((0.0, 0.0, 1.0))
+                    rot.rotate(light.rotation_euler)
+                    latlong = (math.degrees(math.asin(rot[2])), math.degrees(math.acos(rot[1])) if rot[0] > 0 else 360 - math.degrees(math.acos(rot[1]))) # TODO
+                    light_data.append({'type': 'sun', 'rotation': list(rot), 'latlong': latlong, 'spread': 0.0, 'power': power, 'color': color})
+                case 'SPOT' | 'AREA':
+                    # Position, rotation, size, power, color
+                    rot = mathutils.Vector((0.0, 0.0, 1.0))
+                    rot.rotate(light.rotation_euler)
+                    light_data.append({'type': light.data.type.lower(), 'position': pos, 'rotation': list(rot), 'power': power, 'color': color})
     
     return light_data
 
@@ -313,10 +335,9 @@ def register():
     # Event handlers
     bpy.app.handlers.frame_change_pre.append(frameChange)
     bpy.app.handlers.depsgraph_update_post.append(depthgraphUpdated)
-    
-    
-    bpy.types.WindowManager.ghost_toggle = bpy.props.BoolProperty(default = False, update = update_ghost_func)   
-    
+    bpy.app.timers.register(timerCallback)
+
+    bpy.types.WindowManager.ghost_toggle = bpy.props.BoolProperty(default = False, update = update_ghost_func)    
 
 
 def unregister():
