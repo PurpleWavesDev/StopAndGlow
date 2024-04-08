@@ -422,13 +422,14 @@ def updateCanvas(scene, obj):
             getTextureForIdx(obj, idx, display_mode='prev').pixels.foreach_get(key_img_data.ravel())
             prev_img_data = prev_img_data*op+ key_img_data*(1-op)
             if distance <= 0:
-              #  prev_img_data=np.power(prev_img_data, 2.2)
+                prev_img_data[:,:,(1,2)]=0 #turn image red 
                 break
         
         for idx, distance in reversed(frames):
             getTextureForIdx(obj, idx, display_mode='prev').pixels.foreach_get(key_img_data.ravel())
             foll_img_data = foll_img_data*op+ key_img_data*(1-op)
             if distance >= 0:
+                foll_img_data[:,:,(0,2)]=0 # turn image green
                 break
             
            
