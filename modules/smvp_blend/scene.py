@@ -122,6 +122,8 @@ class SMVP_CANVAS_OT_setGhostMode(Operator):
     bl_idname = "smvp_canvas.ghost_on"
     bl_label= "Show Ghostframes"
     bl_options = {'REGISTER'}
+    
+    
 
     @classmethod
     def poll(cls, context):

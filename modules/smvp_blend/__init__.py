@@ -62,13 +62,13 @@ def register():
 
 def unregister():
     from . import properties, client, domectl, canvas, camera, scene, ui
-    properties.unregister()
-    client.unregister()
-    domectl.unregister()
-    canvas.unregister()
-    camera.unregister()
-    scene.unregister()
     ui.unregister()
+    scene.unregister()
+    camera.unregister()
+    canvas.unregister()
+    domectl.unregister()
+    client.unregister()
+    properties.unregister()
 
 
 if __name__ == '__main__':

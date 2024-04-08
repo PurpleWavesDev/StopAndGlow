@@ -254,7 +254,7 @@ class SMVP_CANVAS_OT_capture(Operator):
                     return {'RUNNING_MODAL'}
 
         # Execute capture command
-        return execute()
+        return self.execute()
     
     def execute(self, context):
         obj = context.object
@@ -397,7 +397,7 @@ def updateCanvas(scene, obj):
     # Get texture to show
     img = getTexture(obj, scene.frame_current)
     
-    if obj.smvp_ghost.show_ghost:
+    if img is not None and obj.smvp_ghost.show_ghost:
         frames= []
         keyframes = getKeyframes(obj)
         w,h = img.size

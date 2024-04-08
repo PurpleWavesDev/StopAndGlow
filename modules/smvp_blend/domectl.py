@@ -51,7 +51,7 @@ class WM_OT_smvp_launch(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return not client.connected
+        return not context.scene.smvp_scene.connected
 
 
 class WM_OT_smvp_lightctl(bpy.types.Operator):

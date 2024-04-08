@@ -33,6 +33,7 @@ def IsCanvasPoll(self, obj):
 class SMVP_SceneProps(PropertyGroup):
     canvas_ids: IntProperty()
     resolution: IntVectorProperty(size=2, default=(1920, 1080))
+    connected: BoolProperty(get=lambda self: client.connected)
 
 class SMVP_CANVAS_FrameCollection(PropertyGroup):
     #name: StringProperty() -> Instantiated by default
@@ -102,7 +103,7 @@ def getAlgorithms(self, context) -> list:
     """Returns a list of available render algorithms but only when a connection to the server is established"""
     global algorithms
     
-    if not algorithms and client.connected:
+    if not algorithms and context.scene.smvp_scene.connected:
         message = Message(Command.GetRenderAlgorithms)
         answer = client.sendMessage(message)
         if answer.command == Command.CommandAnswer:
@@ -116,7 +117,7 @@ def getAlgorithms(self, context) -> list:
 
 def getAlgorithmSettings(self, context) -> dict:
     """Returns the options of the renderer/algorithm"""
-    if client.connected:
+    if context.scene.smvp_scene.connected:
         message = Message(Command.Command.GetRenderSettings)
         answer = client.sendMessage(message)
         if answer.command == Command.CommandAnswer:
@@ -126,9 +127,9 @@ def getAlgorithmSettings(self, context) -> dict:
 class SMVP_Algorithms_Props(PropertyGroup):
     
     algs_dropdown_items : bpy.props.EnumProperty(
-        name= "",
-        description= "description",
-        items= getAlgorithms
+        name="Algorithms",
+        description="Algorithms for rendering",
+        items=getAlgorithms
     )
    
 

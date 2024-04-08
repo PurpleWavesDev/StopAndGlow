@@ -131,6 +131,11 @@ def execute(socket, port, context):
                 # Generate alpha and send again
                 queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'alpha', 'rgb': False})
                 queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
+
+            case Command.ReqRender:
+                queue.putCommand(Commands.Render, 'render')
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'render'})
+                send(socket, Message(Command.CommandProcessing))
                 
             case Command.ReqBaked:
                 # Capture and send
@@ -143,11 +148,6 @@ def execute(socket, port, context):
             
             case Command.ReqLive:
                 queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'live'})
-                send(socket, Message(Command.CommandProcessing))
-
-            case Command.ReqRender:
-                queue.putCommand(Commands.Render, 'render')
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'render'})
                 send(socket, Message(Command.CommandProcessing))
             
             
