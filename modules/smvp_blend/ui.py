@@ -78,7 +78,7 @@ class VIEW3D_PT_sl_canvas(bpy.types.Panel):
         row.label(text="Display Modes")
         row.prop(obj.smvp_canvas,'display_mode',expand = True)
         # Update lighting
-        if obj.smvp_canvas.display_mode == 'bake':
+        if obj.smvp_canvas.display_mode == 'baked':
             row = layout.row()
             row.operator(SMVP_CANVAS_OT_updateScene.bl_idname, icon="RECOVER_LAST", text="Update Lighting")
         # Algorithm

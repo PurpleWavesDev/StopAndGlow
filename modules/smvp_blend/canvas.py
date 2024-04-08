@@ -120,7 +120,8 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             
             # Send load command
             message = ipc.Message(ipc.Command.LoadFootage, {'path': self.directory})
-            client.sendMessage(message)
+            answer = client.sendMessage(message)
+            # TODO: Check answer, cancel if received an error
             context.area.tag_redraw()
             
             # Update texture
@@ -519,12 +520,12 @@ def getTexture(canvas_obj, frame):
     canvas = canvas_obj.smvp_canvas
     
     # Live and baked lights
-    if canvas.display_mode in ['live', 'bake']:
+    if canvas.display_mode in ['live', 'baked']:
         # Start live capture with preview texture
         image_name = canvas.canvas_texture
         if image_name in bpy.data.images:
             id = client.serviceAddReq(image_name)
-            message = ipc.Message(ipc.Command.ReqLive, {'id': id}) if canvas.display_mode == 'live' else ipc.Message(ipc.Command.ReqBaked, {'id': id, 'preview': True})
+            message = ipc.Message(ipc.Command.RequestCamera, {'id': id, 'mode': canvas.display_mode})
             client.sendMessage(message)    
             return bpy.data.images[image_name]
         return None
@@ -550,20 +551,20 @@ def getTextureForIdx(canvas_obj, index, display_mode=None):
     canvas_frame = canvas.frame_list[index % len(canvas.frame_list)]
     # Get image name for display mode and check if image needs to be requested
     image_name = ""
-    command = None
+    cmd_mode = None
     display_mode = canvas.display_mode if display_mode is None else display_mode
     match display_mode:
         case 'prev': # Preview
             image_name = canvas_frame.preview_texture
             # Request update if image has not been set
             if not canvas_frame.preview_updated:
-                command = ipc.Command.ReqPreview
+                cmd_mode = "preview"
                 canvas_frame.preview_updated = True
         case 'rend': # Render
             image_name = canvas_frame.render_texture
             # Request new image if it hasn't been updated or got replaced TODO?!
             if not canvas_frame.texture_updated:
-                command = ipc.Command.ReqRender
+                cmd_mode = "render"
                 canvas_frame.texture_updated = True
     
     # If image is not valid, create a new one and call function recursively
@@ -574,9 +575,9 @@ def getTextureForIdx(canvas_obj, index, display_mode=None):
             getTextureForIdx(canvas_obj, index, display_mode)
     
     # If command is set, generate ID for requested image and send request
-    if command is not None:
+    if cmd_mode is not None:
         id = client.serviceAddReq(image_name)
-        message = ipc.Message(command, {'id': id, 'sequence': canvas_frame.seq_path})
+        message = ipc.Message(ipc.Command.RequestSequence, {'mode': cmd_mode, 'id': id, 'path': canvas_frame.seq_path})
         client.sendMessage(message)    
     
     # Return texture

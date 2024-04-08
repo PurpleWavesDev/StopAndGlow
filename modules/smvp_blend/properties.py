@@ -11,7 +11,7 @@ algorithms = []
 display_modes = [
         ('prev', '', 'Preview',"SHADING_SOLID", 0),
         ('live', '', 'Live View', "SCENE", 1),
-        ('bake', '', 'Baked Lights', "LIGHT", 2), # LIGHT / SHADING_TEXTURE / MATERIAL?
+        ('baked', '', 'Baked Lights', "LIGHT", 2), # LIGHT / SHADING_TEXTURE / MATERIAL?
         ('rend', '', 'Rendered', "SHADING_RENDERED", 3),
     ]
 

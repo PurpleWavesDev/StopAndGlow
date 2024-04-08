@@ -18,8 +18,6 @@ from .viewer import *
 from .utils import ti_base as tib
 from .utils.utils import GetDatetimeNow
 
-from .engine import *
-
 
 class ProcessingQueue:
     def __init__(self, context=None):
@@ -70,16 +68,13 @@ class Worker:
         self.sequence = Sequence()
         self.hdri = ImgBuffer(path=os.path.join(self.config['hdri_folder'], self.config['hdri_name']))
         self.img_buf = ImgBuffer.CreateEmpty(self.config['resolution'], True)
+        self.path = ""
         
         # Setup hardware
         calibration = Calibration(path=os.path.join(self.config['cal_folder'], self.config['cal_name']))
         self.hw = HW(Cam(), Lights(), calibration)
         self.lightctl = LightCtl(self.hw)
-        
-        # For client communication and continuous execution
-        self.req_id = 0
-        self.executor = None
-        
+                
         # Rendering
         self.renderer = Renderer(BSDF(), self.config['resolution'])
 
@@ -88,10 +83,7 @@ class Worker:
                 command, arg, settings = queue.get_nowait()
                 self.processCommand(command, arg, settings)
             except Q.Empty:
-                if self.executor is not None:
-                    self.sendImage(self.req_id)
-                else:
-                    time.sleep(0.1)
+                time.sleep(0.1)
             except Exception as e:
                 log.error(f" Command '{command} {arg}': {str(e)}")
                 if not self._keep_running:
@@ -126,6 +118,7 @@ class Worker:
                     case 'set':
                         for key, val in settings.items():
                             self.config[key] = val
+                    # TODO: get?
                     case 'save':
                         self.config.save(path)
                     case _:
@@ -159,7 +152,7 @@ class Worker:
                 settings = self.config.get() | settings
                 if arg == 'live':
                     self.img_buf = self.hw.cam.capturePreview()
-                elif arg == 'baked':
+                elif arg == 'baked': # TODO: Capture with camera preview
                     capture = Capture(self.hw, settings)
                     capture.captureSequence(self.hw.cal, self.hdri)
                     baked_seq = capture.downloadSequence(name, keep=False)
@@ -194,31 +187,35 @@ class Worker:
             
             case Commands.Load:
                 # --load <path> seq_type=<lights,baked,all>
-                log.info(f"Loading sequence '{arg}'")
+                # Check if sequence is already loaded
+                # TODO: keep n sequences in memory (?)
+                if not self.path == arg:
+                    self.path = arg
+                    
+                    log.info(f"Loading sequence '{arg}'")
+                    
+                    # Is argument absolute path or relative to seq_folder?
+                    if not os.path.exists(self.path):
+                        self.path = os.path.join(self.config['seq_folder'], arg)
+                        if not os.path.exists(self.path):
+                            raise Exception(f"File/folder '{arg}' not found")
                 
-                # Is argument absolute path or relative to seq_folder?
-                path = arg
-                if not os.path.exists(path):
-                    path = os.path.join(self.config['seq_folder'], arg)
-                    if not os.path.exists(path):
-                        raise Exception(f"File/folder '{arg}' not found")
-                
-                # Get config and frame list for video files
-                default_config = self.config.get()
-                if os.path.splitext(path)[1] != '':
-                    # Video file, add IDs to defaults according to sequence type
-                    match GetSetting(settings, 'seq_type', 'lights'):
-                        case 'lights':
-                            ids = calibration.getIds()
-                        case 'baked':
-                            ids = [0, 1, 2]
-                        case 'all':
-                            ids = range(config['capture_max_addr'])
-                    default_config = {**default_config, **{'video_frame_list', ids}}
-                
-                # Replace sequence and load
-                self.sequence = Sequence()
-                self.sequence.load(path, defaults=default_config, overrides=settings)
+                    # Get config and frame list for video files
+                    default_config = self.config.get()
+                    if os.path.splitext(self.path)[1] != '':
+                        # Video file, add IDs to defaults according to sequence type
+                        match GetSetting(settings, 'seq_type', 'lights'):
+                            case 'lights':
+                                ids = calibration.getIds()
+                            case 'baked':
+                                ids = [0, 1, 2]
+                            case 'all':
+                                ids = range(config['capture_max_addr'])
+                        default_config = {**default_config, **{'video_frame_list', ids}}
+                    
+                    # Replace sequence and load
+                    self.sequence = Sequence()
+                    self.sequence.load(self.path, defaults=default_config, overrides=settings)
 
             case Commands.LoadHdri:
                 # --loadHdri <path>
@@ -252,8 +249,9 @@ class Worker:
                  
             case Commands.Process:
                 # --process <type> setting=value
+                #exists = arg in self.sequence.getDataKeys() if GetSetting(settings, 'destination', 'data') == 'data' else 
+                #if not arg in self.sequence.getDataKeys() or GetSetting(settings, 'override', False):
                 log.info(f"Processing sequence with '{arg}'")
-                
                 self.sequence = self.process(self.sequence, arg, settings)
                 
             
@@ -338,7 +336,6 @@ class Worker:
                 id = GetSetting(settings, 'id', 0)
                 mode = GetSetting(settings, 'mode', 'preview')
                 resolution = self.config['resolution']
-                self.executor = None
                 
                 if mode == 'preview':
                     preview = self.sequence.getPreview()
@@ -353,9 +350,8 @@ class Worker:
                     rendered = ImgBuffer(img=self.renderer.get())
                     self.sendImg(id, rendered.withAlpha().get())
                 elif mode == 'live':
-                    self.req_id = id
-                    self.executor = Engine(self.hw, self.config['resolution'], EngineModes.Live)
-                    self.sendImage(id)
+                    preview = self._hw.cam.capturePreview()
+                    self.sendImg(id, preview.rescale(resolution, crop=True).asFloat().withAlpha().get())
             
             
             case Commands.Lights:
@@ -449,10 +445,6 @@ class Worker:
         return img_seq
 
     
-    def sendImage(self, id):
-        time.sleep(0.1)
-        self.sendImg(id, self.executor.execute().withAlpha().get())
-
     def sendImg(self, id, img):
         send_array(self._consumer, id, img)
         answer = receive(self._consumer)

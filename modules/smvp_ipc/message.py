@@ -44,11 +44,9 @@ class Command(Enum):
     LightsHdriTexture = 36
     
     # Image requests
-    ReqPreview = 61
-    ReqBaked = 62
-    ReqRender = 63
-    ReqLive = 64
-    ReqStop = 65
+    RequestSequence = 61
+    RequestCamera = 62
+    RequestStop = 65
     
     # Render Algorithmns
     GetRenderAlgorithms = 81

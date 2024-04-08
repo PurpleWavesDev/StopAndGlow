@@ -206,8 +206,8 @@ def depthgraphUpdated(scene):
     if scene.sl_canvas is not None and not scene.sl_canvas.name in scene.objects:
         scene.sl_canvas = None
     
-    #if client.connected:
-    #    updateScene()
+    # Update lights and update flags of canvases
+    updateScene(scene)
 
 
 # -------------------------------------------------------------------

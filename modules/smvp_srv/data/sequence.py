@@ -33,6 +33,8 @@ class Sequence():
         self._meta = dict()
         self._meta_changed = False
         self._metafile_name = None
+        self._seq_name = ""
+        self._base_dir = ""
         
         # Properties
         self._min=-1

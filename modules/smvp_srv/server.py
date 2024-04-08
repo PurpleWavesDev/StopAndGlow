@@ -15,22 +15,28 @@ def run(port=9271):
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind(f"tcp://*:{port}")
-
+    queue = ProcessingQueue(context)
+    
     try:
-        execute(socket, port, context)
+        execute(socket, port, queue)
     except Exception as e:
+        log.error(f"Uncaught exception: {str(e)}")
         send(socket, Message(Command.CommandDisconnect, {'message': f"Error: {str(e)}"}))
-        
+    
+    # Clean up: Stop process and close socket
+    queue.quit()
+    context.destroy()
 
-def execute(socket, port, context):
+def execute(socket, port, queue):
     remote_address = ""
     initalized = False
-    queue = ProcessingQueue(context)
+    
+    log.info(f"Server ready and listening on port {port}")
     while True:
         #  Wait for next request from client
         message = receive(socket)
         if message is None:
-            print("Error receiving data")
+            log.error("Error receiving data")
             break
         
         if (not initalized) and message.command != Command.Init and message.command != Command.Ping:
@@ -100,7 +106,7 @@ def execute(socket, port, context):
                 root = queue.getConfig()['seq_folder']
                 path = os.path.join(root, name)
                 queue.putCommand(Commands.Capture, 'lights' if Command.CaptureLights else 'baked', {'name': name, 'discard_video': True}) # TODO: Implement discard_video
-                #queue.putCommand(Commands.Save, path)
+                #queue.putCommand(Commands.Save, path) # TODO!
                 send(socket, Message(Command.CommandProcessing, {'path': path}))
             ## Load from disk
             case Command.LoadFootage:
@@ -123,31 +129,34 @@ def execute(socket, port, context):
             
             
             ## Preview
-            # TODO: Join Request commands
-            case Command.ReqPreview:
-                # Send preview image
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
-                send(socket, Message(Command.CommandProcessing))
-                # Generate alpha and send again
-                queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'alpha', 'rgb': False})
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
-
-            case Command.ReqRender:
-                queue.putCommand(Commands.Render, 'render')
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'render'})
+            case Command.RequestSequence:
+                # id, mode, path in data
+                # Load sequence
+                queue.putCommand(Commands.Load, message.data['path'])
+                
+                if message.data['mode'] == 'render':
+                    # Start rendering
+                    queue.putCommand(Commands.Render, 'render')
+                
+                # Queue sending image and answer
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
                 send(socket, Message(Command.CommandProcessing))
                 
-            case Command.ReqBaked:
-                # Capture and send
-                queue.putCommand(Commands.Capture, 'baked')
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
-                send(socket, Message(Command.CommandProcessing))
-                # Generate alpha and send again
-                queue.putCommand(Commands.Process, 'depth', {'target': 'baked', 'destination': 'alpha', 'rgb': False})
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'baked'})
+                # Check for alpha, if there's noen generate and and send image again TODO
+                if message.data['mode'] == 'preview':
+                    queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'alpha', 'rgb': False, 'override': False})
+                    queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
+                #queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
+                
             
-            case Command.ReqLive:
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'live'})
+            case Command.RequestCamera:
+                # id, mode in data
+                # Capture and send
+                if message.data['mode'] == 'baked':
+                    queue.putCommand(Commands.Capture, 'baked')
+                else:
+                    queue.putCommand(Commands.Preview, 'live')
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
                 send(socket, Message(Command.CommandProcessing))
             
             
