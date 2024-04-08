@@ -144,7 +144,7 @@ def execute(socket, port, queue):
                 
                 # Check for alpha, if there's noen generate and and send image again TODO
                 if message.data['mode'] == 'preview':
-                    queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'alpha', 'rgb': False, 'override': False})
+                    queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'data', 'rgb': False, 'override': False}) # destination: alpha
                     queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
                 #queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
                 

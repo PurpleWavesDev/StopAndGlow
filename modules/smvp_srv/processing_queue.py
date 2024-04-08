@@ -259,6 +259,7 @@ class Worker:
                 match arg:
                     case 'config':
                         if 'algorithm' in settings:
+                            log.info(f"Render configuration with bsdf '{settings['algorithm']}'")
                             bsdf = [bsdf for name, _, bsdf in bsdfs if name == settings['algorithm']]
                             if len(bsdf) == 1:
                                 bsdf = bsdf[0]()
@@ -336,19 +337,23 @@ class Worker:
                 id = GetSetting(settings, 'id', 0)
                 mode = GetSetting(settings, 'mode', 'preview')
                 resolution = self.config['resolution']
+                try:
+                    depth = self.sequence.getDataSequence('depth')[0].get()
+                except:
+                    depth = None
                 
                 if mode == 'preview':
                     preview = self.sequence.getPreview()
                     if preview.resolution() != resolution:
                         # Scale to current resolution
-                        preview.set(preview.rescale(resolution, crop=True).asDomain(ImgDomain.Lin).withAlpha().get())
+                        preview.set(preview.rescale(resolution, crop=True).asDomain(ImgDomain.Lin).withAlpha(depth).get())
                     self.sendImg(id, preview.get())
                 elif mode == 'baked':
                     self.sendImg(id, self.baked.withAlpha().get())
                 elif mode == 'render':
                     # TODO: Straight from buffer? Alpha channel?
                     rendered = ImgBuffer(img=self.renderer.get())
-                    self.sendImg(id, rendered.withAlpha().get())
+                    self.sendImg(id, rendered.withAlpha(depth).get())
                 elif mode == 'live':
                     preview = self._hw.cam.capturePreview()
                     self.sendImg(id, preview.rescale(resolution, crop=True).asFloat().withAlpha().get())

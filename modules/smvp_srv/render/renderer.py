@@ -67,7 +67,7 @@ class Renderer:
     ## Sample kernels
     @ti.kernel
     def sampleSun(self, u: ti.f32, v: ti.f32, spread: ti.f32, power: ti.f32, color: tib.pixvec):
-        factor = power * color
+        factor = power * color * 50 # TODO what is this factor?
         
         for y, x in self._buffer:
             self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor
@@ -75,14 +75,14 @@ class Renderer:
     @ti.kernel
     def samplePoint(self, pos: tib.pixvec, size: ti.f32, power: ti.f32, color: tib.pixvec):
         factor = power * color
-        width = self._buffer.shape[0]
-        height_offset = 0.5 # TODO!
+        width = self._buffer.shape[1]
+        height_offset = (self._buffer.shape[1]-self._buffer.shape[0]) / 2
         
         for y, x in self._buffer:
             # Calculate vector to pixel: We assume the canvas is 1m wide and centered
             # Canvas is flat for now
-            pix2pos = pos - ti.Vector([x/width - 0.5, 0, y/width - height_offset], dt=ti.f32)
-            squared_length = pos[0]**2 + pos[1]**2 + pos[2]**2
+            pix2pos = pos - ti.Vector([x/width - 0.5, 0, 0.5-(y+height_offset)/width], dt=ti.f32)
+            squared_length = pix2pos[0]**2 + pix2pos[1]**2 + pix2pos[2]**2
             dir = tm.normalize(pix2pos)
             # Calculate angle
             u = tm.asin(dir[2]) / tm.pi + 0.5
