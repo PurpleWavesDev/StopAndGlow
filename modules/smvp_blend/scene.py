@@ -294,22 +294,24 @@ def getLights():
             power = float(light.data.energy) # multiplied with custom factor stop_lighting_factor
             color = list(light.data.color)# from_srgb_to_scene_linear() # convert ?
             pos = list(light.matrix_world.translation)
+            dir = mathutils.Vector((0.0, 0.0, 1.0))
+            dir.rotate(light.rotation_euler)
             
             match light.data.type:
                 case 'SUN':
-                    # Rotation, spread, power, color
-                    rot = mathutils.Vector((0.0, 0.0, 1.0))
-                    rot.rotate(light.rotation_euler)
-                    light_data.append({'type': 'sun', 'dir': list(rot), 'spread': 0.0, 'power': power, 'color': color})
+                    # Direction, angle, power, color
+                    light_data.append({'type': 'sun', 'dir': list(dir), 'angle': light.data.angle, 'power': power, 'color': color})
                 case 'POINT':
                     # Position, size, power, color
-                    light_data.append({'type': 'point', 'pos': pos, 'size': 0.0, 'power': power, 'color': color})
-                case 'SPOT' | 'AREA':
+                    light_data.append({'type': 'point', 'pos': pos, 'size': light.data.shadow_soft_size, 'power': power, 'color': color})
+                case 'SPOT':
                     # Position, rotation, size, power, color
-                    rot = mathutils.Vector((0.0, 0.0, 1.0))
-                    rot.rotate(light.rotation_euler)
-                    light_data.append({'type': light.data.type.lower(), 'pos': pos, 'dir': list(rot), 'power': power, 'color': color})
-    
+                    light_data.append({'type': 'spot', 'pos': pos, 'dir': list(dir), 'angle': light.data.spot_size,\
+                        'blend': light.data.spot_blend, 'size': light.data.shadow_soft_size, 'power': power, 'color': color})
+                case 'AREA':
+                    light_data.append({'type': 'area', 'pos': pos, 'dir': list(dir), 'angle': light.data.spread,\
+                        'shape': light.data.shape, 'size': light.data.size, 'power': power, 'color': color})
+                
     return light_data
 
 
