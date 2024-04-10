@@ -54,7 +54,16 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--capture", "lights", "--save"],
+            "args": ["--loglevel", "DEBUG", "--capture", "lights", "--save", "all"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Convert video and view sequence",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "20240410_1348.MP4", "--save", "all", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -100,15 +109,6 @@
             "request": "launch",
             "program": "domectl.py",
             "args": ["--lightctl=anim_hdri", "--hdri_name=HDRIs/pretville_cinema_1k.exr"],
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "Lights Animation",
-            "type": "python",
-            "request": "launch",
-            "program": "domectl.py",
-            "args": ["--lightctl=anim_latlong", "--cal_name=lightdome_new.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

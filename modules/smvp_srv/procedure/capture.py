@@ -70,8 +70,8 @@ class Capture:
     def captureVideo(self, lights, trigger_start=True):
         log.info(f"Starting video capture for {len(self._id_list)} frames")
         # Settings
-        base_exposure = 50 # TODO: {int(base_exposure * stops_increase**i)} Must match camera setting, maybe try to find closest setting in camera config
-        stops_increase = self._config['hdr_bracket_stops']
+        stops_increase = GetSetting(self._config, 'hdr_bracket_stops', 4)
+        #GetSetting(self._config, 'hdr_bracket_slowest', "1/50") # TODO: {int(base_exposure * stops_increase**i)} Must match camera setting, maybe try to find closest setting in camera config
         hdr_captures = self._config['hdr_bracket_num'] if self._config['hdr_capture'] else 1
         self._hdr_exposures = [50, 200, 800] # TODO
 
@@ -105,25 +105,25 @@ class Capture:
 
         sequence = Sequence()
         if self._cam.isVideoMode():
-            # For HDR, download all sequences with sequence number attached and convert those to a single merged EXR sequence
+            # For HDR, download single sequence and convert those to separate sequences to perform exposure bracketing
             if self._config['hdr_capture']:
                 expo_list = [f"1/{expo}" for expo in self._hdr_exposures]
-                sequences = [(self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, exposure_list=expo_list, config=self._config, keep=keep))]
+                # Load first sequence
+                sequences = [self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, exposure_list=expo_list, config=self._config, keep=keep)\
+                    .convertSequence({'resolution': (1920, 1080)})]
+                # Continue loading others from last sequence
                 for i in range(1, self._config['hdr_bracket_num']):
-                    sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(self._config['seq_folder'], name+f"_{i}"), self._id_list, i))
-
-                # Only scale images, will write out as EXRs anyway
-                if True: # seq_downscale:
-                    for seq in sequences:
-                        seq.convertSequence({'size': 'hd'})
+                    sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(self._config['seq_folder'], name+f"_{i}"), self._id_list, i)\
+                        .convertSequence({'resolution': (1920, 1080)}))
 
                 # Get exposure times and merge
-                exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]
+                exposure_times = [1/float(expo.split("/")[1]) for expo in sequences[0].getMeta('exposures')]
                 blender = ExpoBlender()
                 blender.process(sequences, self._hw.cal, {'exposure': exposure_times})
                 sequence = blender.get()
 
-            
+                # Delete video file maybe? TODO
+                
             # For SDR sequence, download video file
             else:
                 sequence = self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, config=self._config, keep=keep)

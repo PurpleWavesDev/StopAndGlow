@@ -112,8 +112,10 @@ class VIEW3D_PT_sl_canvas(bpy.types.Panel):
         row = layout.row()
         row.label(text="Capture")
         row = layout.row(align=True)
-        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Sequence")
-        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Baked").baked=True
+        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Sequence").use_active=True
+        op = row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Baked")
+        op.baked=True
+        op.use_active=True
             
   
 # -------------------------------------------------------------------

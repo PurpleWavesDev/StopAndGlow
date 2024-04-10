@@ -4,7 +4,6 @@ from threading import Thread
 import logging as log
 import time
 import zmq
-from datetime import datetime
 
 from smvp_ipc import *
 
@@ -184,6 +183,7 @@ class Worker:
                 if arg != 'baked':
                     self.sequence = capture.downloadSequence(name, keep=False)
                 else:
+                    # TODO!
                     baked_seq = capture.downloadSequence(name, keep=False)
                     stacked = self.process(baked_seq, 'rgbstack', {})
                     self.sequence.setDataSequence('baked', stacked)
@@ -210,12 +210,13 @@ class Worker:
                         # Video file, add IDs to defaults according to sequence type
                         match GetSetting(settings, 'seq_type', 'lights'):
                             case 'lights':
-                                ids = calibration.getIds()
+                                ids = self.hw.cal.getIds()
                             case 'baked':
                                 ids = [0, 1, 2]
                             case 'all':
-                                ids = range(config['capture_max_addr'])
-                        default_config = {**default_config, **{'video_frame_list', ids}}
+                                ids = list(range(config['capture_max_addr']))
+                        # Assign IDs to default config
+                        default_config['video_frame_list'] = ids
                     
                     # Replace sequence and load
                     self.sequence = Sequence()

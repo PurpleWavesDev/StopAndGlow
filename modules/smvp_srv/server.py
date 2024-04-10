@@ -1,6 +1,7 @@
 import time
 import zmq
 import logging as log
+import pathlib
 
 from smvp_ipc import *
 
@@ -102,26 +103,35 @@ def execute(socket, port, queue):
 
             ## Full resoultion footage
             case Command.CaptureLights | Command.CaptureBaked:
+                # Create folder
                 name = GetSetting(message.data, 'name', GetDatetimeNow(), default_for_empty=True)
-                root = queue.getConfig()['seq_folder']
-                path = os.path.join(root, name)
+                path = os.path.join(os.path.abspath(queue.getConfig()['seq_folder']), name)
+                pathlib.Path(path).mkdir(parents=True, exist_ok=True)
                 
                 send(socket, Message(Command.CommandProcessing, {'path': path}))
                 queue.putCommand(Commands.Capture, 'lights' if Command.CaptureLights else 'baked', {'name': name, 'discard_video': True}) # TODO: Implement discard_video
-                #queue.putCommand(Commands.Save, path) # TODO!
+                queue.putCommand(Commands.Save, 'all')
+                # Generate depth map
+                queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'data', 'rgb': False})
+                queue.putCommand(Commands.Save, 'data')
             ## Load from disk
             case Command.LoadFootage:
-                # TODO: Check if path is valid
-                send(socket, Message(Command.CommandOkay))
-                
-                queue.putCommand(Commands.Load, message.data['path'])
-                
-                # If depth map is not available, generate and save
-                queue.putCommand(Commands.If, 'empty', {'data': 'depth'})
-                queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'data', 'rgb': False, 'override': False}) # destination: alpha
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
-                queue.putCommand(Commands.Save, 'data')
-                queue.putCommand(Commands.EndIf, 'empty')
+                # Check if path is valid
+                path = message.data['path']
+                if os.path.exists(path):
+                    send(socket, Message(Command.CommandOkay))
+                    
+                    queue.putCommand(Commands.Load, path)
+                    #queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data) # TODO
+                    
+                    # If depth map is not available, generate and save
+                    queue.putCommand(Commands.If, 'empty', {'data': 'depth'})
+                    queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'data', 'rgb': False, 'override': False}) # destination: alpha
+                    #queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data) # TODO
+                    queue.putCommand(Commands.Save, 'data')
+                    queue.putCommand(Commands.EndIf, 'empty')
+                else:
+                    send(socket, Message(Command.CommandError, {'message': "Path '{path}' doesn not exist"}))
             
             
             ## LightInfo

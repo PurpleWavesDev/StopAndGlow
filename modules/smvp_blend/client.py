@@ -1,32 +1,40 @@
-import time
-from threading import Thread, Lock
-import subprocess
 import os
+import time
+import subprocess
+from threading import Thread, Lock
+import numpy as np
+import queue
+import socket
+import zmq
 
 import bpy
 from bpy.types import WindowManager as wm
-import numpy as np
 
-import zmq
-import socket
 from smvp_ipc import *
 
+# Connection infos
 context = None
 send_sock = None
 connected = False
 server = None
 
+# Receiver thread
 receiver = None
 receiver_lock = Lock()
+receiver_queue = queue.Queue()
 
+# Request data
 image_requests = {}
 request_count = 0
 
+# Constants
 SERVER_CWD = os.path.abspath("../../")
 SERVER_COMMAND = [".venv/bin/python", "server.py"]
 PING_INTERVAL = 10
 
-# Operator functions
+# -------------------------------------------------------------------
+# Launch, Connect, Send
+# -------------------------------------------------------------------        
 def smvpLaunch(port=0) -> bool:
     global server
     # Launch process
@@ -115,17 +123,22 @@ def sendMessage(message, reconnect=True, force=False) -> Message|None:
     return None
 
 
+# -------------------------------------------------------------------
+# Service interface
+# -------------------------------------------------------------------        
 def serviceAddReq(image_name) -> int:
     global image_requests
     global request_count
     
-    serviceRemoveReq(image_name)
+    #serviceRemoveReq(image_name)
+    id, _  = serviceGetReq(image_name)
     
     # Add new ID
-    id = request_count
-    request_count += 1
-    image_requests[id] = image_name
+    if id is None:
+        id = request_count
+        request_count += 1
     
+    image_requests[id] = (image_name, False)
     return id
 
 def serviceRemoveReq(image_name):
@@ -133,11 +146,28 @@ def serviceRemoveReq(image_name):
     global request_count
     
     # Delete old entry
-    old_ids = [id for id, img in image_requests.items() if img == image_name]
+    old_ids = [id for id, data in image_requests.items() if data[0] == image_name]
     for id in old_ids:
         del image_requests[id]
 
+def serviceGetReq(image_name):
+    global image_requests
+    global request_count
+    
+    # Get entry
+    img_id = [(id, data[1]) for id, data in image_requests.items() if data[0] == image_name]
+    if img_id:
+        return img_id[0]
+    return (None, False)
 
+def serviceGetReceived(id) -> bool:
+    global image_requests
+    return image_requests[id][1]
+
+
+# -------------------------------------------------------------------
+# Service Function and Timer Callbacks
+# -------------------------------------------------------------------        
 def serviceRun(port):
     global connected
     global context
@@ -166,15 +196,16 @@ def serviceRun(port):
                     if not id in image_requests:
                         # ID got removed, send stop
                         ipc.send(recv_sock, Message(Command.RecvStop))
-                    elif not image_requests[id] in bpy.data.images:
+                    elif not image_requests[id][0] in bpy.data.images:
                         # Image missing
                         ipc.send(recv_sock, Message(Command.RecvStop))
-                        print(f"SMVP receiver warning: Image {image_requests[id]} not found")
+                        print(f"SMVP receiver warning: Image {image_requests[id][0]} not found")
                     else:
-                        # Update image, send okay
-                        bpy.data.images[image_requests[id]].pixels.foreach_set(np.flipud(img_data).flatten())
-                        bpy.data.images[image_requests[id]].update_tag()
                         ipc.send(recv_sock, Message(Command.RecvOkay))
+                        # Add data to queue and launch timer to apply on main thread
+                        receiver_queue.put((id, np.flipud(img_data).flatten()))
+                        if not bpy.app.timers.is_registered(serviceApply):
+                            bpy.app.timers.register(serviceApply)
                 except Exception as e:
                     # Send error
                     ipc.send(recv_sock, Message(Command.RecvError, {'message': str(e)}))
@@ -183,10 +214,22 @@ def serviceRun(port):
         # Clean up connection
         recv_sock.close()
 
-def getHostname():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('8.8.8.8', 1))  # connect() for UDP doesn't send packets
-    return s.getsockname()[0]
+
+def serviceApply():
+    global image_requests
+    
+    while not receiver_queue.empty():
+        id, pix_data = receiver_queue.get()
+        # In case ID got removed before timer can access it
+        if id in image_requests:
+            # Update image
+            bpy.data.images[image_requests[id][0]].pixels.foreach_set(pix_data)
+            # Set update flag and mark as received
+            bpy.data.images[image_requests[id][0]].update_tag()
+            image_requests[id] = (image_requests[id][0], True)
+        
+    return None
+
 
 def ping():
     global connected
@@ -207,6 +250,15 @@ def ping():
             smvpDisconnect()
     # Stop timer
     return None
+
+
+# -------------------------------------------------------------------
+# Helpers
+# -------------------------------------------------------------------        
+def getHostname():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('8.8.8.8', 1))  # connect() for UDP doesn't send packets
+    return s.getsockname()[0]
 
 
 def register():

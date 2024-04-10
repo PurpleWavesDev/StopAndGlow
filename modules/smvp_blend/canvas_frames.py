@@ -23,6 +23,7 @@ class SMVP_CANVAS_OT_overrideConfirm(Operator):
     bl_options = {'REGISTER', 'INTERNAL'}
 
     capture: BoolProperty(name="Call capture instead of add", default=False)
+    use_active: BoolProperty(name="Use active canvas", default=False)
     
     @classmethod
     def poll(cls, context):
@@ -33,8 +34,8 @@ class SMVP_CANVAS_OT_overrideConfirm(Operator):
     
     def execute(self, context):
         # Call operator again with override set
-        if capture:
-            bpy.ops.smvp_canvas.capture('INVOKE_DEFAULT', override=True)
+        if self.capture:
+            bpy.ops.smvp_canvas.capture('INVOKE_DEFAULT', override=True, use_active=self.use_active)
         else:
             bpy.ops.smvp_canvas.frame_add('INVOKE_DEFAULT', override=True)
         return {'FINISHED'}
@@ -55,11 +56,15 @@ class SMVP_CANVAS_OT_addFrame(Operator):
         name="Override current frame",
         description="If set, operator will delete current frame and replace it with the new frame"
         )
+    use_active: BoolProperty(
+        default=False,
+        name="Use default canvas",
+    )
 
     def invoke(self, context, event):
         # Add new sequence as frame entry
-        obj = context.object
         scn = context.scene
+        obj = scn.sl_canvas if self.use_active else context.object
         
         if not self.override:
             # Check if there is a keyframe already that would be overwritten
@@ -75,8 +80,8 @@ class SMVP_CANVAS_OT_addFrame(Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        obj = context.object
         scn = context.scene
+        obj = scn.sl_canvas if self.use_active else context.object
         canvas = obj.smvp_canvas
         #idx = canvas.frame_list_index
                 
@@ -122,15 +127,19 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             # Send load command
             message = ipc.Message(ipc.Command.LoadFootage, {'path': self.directory})
             answer = client.sendMessage(message)
-            # TODO: Check answer, cancel if received an error
+            # Check answer, cancel if received an error
+            if answer is None or answer.command != ipc.Command.CommandOkay:
+                self.report({'WARNING'}, "Can't add frame")
+                return {"CANCELLED"}
+            
             context.area.tag_redraw()
             
             # Update texture
-            updateCanvas(context.scene, obj)
+            updateCanvas(scn, obj)
             return {"FINISHED"}
             
         else:
-            self.report({'WARNING'}, "Not a valid folder")
+            self.report({'WARNING'}, "Not a valid folder: " + self.directory)
             return {"CANCELLED"}
 
       
@@ -204,11 +213,15 @@ class SMVP_CANVAS_OT_capture(Operator):
         name="Override current frame",
         description="If set, operator will delete current frame and replace it with the captured frame"
         )
+    use_active: BoolProperty(
+        default=False,
+        name="Use default canvas",
+    )
 
     def invoke(self, context, event):
         # Add new sequence as frame entry
-        obj = context.object
         scn = context.scene
+        obj = scn.sl_canvas if self.use_active else context.object
         
         if not self.override:
             # Check if there is a keyframe already that would be overwritten
@@ -232,7 +245,7 @@ class SMVP_CANVAS_OT_capture(Operator):
         
         if answer.command == ipc.Command.CommandProcessing:
             # Add frame to list
-            bpy.ops.smvp_canvas.frame_add(directory=answer.data['path'], override=True)
+            bpy.ops.smvp_canvas.frame_add(directory=answer.data['path'], override=True, use_active=self.use_active)
             return {'FINISHED'}
 
         self.report({'WARNING'}, f"Received error from server: {answer.data['message']}")

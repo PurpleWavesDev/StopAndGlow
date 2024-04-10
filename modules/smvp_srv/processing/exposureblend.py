@@ -25,20 +25,23 @@ class ExpoBlender(Processor):
     
     def process(self, seq_list: list[Sequence], calibration: Calibration, settings={}):
         if type(seq_list) != list or len(seq_list) <= 1:
-            log.error("Must provide at least two sequences for stacking, aborting.")
+            log.error("Must provide at least two sequences for stacking")
             return
         
         # Settings
         exposure_times = np.array(settings['exposure'] if 'exposure' in settings else [], dtype='float32')
-        if len(exposure_times) != len(seq_list):
-            log.error(f"Must provide exposure time list with 'exposure' key in settings dict with same length as sequence list ({len(seq_list)}), aborting.")
+        if len(exposure_times) < len(seq_list):
+            log.error(f"Must provide exposure time list with 'exposure' key in settings dict with same length as sequence list ({len(seq_list)})")
             return
         
-        blend_threshold = GetSetting(setting, 'blend_threshold', 0.1)
-        blend_factor = GetSetting(setting, 'blend_factor', 2.0)
+        blend_threshold = GetSetting(settings, 'blend_threshold', 0.1)
+        blend_factor = GetSetting(settings, 'blend_factor', 2.0)
         
         self._view_idx = 0
         self._blended = Sequence()
+        self._blended._meta = seq_list[0]._meta.copy()
+        self._blended.setDirectory(seq_list[0].directory())
+        self._blended.setName(seq_list[0].name())
         
         # Prepare Taichi buffer
         res_x, res_y = seq_list[0].get(0).resolution()

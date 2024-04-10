@@ -20,8 +20,9 @@ class Config:
             'config_name': 'config.json',
             # Capture settings
             'hdr_capture': True,
-            'hdr_bracket_num': 3,
+            'hdr_bracket_num': 2,
             'hdr_bracket_stops': 4,
+            'hdr_bracket_slowest': "1/50",
             'capture_fps': 25,
             'capture_frames_skip': 3,
             'capture_dmx_repeat': 0,
@@ -62,7 +63,7 @@ class Config:
             self._changed = False
     
     def get(self) -> dict:
-        return self._config
+        return dict(self._config)
     
     def __getitem__(self, key):
         return self._config[key]

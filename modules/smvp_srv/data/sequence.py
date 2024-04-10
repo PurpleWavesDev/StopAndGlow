@@ -117,11 +117,11 @@ class Sequence():
         #self._frames = [ImgBuffer(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         log.debug(f"Loaded {len(self._frames)} images from path {path}, bounds ({self._min}, {self._max})")
         
-    def loadVideo(self, path, frame_list, frames_skip, frames_offset, lazy=True):
+    def loadVideo(self, path, lazy=True):
         # Setup variables
         self._is_video = True
-        self._frames_skip = self.getMeta('video_frames_skip', self._frames_skip)
-        self._frames_offset = self.getMeta('video_frames_offset', self._frames_offset)
+        self._frames_skip = self.getMeta('video_frames_skip')
+        self._frames_offset = self.getMeta('video_frames_offset')
         frame_list = self.getMeta('video_frame_list')
         
         # Define paths and sequence names
@@ -235,8 +235,14 @@ class Sequence():
     def name(self):
         return self._seq_name
     
+    def setName(self, name):
+        self._seq_name = name
+        
     def directory(self):
         return self._base_dir
+    
+    def setDirectory(self, base_dir):
+        self._base_dir = base_dir
     
     def saveSequence(self, name: str, base_path: str, format: ImgFormat = ImgFormat.Keep):
         path = os.path.join(base_path, name, name)
@@ -260,30 +266,20 @@ class Sequence():
             self.writeMeta()
     
     def convertSequence(self, settings):
-        # Scale
-        resolution = None
-        crop_scale = 1
-        
-        size = GetSetting(settings, 'size', None)
-        crop = GetSetting(settings, 'crop', True)
-        if size == 'hd':
-            resolution = (1920, 1080)
-        elif size == '4k':
-            resolution = (3840, 2160)
-        if resolution is not None and crop:
-            original = self.get(0).resolution()
-            crop_scale = resolution[0] / original[0]
-        
+        # Resolution
+        resolution = GetSetting(settings, 'resolution', (1920, 1080))
         # Format
         new_format = GetSetting(settings, 'format', ImgFormat.Keep)
+        crop = GetSetting(settings, 'crop', True)
                 
         # Iterate over frames and convert
         for id in self.getKeys():
             if self[id].get() is not None:
-                self[id] = self[id].convert(resolution, crop, crop_scale, new_format)
+                self[id] = self[id].convert(resolution, crop, new_format)
         # Don't forget preview 
         if self._preview.get() is not None:
-            self._preview = self._preview.convert(resolution, crop, crop_scale, new_format)
+            self._preview = self._preview.convert(resolution, crop, new_format)
+            
         return self
     
     
@@ -340,14 +336,14 @@ class Sequence():
         seq._frames = {key: ImgBuffer() for key in frame_list}
         
         # Define paths and sequence names
-        self._seq_name = os.path.splitext(os.path.basename(path))[0]                    
-        self._base_dir = os.path.join(os.path.dirname(path), self._seq_name)
-        self._img_name_base = os.path.join(self._base_dir, self._seq_name)
+        seq._seq_name = os.path.splitext(os.path.basename(path))[0]                    
+        seq._base_dir = os.path.join(os.path.dirname(path), seq._seq_name)
+        seq._img_name_base = os.path.join(seq._base_dir, seq._seq_name)
         # Get Metadata from other video sequence
-        seq._meta = sequence._meta
-        expo_meta = seq.getMeta(f'exposure_{sequence_index}')
-        if expo_meta is not None:
-            seq.setMeta(f'exposure', expo_meta)
+        seq._meta = sequence._meta.copy()
+        expo_meta = seq.getMeta(f'exposures')
+        if expo_meta is not None and len(expo_meta)>sequence_index:
+            seq.setMeta(f'exposure', expo_meta[sequence_index])
             
         # Check vidcap video
         seq._vid_frame = seq._readVideoFrame()

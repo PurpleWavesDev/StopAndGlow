@@ -166,18 +166,14 @@ class ImgBuffer:
     
     def domain(self):
         return self._domain
-    def asDomain(self, domain: ImgDomain, as_float=True, ti_buffer: tib.pixarr|None = None) -> ImgBuffer:
+    def asDomain(self, domain: ImgDomain, as_float=True) -> ImgBuffer:
         """ti_buffer as GPU memory buffer to accelerate conversion"""
         if domain != ImgDomain.Keep and domain != self._domain:
             # Convert to optical/neutral
             img = self.get() if as_float is False else self.asFloat().get()
             match self._domain:
                 case ImgDomain.sRGB:
-                    if ti_buffer is not None:  # TODO: Remove?
-                        ti_buffer.from_numpy(img)
-                        tib.sRGB2Lin(ti_buffer)
-                        img = ti_buffer.to_numpy()
-                    elif img.dtype == IMAGE_DTYPE_FLOAT:
+                    if img.dtype == IMAGE_DTYPE_FLOAT:
                         tib.sRGB2Lin(img)
                     else:
                         img = colour.cctf_decoding(img, 'sRGB')
@@ -188,11 +184,7 @@ class ImgBuffer:
                     
             match domain:
                 case ImgDomain.sRGB:
-                    if ti_buffer is not None:  # TODO: Remove?
-                        ti_buffer.from_numpy(img)
-                        tib.lin2sRGB(ti_buffer, 1)
-                        img = ti_buffer.to_numpy()
-                    elif img.dtype == IMAGE_DTYPE_FLOAT:
+                    if img.dtype == IMAGE_DTYPE_FLOAT:
                         tib.lin2sRGB(img, 1)
                     else:
                         img = colour.cctf_encoding(img, 'sRGB')
@@ -270,14 +262,11 @@ class ImgBuffer:
         img_cropped = self.get()[crop_from[1]:old_res[1]-crop_to[1], crop_from[0]:old_res[0]-crop_to[0]]
         return ImgBuffer(path=self._path, img=img_cropped, domain=self._domain)
     
-    def convert(self, resolution=None, crop=True, crop_scale=1.0, new_format=ImgFormat.Keep):
+    def convert(self, resolution=None, crop=True, new_format=ImgFormat.Keep):
         # Rescale
+        img = ImgBuffer(path=self._path, img=self._img, domain=self._domain)
         if resolution is not None:
-            if crop:
-                # Keep pixel ratio, crop to right format
-                img = self.scale(crop_scale).crop(resolution)
-            else:
-                img = self.rescale(resolution)
+            img = img.rescale(resolution, crop=crop)
         if new_format != ImgFormat.Keep:
             # Change to linear domain for EXR files
             if new_format == ImgFormat.EXR:

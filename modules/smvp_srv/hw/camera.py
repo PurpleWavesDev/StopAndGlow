@@ -313,9 +313,9 @@ class Cam:
             
             if config is None: config = Config.GetDefaults()
             # Delay for DMX repeat signals (two frames per signal) and half of the skipped frames (round down)
-            frames_offset = config['dmx_repeat'] * 2 + config['frames_skip'] // 2
+            frames_offset = config['capture_dmx_repeat'] * 2 + config['capture_frames_skip'] // 2
             # frames_skip is odd to mach together with valid frame double the lights frequency
-            frames_skip = config['frames_skip'] + config['dmx_repeat']*2
+            frames_skip = config['capture_frames_skip'] + config['capture_dmx_repeat']*2
             
             video_settings = {'video_frame_list': frame_list, 'video_frames_skip': frames_skip, 'video_frames_offset': frames_offset}
             seq.load(file_path, overrides=video_settings)
@@ -327,8 +327,8 @@ class Cam:
                 seq.setMeta('exposure', capture.exposure)
             else:
                 seq.setMeta(f'exposure', exposure_list[0])
-                for i, expo in enumerate(exposure_list):
-                    seq.setMeta(f'exposure_{i}', expo)
+                seq.setMeta(f'exposures', exposure_list)
+                seq.setMeta(f'exposure_count', len(exposure_list))
             if not keep:
                 self.getCam().file_delete(capture.camera_path[0], capture.camera_path[1])
         return seq
