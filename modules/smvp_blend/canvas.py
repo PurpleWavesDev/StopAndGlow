@@ -183,7 +183,7 @@ def getTexture(canvas_obj, frame):
     if canvas.display_mode in ['live', 'baked']:
         # Start live capture with preview texture
         image_name = canvas.canvas_texture
-        if image_name in bpy.data.images:
+        if image_name in bpy.data.images and client.connected:
             id = client.serviceAddReq(image_name)
             message = ipc.Message(ipc.Command.RequestCamera, {'id': id, 'mode': canvas.display_mode})
             client.sendMessage(message)    

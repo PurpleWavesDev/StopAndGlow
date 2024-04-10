@@ -219,12 +219,9 @@ class SMVP_CANVAS_OT_capture(Operator):
                     return {'RUNNING_MODAL'}
 
         # Execute capture command
-        return self.execute()
+        return self.execute(context)
     
     def execute(self, context):
-        obj = context.object
-        tex = obj.smvp_canvas.frame_list[0].canvas_texture
-        
         # Send capture message
         message = None
         if self.baked:
@@ -236,9 +233,10 @@ class SMVP_CANVAS_OT_capture(Operator):
         if answer.command == ipc.Command.CommandProcessing:
             # Add frame to list
             bpy.ops.smvp_canvas.frame_add(directory=answer.data['path'], override=True)
-            return{'FINISHED'}
+            return {'FINISHED'}
 
         self.report({'WARNING'}, f"Received error from server: {answer.data['message']}")
+        return {'CANCELLED'}
 
 class SMVP_CANVAS_OT_clearFrames(Operator):
     """Clear all frames of the list"""

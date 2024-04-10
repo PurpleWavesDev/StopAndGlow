@@ -277,6 +277,8 @@ class Worker:
                         self.renderer.reset()
                     case 'light':
                         self.renderer.getScene().addLight(settings)
+                    case 'canvas':
+                        pass # TODO: Transform vom Canvas-Objekt hinzufügen
                     case 'hdri':
                         pass
                     case 'hdri_data':
@@ -355,7 +357,7 @@ class Worker:
                     rendered = ImgBuffer(img=self.renderer.get())
                     self.sendImg(id, rendered.withAlpha(depth).get())
                 elif mode == 'live':
-                    preview = self._hw.cam.capturePreview()
+                    preview = self.hw.cam.capturePreview()
                     self.sendImg(id, preview.rescale(resolution, crop=True).asFloat().withAlpha().get())
             
             

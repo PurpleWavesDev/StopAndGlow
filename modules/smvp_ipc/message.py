@@ -41,6 +41,7 @@ class Command(Enum):
     LightsSet = 31
     LightsHdriRotation = 35
     LightsHdriTexture = 36
+    CanvasSet = 37
     
     # Image requests
     RequestSequence = 61
@@ -64,9 +65,9 @@ class Message:
     command: Command
     data: dict
     
-    def __init__(self, command, data = {}):
+    def __init__(self, command: Command, data = {}):
         self.command = command
         self.data = data
     
-    def LightCtlMsg(command, brightness=100, ratio=0.25):
+    def LightCtlMsg(command: Command, brightness=0.5, ratio=0.25):
         return Message(command, {'brightness': brightness, 'ratio': ratio})

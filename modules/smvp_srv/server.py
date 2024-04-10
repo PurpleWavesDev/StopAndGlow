@@ -105,12 +105,15 @@ def execute(socket, port, queue):
                 name = GetSetting(message.data, 'name', GetDatetimeNow(), default_for_empty=True)
                 root = queue.getConfig()['seq_folder']
                 path = os.path.join(root, name)
+                
+                send(socket, Message(Command.CommandProcessing, {'path': path}))
                 queue.putCommand(Commands.Capture, 'lights' if Command.CaptureLights else 'baked', {'name': name, 'discard_video': True}) # TODO: Implement discard_video
                 #queue.putCommand(Commands.Save, path) # TODO!
-                send(socket, Message(Command.CommandProcessing, {'path': path}))
             ## Load from disk
             case Command.LoadFootage:
                 # TODO: Check if path is valid
+                send(socket, Message(Command.CommandOkay))
+                
                 queue.putCommand(Commands.Load, message.data['path'])
                 
                 # If depth map is not available, generate and save
@@ -119,8 +122,6 @@ def execute(socket, port, queue):
                 queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
                 queue.putCommand(Commands.Save, 'data')
                 queue.putCommand(Commands.EndIf, 'empty')
-
-                send(socket, Message(Command.CommandOkay))
             
             
             ## LightInfo
@@ -134,6 +135,11 @@ def execute(socket, port, queue):
                 
             #case Command.LightsHdriRotation:
             #case Command.LightsHdriTexture:
+            
+            case Command.CanvasSet:
+                # Hier kommen die transform daten an
+                #message.data
+                send(socket, Message(Command.CommandOkay))
             
             
             ## Preview

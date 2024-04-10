@@ -24,6 +24,7 @@ request_count = 0
 
 SERVER_CWD = os.path.abspath("../../")
 SERVER_COMMAND = [".venv/bin/python", "server.py"]
+PING_INTERVAL = 10
 
 # Operator functions
 def smvpLaunch(port=0) -> bool:
@@ -63,17 +64,22 @@ def smvpConnect(address, port) -> bool:
             # Launch service, receiving port is server port +1
             receiver = Thread(target=serviceRun, args=(port+1, ))
             receiver.start()
+            # Launch ping timer
+            bpy.app.timers.register(ping, first_interval=PING_INTERVAL)
         
         return connected
-    except:
-        pass
-    print(f"SMVP Error: Can't connect to server {server_address}")
+    except Exception as e:
+        print(f"SMVP Error: Can't connect to server {server_address} ({str(e)})")
     return False
 
 def smvpDisconnect():
     global send_sock
     global connected
     global receiver
+    
+    # Unregister ping function
+    if bpy.app.timers.is_registered(ping):
+        bpy.app.timers.unregister(ping)
 
     # Only close with an active connection
     if connected:
@@ -181,6 +187,26 @@ def getHostname():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(('8.8.8.8', 1))  # connect() for UDP doesn't send packets
     return s.getsockname()[0]
+
+def ping():
+    global connected
+    global send_sock
+    
+    if connected:
+        try:
+            ipc.send(send_sock, Message(Command.Ping))
+            answer = ipc.receive(send_sock)
+            if answer.command == Command.Pong:
+                # Answer received, call function after interval
+                return PING_INTERVAL
+            else:
+                print(f"Unexpected answer '{answer.command.name}' for ping command")
+                smvpDisconnect()
+        except Exception as e:
+            print(f"Ping error ({str(e)}), disconnecting SL server")
+            smvpDisconnect()
+    # Stop timer
+    return None
 
 
 def register():
