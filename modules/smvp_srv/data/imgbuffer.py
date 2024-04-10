@@ -137,9 +137,6 @@ class ImgBuffer:
                         
                 self._from_file=True
                 log.debug(f"Loaded image {self._path}")
-        else:
-            log.error("Can't load image without path")
-        #original = original[:,:,:3] # Only use red channel
         
     def unload(self, save=False):
         if save and not self._from_file and self._path is not None:

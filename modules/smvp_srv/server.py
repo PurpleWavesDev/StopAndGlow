@@ -136,17 +136,20 @@ def execute(socket, port, queue):
                 
                 if message.data['mode'] == 'render':
                     # Start rendering
+                    # TODO: Generate render data if not available
                     queue.putCommand(Commands.Render, 'render')
                 
                 # Queue sending image and answer
                 queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
-                send(socket, Message(Command.CommandProcessing))
                 
-                # Check for alpha, if there's noen generate and and send image again TODO
-                if message.data['mode'] == 'preview':
-                    queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'data', 'rgb': False, 'override': False}) # destination: alpha
-                    queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
-                #queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', {'id': message.data['id'], 'mode': 'preview'})
+                # If depth map is not available, generate, save and send data again
+                queue.putCommand(Commands.If, 'empty', {'data': 'depth'})
+                queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'data', 'rgb': False, 'override': False}) # destination: alpha
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
+                queue.putCommand(Commands.Save, 'data')
+                queue.putCommand(Commands.EndIf, 'empty')
+                
+                send(socket, Message(Command.CommandProcessing))
                 
             
             case Command.RequestCamera:

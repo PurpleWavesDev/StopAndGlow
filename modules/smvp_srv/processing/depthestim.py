@@ -14,6 +14,7 @@ from .depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
 
 from ..data import *
 from ..utils import ti_base as tib
+from ..utils.utils import logging_disabled
 
 
 class DepthAnythingModels(StrEnum):
@@ -59,7 +60,8 @@ class DepthEstimator(Processor):
         new_model_type = GetSetting(settings, 'model', DepthAnythingModels.large)
         if self.model is None or self.model_type != new_model_type:
             self.model_type = new_model_type
-            self.model = DepthAnything.from_pretrained(f'LiheYoung/depth_anything_{self.model_type}14').to(self.device).eval()
+            with logging_disabled():
+                self.model = DepthAnything.from_pretrained(f'LiheYoung/depth_anything_{self.model_type}14').to(self.device).eval()
         
         for id, frame in img_seq:
             # Apply transform

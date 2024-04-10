@@ -20,6 +20,8 @@ class Commands(StrEnum):
     Lights = '--lights'
     Camera = '--camera'
     Sleep = '--sleep'
+    If = '--if'
+    EndIf = '--endif'
     Quit = '--quit'
     LogLevel = '--loglevel'
     

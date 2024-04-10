@@ -39,7 +39,7 @@ class ProcessingQueue:
         self._worker.work(self._queue, False)
         
     def quit(self):
-        self._queue.put(Commands.Quit, "")
+        self._queue.put((Commands.Quit, ""))
         self._process.join()
         
         
@@ -56,6 +56,7 @@ class Worker:
                         
     def work(self, queue, keep_running) -> bool:
         self._keep_running = keep_running
+        self.if_stack = []
         # Setup Taichi
         tib.TIBase.gpu = True
         tib.TIBase.debug = True
@@ -81,7 +82,10 @@ class Worker:
         while self._keep_running or not queue.empty():
             try:
                 command, arg, settings = queue.get_nowait()
-                self.processCommand(command, arg, settings)
+                if len(self.if_stack) > 0 and command == Commands.EndIf:
+                    self.if_stack.pop()
+                elif len(self.if_stack) == 0 or self.if_stack[-1]:
+                    self.processCommand(command, arg, settings)
             except Q.Empty:
                 time.sleep(0.1)
             except Exception as e:
@@ -311,10 +315,7 @@ class Worker:
                 log.info(f"Saving sequences '{arg}'")
                 
                 # Name and path
-                name = GetSetting(settings, 'name')
-                if name is None:
-                    name = self.sequence.name()
-                
+                name = GetSetting(settings, 'name', self.sequence.name())
                 path = GetSetting(settings, 'basepath')
                 if path is None:
                     path = os.path.normpath(self.sequence.directory())
@@ -324,10 +325,10 @@ class Worker:
                 # Save sequences
                 if arg == 'all' or arg == 'sequence':
                     # path: Parent of sequence directory -> joined with name is same directory again
-                    self.sequence.saveSequence(name, os.path.dirname(path))
+                    self.sequence.saveSequence(name, os.path.dirname(path), ImgFormat.EXR)
                 if arg == 'all' or arg == 'data':
                     for key in self.sequence.getDataKeys():
-                        self.sequence.getDataSequence(key).saveSequence(key, path)
+                        self.sequence.getDataSequence(key).saveSequence(key, path, ImgFormat.EXR)
                 
             case Commands.Send:
                 # --send address:port id=1 mode=render|baked|preview|live
@@ -338,7 +339,7 @@ class Worker:
                 mode = GetSetting(settings, 'mode', 'preview')
                 resolution = self.config['resolution']
                 try:
-                    depth = self.sequence.getDataSequence('depth')[0].get()
+                    depth = self.sequence.getDataSequence('depth')[0].r().get()
                 except:
                     depth = None
                 
@@ -351,7 +352,6 @@ class Worker:
                 elif mode == 'baked':
                     self.sendImg(id, self.baked.withAlpha().get())
                 elif mode == 'render':
-                    # TODO: Straight from buffer? Alpha channel?
                     rendered = ImgBuffer(img=self.renderer.get())
                     self.sendImg(id, rendered.withAlpha(depth).get())
                 elif mode == 'live':
@@ -388,6 +388,89 @@ class Worker:
                 log.info(f"Sleep for {arg}s")
                 
                 time.sleep(float(arg))
+            
+            
+            case Commands.If:
+                # --if valid/empty/length/meta_valid/meta_empty/meta_compare sequence=frames/preview data=path greater=10 equals=5 inequals=stuff less=3 metakey=key metaval=val
+                value = False
+                compare_seq = self.sequence
+                is_preview = False
+                compare_op = '='
+                compare_val = "0"
+                meta_key = ''
+                
+                for cmd, val in settings.items():
+                    match cmd:
+                        case 'sequence':
+                            is_preview = True if val == 'preview' else False
+                        case 'data':
+                            compare_seq = self.sequence.getDataSequence(val)
+                        case 'equals':
+                            compare_val = val
+                            compare_op = '='
+                        case 'inequals':
+                            compare_val = val
+                            compare_op = '!'
+                        case 'greater':
+                            compare_val = val
+                            compare_op = '>'
+                        case 'less':
+                            compare_val = val
+                            compare_op = '<'
+                        case 'metakey':
+                            meta_key = val
+                        case 'metaval':
+                            meta_val = val
+                
+                match arg:
+                    case 'valid':
+                        if is_preview:
+                            evaluated = compare_seq.getPreview().get() != None
+                        else:
+                            evaluated = len(compare_seq) > 0
+                    case 'empty':
+                        if is_preview:
+                            evaluated = compare_seq.getPreview().get() == None
+                        else:
+                            evaluated = len(compare_seq) == 0
+                    case 'length':
+                        match compare_op:
+                            case '=':
+                                evaluated = len(compare_seq) == int(value)
+                            case '!':
+                                evaluated = len(compare_seq) != int(value)
+                            case '>':
+                                evaluated = len(compare_seq) > int(value)
+                            case '<':
+                                evaluated = len(compare_seq) < int(value)
+                    case 'meta_valid':
+                        evaluated = compare_seq.getMeta(meta_key) != None
+                    case 'meta_empty':
+                        evaluated = compare_seq.getMeta(meta_key) == None
+                    case 'meta_compare':
+                        m = compare_seq.getMeta(meta_key)
+                        if m != None:
+                            match compare_op:
+                                case '=':
+                                    evaluated = m == value
+                                case '!':
+                                    evaluated = m != value
+                                case '>':
+                                    evaluated = int(m) > int(value)
+                                case '<':
+                                    evaluated = int(m) < int(value)
+                        else:
+                            log.warnin(f"Can't compare invalid key '{meta_key}' in meta_compare statement, defaulting to False")
+                            evaluated = False
+                    case _:
+                        log.error(f"Invalid argument '{arg}' for if command, use valid/empty/length/meta_valid/meta_empty/meta_compare")
+                
+                self.if_stack.append(value)
+                log.info(f"if '{arg}' command evaluated to {value}")
+                
+            case Commands.EndIf:
+                log.error("No matching if for endif command")
+
             
             case Commands.Quit:
                 log.debug("Processing worker quit command received")
