@@ -167,11 +167,12 @@ def execute(socket, port, queue):
                 send(socket, Message(Command.CommandAnswer, answer))
             
             case Command.GetRenderSettings:
-                # TODO: Get renderer
-                if renderer is not None:
-                    answer = renderer.getDefaultSettings()
+                algorithm = message.data['algorithm']
+                try:
+                    [None for _, _, bsdf in bsdfs if name == algorithm][0]
+                    answer = bsdf.getDefaultSettings()
                     send(socket, Message(Command.CommandAnswer, answer))
-                else:
+                except:
                     send(socket, Message(Command.CommandError, {'message': 'No renderer selected'}))
             
             case Command.SetRenderer:
