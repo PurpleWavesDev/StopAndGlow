@@ -112,6 +112,14 @@ def execute(socket, port, queue):
             case Command.LoadFootage:
                 # TODO: Check if path is valid
                 queue.putCommand(Commands.Load, message.data['path'])
+                
+                # If depth map is not available, generate and save
+                queue.putCommand(Commands.If, 'empty', {'data': 'depth'})
+                queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'data', 'rgb': False, 'override': False}) # destination: alpha
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
+                queue.putCommand(Commands.Save, 'data')
+                queue.putCommand(Commands.EndIf, 'empty')
+
                 send(socket, Message(Command.CommandOkay))
             
             
@@ -136,21 +144,11 @@ def execute(socket, port, queue):
                 
                 if message.data['mode'] == 'render':
                     # Start rendering
-                    # TODO: Generate render data if not available
                     queue.putCommand(Commands.Render, 'render')
                 
                 # Queue sending image and answer
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
-                
-                # If depth map is not available, generate, save and send data again
-                queue.putCommand(Commands.If, 'empty', {'data': 'depth'})
-                queue.putCommand(Commands.Process, 'depth', {'target': 'preview', 'destination': 'data', 'rgb': False, 'override': False}) # destination: alpha
-                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)
-                queue.putCommand(Commands.Save, 'data')
-                queue.putCommand(Commands.EndIf, 'empty')
-                
+                queue.putCommand(Commands.Send, f'{remote_address}:{port+1}', message.data)                
                 send(socket, Message(Command.CommandProcessing))
-                
             
             case Command.RequestCamera:
                 # id, mode in data
@@ -181,6 +179,7 @@ def execute(socket, port, queue):
                 try:
                     [None for name, _, _ in bsdfs if name == algorithm][0]
                     queue.putCommand(Commands.Render, 'config', message.data)
+                    # TODO: Generate render data if not available
                     send(socket, Message(Command.CommandOkay))
                 except:
                     send(socket, Message(Command.CommandError, {'message': 'Unknwon render algorithm selected'}))

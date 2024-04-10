@@ -38,8 +38,7 @@ class Command(Enum):
     LoadFootage = 75
     
     # LightInfo
-    LightsSet = 31 # ??
-    LightsUpdate = 32
+    LightsSet = 31
     LightsHdriRotation = 35
     LightsHdriTexture = 36
     

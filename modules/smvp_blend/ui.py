@@ -4,6 +4,7 @@ from bpy.types import Panel, Menu
 from .client import *
 from .domectl import *
 from .canvas import *
+from .canvas_frames import *
 from .camera import *
 from .scene import *
 

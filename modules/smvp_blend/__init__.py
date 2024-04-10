@@ -51,20 +51,22 @@ def checkDependencies():
 def register():
     checkDependencies()
     
-    from . import properties, client, domectl, canvas, camera, scene, ui
+    from . import properties, client, domectl, canvas, canvas_frames, camera, scene, ui
     properties.register()
     client.register()
     domectl.register()
     canvas.register()
+    canvas_frames.register()
     camera.register()
     scene.register()
     ui.register()
 
 def unregister():
-    from . import properties, client, domectl, canvas, camera, scene, ui
+    from . import properties, client, domectl, canvas, canvas_frames, camera, scene, ui
     ui.unregister()
     scene.unregister()
     camera.unregister()
+    canvas_frames.unregister()
     canvas.unregister()
     domectl.unregister()
     client.unregister()
