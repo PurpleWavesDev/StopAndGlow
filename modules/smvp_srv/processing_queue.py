@@ -264,16 +264,17 @@ class Worker:
                 match arg:
                     case 'config':
                         if 'algorithm' in settings:
-                            log.info(f"Render configuration with bsdf '{settings['algorithm']}'")
-                            bsdf = [bsdf for name, _, bsdf, bsdf_config in bsdfs if name == settings['algorithm']]
-                            if len(bsdf) == 1:
-                                bsdf = bsdf[0]()
+                            algo_key = GetSetting(settings, 'algorithm')
+                            if algo_key in bsdfs:
+                                log.info(f"Render configuration with bsdf '{algo_key}'")
+                                name, bsdf_class, bsdf_settigs = bsdfs[algo_key]
+                                bsdf = bsdf_class()
                                 if bsdf.load(self.sequence, self.hw.cal):
                                     self.renderer = Renderer(bsdf, self.config['resolution'])
                                 else:
-                                    # TODO: What if sequence has no bsdf data?
                                     log.error("No data for BSDF!")
-                        # TODO: Error message if nothing got loaded!
+                            else:
+                                log.error(f"Render configuration with bsdf '{algo_key}'")
                     case 'reset':
                         self.renderer.reset()
                     case 'light':
@@ -395,7 +396,6 @@ class Worker:
             
             case Commands.If:
                 # --if valid/empty/length/meta_valid/meta_empty/meta_compare sequence=frames/preview data=path greater=10 equals=5 inequals=stuff less=3 metakey=key metaval=val
-                value = False
                 compare_seq = self.sequence
                 is_preview = False
                 compare_op = '='
@@ -439,13 +439,13 @@ class Worker:
                     case 'length':
                         match compare_op:
                             case '=':
-                                evaluated = len(compare_seq) == int(value)
+                                evaluated = len(compare_seq) == int(compare_val)
                             case '!':
-                                evaluated = len(compare_seq) != int(value)
+                                evaluated = len(compare_seq) != int(compare_val)
                             case '>':
-                                evaluated = len(compare_seq) > int(value)
+                                evaluated = len(compare_seq) > int(compare_val)
                             case '<':
-                                evaluated = len(compare_seq) < int(value)
+                                evaluated = len(compare_seq) < int(compare_val)
                     case 'meta_valid':
                         evaluated = compare_seq.getMeta(meta_key) != None
                     case 'meta_empty':
@@ -453,23 +453,23 @@ class Worker:
                     case 'meta_compare':
                         m = compare_seq.getMeta(meta_key)
                         if m != None:
-                            match compare_op:
+                            match compare_op: # TODO string/int/float ? 
                                 case '=':
-                                    evaluated = m == value
+                                    evaluated = m == compare_val
                                 case '!':
-                                    evaluated = m != value
+                                    evaluated = m != compare_val
                                 case '>':
-                                    evaluated = int(m) > int(value)
+                                    evaluated = int(m) > int(compare_val)
                                 case '<':
-                                    evaluated = int(m) < int(value)
+                                    evaluated = int(m) < int(compare_val)
                         else:
                             log.warnin(f"Can't compare invalid key '{meta_key}' in meta_compare statement, defaulting to False")
                             evaluated = False
                     case _:
                         log.error(f"Invalid argument '{arg}' for if command, use valid/empty/length/meta_valid/meta_empty/meta_compare")
                 
-                self.if_stack.append(value)
-                log.info(f"if '{arg}' command evaluated to {value}")
+                self.if_stack.append(evaluated)
+                log.info(f"if '{arg}' command evaluated to {evaluated}")
                 
             case Commands.EndIf:
                 log.error("No matching if for endif command")
@@ -492,10 +492,17 @@ class Worker:
         
     def process(self, img_seq, arg, settings):
         processor = None
+        seq_name = arg
         
         match arg:
+            case 'fitting':
+                # Apply settings from fitter list
+                seq_name = settings['fitter']
+                _, fitter, fitter_settings = fitters[seq_name]
+                processor = fitter()
+                settings = settings | fitter_settings
             case 'convert':
-                self.sequence.convertSequence(settings) # TODO
+                self.sequence.convertSequence(settings)
             case DepthEstimator.name:
                 processor = DepthEstimator()
             case ExpoBlender.name:
@@ -505,7 +512,7 @@ class Worker:
             case RtiProcessor.name:
                 processor = RtiProcessor()     
             case _:
-                log.error(f"Unknwon processor type '{arg}'")
+                log.error(f"Unknown processor type '{arg}'")
         
         # Processing
         if processor is not None:
@@ -532,7 +539,7 @@ class Worker:
             data_seq = processor.get()
             if GetSetting(settings, 'destination', 'data') == 'data':
                 if len(data_seq) > 0:
-                    img_seq.setDataSequence(processor.name, data_seq) # TODO more names like rti_poly to allow for more fitters to save their data
+                    img_seq.setDataSequence(seq_name, data_seq)
         return img_seq
 
     

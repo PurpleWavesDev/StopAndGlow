@@ -13,7 +13,7 @@ from ..hw.calibration import *
 @ti.dataclass
 class RTIPolyBsdf:
     def load(self, data: Sequence, calibration: Calibration, settings={}) -> bool:
-        rti_seq = data.getDataSequence('rti') # TODO rti_poly to allow for more fitters to save their data
+        rti_seq = data.getDataSequence('ptm') # TODO rti_poly to allow for more fitters to save their data
         if len(rti_seq) > 0:
             # Load data into fields
             res_x, res_y = rti_seq.get(0).resolution()

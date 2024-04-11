@@ -20,7 +20,6 @@ class RtiProcessor(Processor):
     
     def __init__(self):
         self._fitter = None
-        self._normals = None
         self._u_min = self._u_max = self._v_min = self._v_max = None
     
     def initFitter(self, fitter, settings):
@@ -28,7 +27,8 @@ class RtiProcessor(Processor):
         match fitter:
             case PolyFitter.__name__:
                 self._fitter = PolyFitter(settings)
-        self._normals = NormalFitter()
+            case NormalFitter.__name__:
+                self._fitter = NormalFitter(settings)
         
     
     def process(self, img_seq: Sequence, calibration: Calibration, settings={}):
@@ -46,11 +46,9 @@ class RtiProcessor(Processor):
         log.info(f"Generating RTI coefficients with {self._fitter.name}")
         
         # Compute inverse
-        self._normals.computeInverse(calibration) # Takes long
         self._fitter.computeInverse(calibration, recalc)
         
         # Compute coefficients
-        self._normals.computeCoefficients(img_seq, slices=4) # Takes super long
         self._fitter.computeCoefficients(img_seq, slices=4)
         
         # Save coord bounds

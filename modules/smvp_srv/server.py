@@ -179,27 +179,38 @@ def execute(socket, port, queue):
             
             ## Render Algorithmns
             case Command.GetRenderAlgorithms:
-                answer = {'algorithms': [(name, name_long) for name, name_long, _, _ in bsdfs]}
+                answer = {'algorithms': [(name, values[0]) for name, values in bsdfs.items()]}
                 send(socket, Message(Command.CommandAnswer, answer))
             
-            case Command.GetRenderSettings:
+            case Command.GetRenderSettings: # TODO: What settings should be exposed anyway?
                 algorithm = message.data['algorithm']
                 try:
-                    [None for _, _, bsdf, bsdf_config in bsdfs if name == algorithm][0]
-                    answer = bsdf.getDefaultSettings()
+                    name, bsdf_class, bsdf_settings = bsdfs[algorithm]
+                    answer = bsdf_class.getDefaultSettings()
                     send(socket, Message(Command.CommandAnswer, answer))
                 except:
-                    send(socket, Message(Command.CommandError, {'message': 'No renderer selected'}))
+                    send(socket, Message(Command.CommandError, {'message': 'No valid algorithm specified'}))
             
             case Command.SetRenderer:
                 algorithm = message.data['algorithm']
-                try:
-                    [None for name, _, _, _ in bsdfs if name == algorithm][0]
-                    queue.putCommand(Commands.Render, 'config', message.data)
-                    # TODO: Generate render data if not available
+                if algorithm in bsdfs:
                     send(socket, Message(Command.CommandOkay))
-                except:
-                    send(socket, Message(Command.CommandError, {'message': 'Unknwon render algorithm selected'}))
+                    
+                    # Generate algorithm data if needed
+                    if algorithm in fitters:
+                        queue.putCommand(Commands.If, 'empty', {'data': algorithm})
+                        queue.putCommand(Commands.Process, 'fitting', {'fitter': algorithm, 'target': 'sequence', 'destination': 'data'})
+                        queue.putCommand(Commands.Save, 'data')
+                        queue.putCommand(Commands.EndIf, 'empty')
+                    # Also generate normal map
+                    queue.putCommand(Commands.If, 'empty', {'data': 'normal'})
+                    queue.putCommand(Commands.Process, 'fitting', {'fitter': 'normal', 'target': 'sequence', 'destination': 'data'})
+                    queue.putCommand(Commands.Save, 'data')
+                    queue.putCommand(Commands.EndIf, 'empty')
+                    # Configure renderer
+                    queue.putCommand(Commands.Render, 'config', message.data)
+                else:
+                    send(socket, Message(Command.CommandError, {'message': 'No valid algorithm specified'}))
 
                 
             ## Live Viewer

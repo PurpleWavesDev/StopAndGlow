@@ -42,6 +42,7 @@ class ImgBuffer:
     
     def __init__(self, path=None, img: ArrayLike = None, domain: ImgDomain = ImgDomain.Keep):
         self._img=img
+        self._path=path
         self._domain=domain
         self._format=ImgFormat.Keep
         self._from_file=False
@@ -57,7 +58,10 @@ class ImgBuffer:
         return self._path
         
     def setPath(self, path):
-        self._path=path
+        if path != self._path:
+            self._path = path
+            self._from_file = False
+            
         if self._path is not None:
             root, ext = os.path.splitext(self._path)
             if ext.lower() == ".jpg" or ext.lower() == ".jpeg":
@@ -69,27 +73,30 @@ class ImgBuffer:
     
     def getFormat(self) -> ImgFormat:
         return self._format           
-    def setFormat(self, format: ImgFormat):
-        if format != ImgFormat.Keep:
-            self._format=format
-        if self._path is not None:
-            root, ext = os.path.splitext(self._path)
-            if self._format != ImgFormat.Keep:
-                match self._format:
-                    case ImgFormat.PNG:
-                        self._path = root+".png"
-                    case ImgFormat.JPG:
-                        self._path = root+".jpg"
-                    case ImgFormat.EXR:
-                        self._path = root+".exr"
-            elif self.isFloat():
-                log.warning("No valid format specified, defaulting to EXR for floating point data")
-                self._format = ImgFormat.EXR
-                self._path = root+".exr"
-            else:
-                log.warning("No valid format specified, defaulting to JPG")
-                self._format = ImgFormat.JPG
-                self._path = root+".jpg"
+    def setFormat(self, new_format: ImgFormat):
+        if new_format != ImgFormat.Keep:
+            if new_format != self._format:
+                self._format = new_format
+                self._from_file = False
+            
+            if self._path is not None:
+                root, ext = os.path.splitext(self._path)
+                if self._format != ImgFormat.Keep:
+                    match self._format:
+                        case ImgFormat.PNG:
+                            self._path = root+".png"
+                        case ImgFormat.JPG:
+                            self._path = root+".jpg"
+                        case ImgFormat.EXR:
+                            self._path = root+".exr"
+                elif self.isFloat():
+                    log.warning("No valid format specified, defaulting to EXR for floating point data")
+                    self._format = ImgFormat.EXR
+                    self._path = root+".exr"
+                else:
+                    log.warning("No valid format specified, defaulting to JPG")
+                    self._format = ImgFormat.JPG
+                    self._path = root+".jpg"
 
 
     def hasImg(self) -> bool:
@@ -143,11 +150,14 @@ class ImgBuffer:
             self.save()
         self._img=None
         
-    def save(self, format: ImgFormat = ImgFormat.Keep):
-        if self._path is not None and self.get() is not None:
-            # Update path for format
-            self.setFormat(format)
-                
+    def save(self, format: ImgFormat = ImgFormat.Keep, force=False):
+        # Update path for format
+        self.setFormat(format)
+
+        if self._path is None or self._path == "":
+            log.error("Can't save image without a valid path")
+        # Only save when image data is available and it is not loaded directly from a file or save is forced
+        elif self.get() is not None and (not self._from_file or force):
             # Create folder
             Path(os.path.dirname(self._path)).mkdir(parents=True, exist_ok=True)
             self._from_file = True
@@ -161,8 +171,6 @@ class ImgBuffer:
                         colour.write_image(self.asDomain(ImgDomain.sRGB).asInt().get(), self._path, bit_depth=IMAGE_DTYPE_INT, method='Imageio')
             log.debug(f"Saved image {self._path}")
             
-        elif self._path is None:
-            log.error("Can't save image without path")
     
     def domain(self):
         return self._domain

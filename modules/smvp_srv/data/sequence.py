@@ -244,7 +244,7 @@ class Sequence():
     def setDirectory(self, base_dir):
         self._base_dir = base_dir
     
-    def saveSequence(self, name: str, base_path: str, format: ImgFormat = ImgFormat.Keep):
+    def saveSequence(self, name: str, base_path: str, format: ImgFormat = ImgFormat.Keep): # TODO: name and base path optional
         path = os.path.join(base_path, name, name)
         for id in self.getKeys():
             # Get image to load old path
@@ -295,7 +295,9 @@ class Sequence():
     
     def setDataSequence(self, key, seq: 'Sequence'):
         self._data[key] = seq
-            
+        # Update path of sequence
+        self._data[key].setDirectory(os.path.join(self._base_dir, self._seq_name))
+        self._data[key].setName(key)
     
     ### Metadata ###
     
