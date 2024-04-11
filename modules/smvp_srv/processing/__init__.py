@@ -16,7 +16,7 @@ from .neural import *
 # Configured fitter with corresponding BSDFs in render submodule
 # Key, full name, class, settings
 fitter = [
-    ('ptm',     'Polynominal Texture Mapping',  RtiProcessor,   {}),
+    ('ptm',     'Polynominal Texture Mapping',  RtiProcessor,   {'fitter': PolyFitter.__name__, 'order': 3}),
     ('hsh2',    'Hemispherical Harmonics',      RtiProcessor,   {}),
     ('hsh3',    'Hemispherical Harmonics',      RtiProcessor,   {}),
     ('nrti',    'Neural RTI',                   NeuralRti,      {}),
