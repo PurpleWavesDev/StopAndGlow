@@ -4,176 +4,17 @@ os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 
 # Imports
 import sys
-import io
-import time
 import datetime
 from typing import Any
-
-# Logging
-from importlib import reload
-import logging as log
 
 DEBUG = hasattr(sys, 'gettrace') and sys.gettrace() is not None
 
 
 def main(argv):
-    # Init logger
-    reload(log)
-    log.basicConfig(level=log._nameToLevel[FLAGS.loglevel], format='[%(levelname)s] %(message)s')
-    datetime_now = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-    # Make capture_frames_skip odd, increment if necessary
-    if FLAGS.capture_frames_skip % 2 == 0:
-        FLAGS.capture_frames_skip += 1
-    # Prepare hardware for tasks
-    hw = HW(Cam(), Lights(), Calibration(os.path.join(FLAGS.cal_folder, FLAGS.cal_name)))
-    tib.TIBase.gpu = True
-    tib.TIBase.debug = DEBUG
-    tib.TIBase.init()
-    
-    ### Load image sequence, either by capturing or loading sequence from disk ###
-    sequence = None
-    if FLAGS.capture:
-        # Set name
-        ghosting_sequence = Sequence()
-        ghosting_sequence.loadFolder(os.path.join(FLAGS.seq_folder, "ghosting"))
-        i = len(ghosting_sequence)
-        #path=FLAGS.seq_folder
-        #for f in os.listdir(path):
-        #    p = os.path.join(path, f)
-        #    if os.path.isfile(p) and os.path.splitext(p)[1].lower() == '.mp4':
-        #        # Load video
-        #        sequence = Sequence()
-        #        sequence.load(p, frame_list=(0,1), frames_skip=FLAGS.capture_frames_skip, dmx_repeat=FLAGS.capture_dmx_repeat)
-        #        frame = sequence.get(0)
-        #        frame.setPath(os.path.join(FLAGS.seq_folder, "ghosting", f"ghosting_{i:04d}.jpg"))
-        #        frame.save(ImgFormat.JPG)
-        #        ghosting_sequence.append(frame, i)
-        #        i+=1
-
-        live_renderer = LiveView(hw) # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
-        live_renderer.setSequence(ghosting_sequence)
-        viewer = Viewer((1920,1080))
-        viewer.setRenderer(live_renderer)
-        viewer.launch()
-        while True:
-            datetime_now = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-            FLAGS.seq_name = datetime_now + '_' + FLAGS.seq_type
-
-            capture = Capture(hw, FLAGS)
-            hdri = None
-            if FLAGS.seq_type == 'hdri':
-                # Load hdri
-                hdri = ImgBuffer(path=os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
-            capture.captureSequence(hw.cal, hdri)
-            
-            # Sequence download, evaluation of video not necessary for capture only
-            sequence = capture.downloadSequence(FLAGS.seq_name, keep=False, save=FLAGS.seq_save)
-            # Mask frame for ghosting
-            frame = sequence.get(0)
-            frame.setPath(os.path.join(FLAGS.seq_folder, "ghosting", f"ghosting_{i:04d}.jpg"))
-            frame.save(ImgFormat.JPG)
-            ghosting_sequence.append(frame, i)
-            i += 1
-
-            live_renderer = LiveView(hw) # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
-            live_renderer.setSequence(ghosting_sequence)
-            viewer = Viewer((1920,1080))
-            viewer.setRenderer(live_renderer)
-            viewer.launch()
-
-
-
-    # If not captured, load sequences
-    elif FLAGS.process or FLAGS.viewer:
-        # Load from disk
-        sequence = load(FLAGS.seq_name, hw.cal)
-        if len(sequence) == 0:
-            log.warning("Empty sequence loaded")
-
-        # For HDR Videos, convert to single sequence
-        elif FLAGS.hdr and sequence._is_video:
-            # Load first video completely and scale
-            sequence.loadFrames()
-            if True: #self._flags.video_downscale:
-                sequence.convertSequence({'size': 'hd'})
-            # Load other sequences from same video file
-            sequences = [sequence]
-            sequences[0].setMeta('exposure', f"1/50") # TODO
-            for i in range(1, FLAGS.hdr_bracket_num):
-                sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(FLAGS.seq_folder, FLAGS.seq_name+f"_{i}"), sequence.getKeys(), i))
-                sequences[i].setMeta('exposure', f"1/{[50, 200, 800][i]}") # TODO
-                # Scale images
-                if True: #self._flags.video_downscale:
-                    sequences[i].convertSequence({'size': 'hd'})
-
-            # Get exposure times and merge
-            exposure_times = [1/float(seq.getMeta('exposure').split("/")[1]) for seq in sequences]
-            blender = ExpoBlender()
-            blender.process(sequences, hw.cal, {'exposure': exposure_times})
-            sequence = blender.get()
-
-        # Save videos?
-        if FLAGS.seq_convert:
-            sequence.saveSequence(FLAGS.seq_name, FLAGS.seq_folder)
-    
-    ### Process sequence ###
-    renderer = None
-    if FLAGS.process:
-        settings = dict()
-        name = FLAGS.eval_name if FLAGS.eval_name != '' else FLAGS.seq_name + '_' + FLAGS.eval_type
-        match FLAGS.eval_type:
-            case 'cal':
-                #calibrate(sequence)
-                settings = {'interactive': FLAGS.viewer}
-                renderer = Calibrate()
-            case 'calstack':
-                # Load configs
-                stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
-                hw.cal.stitch(stack_cals)
-                hw.cal.save(FLAGS.cal_folder, FLAGS.new_cal_name)
-            case 'rgbstack':
-                renderer = RgbStacker()
-            case 'lightstack':
-                renderer = LightStacker()
-            case 'rti':
-                settings = {'order': 4}
-                renderer = RtiRenderer()
-            case 'expostack':
-                # TODO
-                pass
-            case 'convert':
-                sequence.convertSequence(FLAGS.convert_to)
-                sequence.saveSequence(name, FLAGS.seq_folder)
-            
-        if renderer is not None:
-            Process(renderer, sequence, hw.cal, name, settings)
-            
-    ### Launch viewer ###
-    if FLAGS.viewer:
-        if FLAGS.live:
-            live_renderer = LiveView(hw) # TODO Den gibts noch nicht! Schau in die Renderer (Calibrate, RTI) und bau dir deinen eigenen :)
-            live_renderer.setSequence(sequence)
-            viewer = Viewer((1920,1080))
-            viewer.setRenderer(live_renderer)
-            viewer.launch()
-
-        elif renderer is None and FLAGS.eval_name != '':
-            # Load renderer with eval data
-            eval_seq = Sequence()
-            eval_seq.load(os.path.join(FLAGS.eval_folder, FLAGS.eval_name))
-            match FLAGS.eval_type:
-                case 'rgbstack':
-                    renderer = RgbStacker()
-                case 'lightstack':
-                    renderer = LightStacker()
-                case 'rti':
-                    renderer = RtiRenderer()
-            if renderer is not None:
-                renderer.load(eval_seq)
-        
-        # Launch if renderer is loaded
-        if renderer is not None:
-            LaunchViewer(renderer)
+    # cal stacking
+    stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
+    hw.cal.stitch(stack_cals)
+    hw.cal.save(FLAGS.cal_folder, FLAGS.new_cal_name)
 
     ### Calibration ###
     if type(renderer) is Calibrate:
@@ -183,51 +24,6 @@ def main(argv):
         log.info(f"Saving calibration as '{cal_name}' with {len(new_cal)} lights from ID {new_cal.getIdBounds()}")
         new_cal.save(FLAGS.cal_folder, cal_name)
         
-    ### Camera quick controlls ###
-    match FLAGS.camctl:
-        case 'none':
-            pass
-        case 'stop':
-            hw.cam.triggerVideoEnd()
-        case 'erase':
-            # Delete all files on camera
-            hw.cam.deleteAll()
-        #camop.FindMaxExposure(hw.cam)
-        #hw.cam.setIso('100')
-        #hw.cam.setAperture('8')
-    
-    
-    ### Light modes after capturing and processing ###
-    if FLAGS.lightctl != 'none':
-        # Init lights and dome
-        hw.lights.getInterface()
-        dome = LightCtl(hw)
-
-        match FLAGS.lightctl:
-            case 'on':
-                dome.setNth(6, 50)
-            case 'top':
-                dome.setTop(60, 50)
-            case 'off':
-                hw.lights.off()
-            case 'run':
-                ids = hw.cal.getIds() if FLAGS.seq_type == "seq_type" else range(FLAGS.capture_max_addr)
-                lightsRun(hw, ids)
-                dome.setTop(60, 50)
-            case 'anim_latlong':
-                lightsAnimate(hw)
-                dome.setTop(60, 50)
-            case 'anim_hdri':
-                lightsHdriRotate(hw)
-                dome.setTop(60, 50)
-
-    # Default lights after image capture
-    elif FLAGS.capture and FLAGS.lightctl == 'none':
-        LightCtl(hw).setTop(60, 50)
-        hw.lights.write()
-
-
-
 #################### Light MODES ####################
 
 def lightsAnimate(hw):
@@ -281,23 +77,6 @@ def lightsRun(hw, ids=None):
     t.join()
 
 
-#################### Processing functions ####################
-
-def Process(renderer, img_seq, calibration, name, settings):
-    log.info(f"Process image sequence for {renderer.name}")
-        
-    # Process
-    renderer.process(img_seq, calibration, settings)
-
-    # Save data
-    seq_out = renderer.get()
-    if (len(seq_out) > 0):
-        if not FLAGS.eval_dontsave:
-            domain = seq_out.get(0).domain()
-            seq_out.saveSequence(name, FLAGS.eval_folder, ImgFormat.EXR if domain == ImgDomain.Lin else ImgFormat.JPG)
-
-
-
 #################### RELIGHT MODES ####################
 
 def relightSimple(img_seq, calibration, output_name):
@@ -324,63 +103,3 @@ def relightSimple(img_seq, calibration, output_name):
     lighting.setPath(os.path.join(FLAGS.seq_folder, output_name, output_name))
     lighting.setFormat(ImgFormat.EXR)
     lighting.save()
-
-
-#################### VIEWER ####################
-
-def LaunchViewer(renderer):
-    log.info(f"Lauching viewer")
-    
-    # HDRI
-    #hdri = ImgBuffer(os.path.join(FLAGS.hdri_folder, FLAGS.hdri_name), domain=ImgDomain.Lin)
-    #res_y, res_x = hdri.get().shape[:2]
-    #blur_size = int(15*res_y/100)
-    #blur_size += 1-blur_size%2 # Make it odd
-    #hdri.set(cv.GaussianBlur(hdri.get(), (blur_size, blur_size), -1))
-    
-    viewer = Viewer()
-    #viewer.setSequences(rti_factors=img_seq)
-    #viewer.setHdris([hdri])
-    viewer.setRenderer(renderer)
-    viewer.launch()
-    
-
-
-#################### CAMERA SETTINGS & DOWNLOAD HELPERS ####################
-    
-def load(seq_name, calibration):
-    """Load from disk"""
-    sequence = Sequence()
-    
-    if seq_name != '':
-        path = os.path.join(FLAGS.seq_folder, seq_name)
-        if os.path.splitext(seq_name)[1] == '':
-            # Load folder
-            domain = ImgDomain.Keep
-            # Override domain
-            match FLAGS.seq_domain:
-                case 'lin':
-                    domain = ImgDomain.Lin
-                case 'srgb':
-                    domain = ImgDomain.sRGB
-            sequence.loadFolder(path, domain)
-        else:
-            # Load video
-            # IDs according sequence type
-            match FLAGS.seq_type:
-                case 'lights':
-                    ids = calibration.getIds()
-                case 'baked':
-                    ids = [0, 1, 2]
-                case 'all':
-                    ids = range(FLAGS.capture_max_addr)
-            # TODO: Video parameters via metadata?
-            sequence.load(path, ids, FLAGS.capture_frames_skip, FLAGS.capture_dmx_repeat) 
-    
-    return sequence
-
-
-#################### MODES END ####################
-
-if __name__ == '__main__':
-    pass
