@@ -11,7 +11,7 @@ from ..hw.calibration import *
 
 
 @ti.dataclass
-class RTIPolyBsdf:
+class PtmBsdf:
     def load(self, data: Sequence, calibration: Calibration, settings={}) -> bool:
         rti_seq = data.getDataSequence('ptm') # TODO rti_poly to allow for more fitters to save their data
         if len(rti_seq) > 0:

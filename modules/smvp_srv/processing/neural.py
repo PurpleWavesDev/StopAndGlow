@@ -3,8 +3,10 @@ from numpy.typing import ArrayLike
 import logging as log
 
 import torch
-import torch.nn.functional as F
-from torchvision.transforms import Compose
+#import torch.utils.data
+from torch import nn, optim
+from torch.nn import functional as F
+from torchvision import datasets, transforms
 
 from .processor import *
 from ..data import *
@@ -21,7 +23,7 @@ class NeuralRti(Processor):
         if self.device.type == 'cuda':
             log.debug("CUDA acceleration for MiDaS enabled")
 
-        self.transform = Compose([
+        self.transform = transforms.Compose([
             Resize(
                 width=518,
                 height=518,
@@ -79,4 +81,30 @@ class NeuralRti(Processor):
     def get(self) -> Sequence:
         return self.sequence
         
+
+class RtiEncoder(nn.Module):
+    def __init__(self, act_fn: object = nn.GELU):
+        super().__init__()
+        self.net = nn.Sequential(
+            
+        )
     
+    def forward(self, x):
+        return self.net(x)
+    
+class RtiDecoder(nn.Module):
+    def __init__(self, act_fn: object = nn.GELU):
+        super().__init__()
+        self.linear = nn.Sequential(nn.Linear(latent_dim, 2 * 16 * c_hid), act_fn())
+        self.net = nn.Sequential(
+            
+        )
+    
+    def forward(self, x):
+        x = self.linear(x)
+        x = x.reshape(x.shape[0], -1, 4, 4)
+        x = self.net(x)
+        return x
+
+class AutoEncoder:
+    pass
