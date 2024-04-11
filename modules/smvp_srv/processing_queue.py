@@ -265,7 +265,7 @@ class Worker:
                     case 'config':
                         if 'algorithm' in settings:
                             log.info(f"Render configuration with bsdf '{settings['algorithm']}'")
-                            bsdf = [bsdf for name, _, bsdf in bsdfs if name == settings['algorithm']]
+                            bsdf = [bsdf for name, _, bsdf, bsdf_config in bsdfs if name == settings['algorithm']]
                             if len(bsdf) == 1:
                                 bsdf = bsdf[0]()
                                 if bsdf.load(self.sequence, self.hw.cal):

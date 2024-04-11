@@ -179,13 +179,13 @@ def execute(socket, port, queue):
             
             ## Render Algorithmns
             case Command.GetRenderAlgorithms:
-                answer = {'algorithms': [(name, name_long) for name, name_long, _ in bsdfs]}
+                answer = {'algorithms': [(name, name_long) for name, name_long, _, _ in bsdfs]}
                 send(socket, Message(Command.CommandAnswer, answer))
             
             case Command.GetRenderSettings:
                 algorithm = message.data['algorithm']
                 try:
-                    [None for _, _, bsdf in bsdfs if name == algorithm][0]
+                    [None for _, _, bsdf, bsdf_config in bsdfs if name == algorithm][0]
                     answer = bsdf.getDefaultSettings()
                     send(socket, Message(Command.CommandAnswer, answer))
                 except:
@@ -194,7 +194,7 @@ def execute(socket, port, queue):
             case Command.SetRenderer:
                 algorithm = message.data['algorithm']
                 try:
-                    [None for name, _, _ in bsdfs if name == algorithm][0]
+                    [None for name, _, _, _ in bsdfs if name == algorithm][0]
                     queue.putCommand(Commands.Render, 'config', message.data)
                     # TODO: Generate render data if not available
                     send(socket, Message(Command.CommandOkay))
