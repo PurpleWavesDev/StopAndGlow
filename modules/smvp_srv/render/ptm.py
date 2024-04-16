@@ -56,7 +56,7 @@ class PtmBsdf:
         if self._coeff.shape[0] >= 28: 
             rgb += self.sampleSum(x, y, u, v, 21, 6)
             
-        return rgb
+        return tm.max(rgb, 0.0)
 
     @ti.func
     def sampleSum(self, x, y, u, v, offset, a):
