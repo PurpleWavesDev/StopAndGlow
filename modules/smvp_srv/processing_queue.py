@@ -66,7 +66,7 @@ class Worker:
         
         # Sequence data and buffers
         self.sequence = Sequence()
-        self.hdri = ImgBuffer(path=os.path.join(self.config['hdri_folder'], self.config['hdri_name']))
+        self.hdri = ImgBuffer(path=os.path.join(self.config['hdri_folder'], self.config['hdri_name'])) # TODO: Default HDRI?
         self.img_buf = ImgBuffer.CreateEmpty(self.config['resolution'], True)
         self.path = ""
         
@@ -223,17 +223,18 @@ class Worker:
                     self.sequence.load(self.path, defaults=default_config, overrides=settings)
 
             case Commands.LoadHdri:
-                # --loadHdri <path>
+                # --loadHdri <path> folder=<path> rotation=0
                 log.info(f"Loading HDRI '{arg}'")
                 
                 # Is argument absolute path or relative to hdri_folder?
                 path = arg
-                if not os.path.isfile(path):
-                    path = os.path.join(self.config['hdri_folder'], arg)
+                if 'folder' in settings or not os.path.isfile(path):
+                    path = os.path.join(GetSetting(settings, 'folder', self.config['hdri_folder']), arg)
                     if not os.path.isfile(path):
                         raise Exception(f"File '{arg}' not found")
                 
                 # Load file
+                rotation = float(GetSetting(settings, 'rotation', '0'))
                 self.hdri = ImgBuffer(path)
             
             
@@ -271,6 +272,9 @@ class Worker:
                                 bsdf = bsdf_class()
                                 if bsdf.load(self.sequence, self.hw.cal):
                                     self.renderer = Renderer(bsdf, self.config['resolution'])
+                                    # Set HDRI
+                                    if self.hdri.get() is not None:
+                                        self.renderer.getScene().setHdri(self.hdri)
                                 else:
                                     log.error("No data for BSDF!")
                             else:

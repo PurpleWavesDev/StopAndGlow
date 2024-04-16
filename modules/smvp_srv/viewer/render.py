@@ -14,6 +14,8 @@ class RenderViewer(Viewer):
     
     def __init__(self):
         self.render_mode = 0
+        self.u = -1
+        self.v = -1
     
     def setRenderer(self, renderer):
         # Set sequence and reset to current render mode
@@ -24,23 +26,33 @@ class RenderViewer(Viewer):
         self.resolution = resolution
     
     def getModes(self) -> list:
-        return ["Directional", "Point"]
+        return ["Directional", "Point", "HDRI"]
 
     def setMode(self, mode):
         self.render_mode = mode
+        self.u = -1
+        self.v = -1
         
     def getRenderSettings(self, mode) -> RenderSettings:
         return RenderSettings(with_exposure=True, is_linear=True, needs_coords=True)
 
     def setCoords(self, u, v):
-        self.renderer.reset()
-        match self.render_mode:
-            case 0: # Directional Light
-                self.renderer.getScene().addSun(LightData(direction=[u, v], power=1000))
-            case 1: # Point Light
-                #self.renderer.getScene().addLight()
-                pass
-        self.renderer.initRender()
+        # Only reset render if coordinates have changed
+        if u != self.u or v != self.v:
+            self.u = u
+            self.v = v
+            self.renderer.reset()
+            
+            match self.render_mode:
+                case 0: # Directional Light
+                    self.renderer.getScene().addSun(LightData(direction=[u, v], power=10))
+                case 1: # Point Light
+                    self.renderer.getScene().addPoint(LightData(position=[v-0.5, -0.5, u-0.5], power=100))
+                case 2: # HDRI
+                    self.renderer.getScene().setHdriRotation(v)
+                    
+            self.renderer.initRender(hdri_samples=500 if self.render_mode==2 else 0)
+        
         self.renderer.sample()
     
     #def keypressEvent(self, event_key):

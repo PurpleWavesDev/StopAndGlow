@@ -22,20 +22,26 @@ class Renderer:
         self._bsdf = bsdf
         self._scene = Scene()
         self._buffer = ti.field(tib.pixvec)
+        self._sample_buffer = ti.field(tib.pixvec)
         ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._buffer)
+        ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._sample_buffer)
         
     def getScene(self):
         return self._scene
 
     ## Rendering    
-    def initRender(self, samples=10):  
-        # Reset buffer
-        self._buffer.fill(0.0)
+    def initRender(self, hdri_samples=0):  
+        # Reset sample buffer
+        self._sample_buffer.fill(0.0)
+        self._hdri_samples = hdri_samples
+        self._sample_count = 0
     
     def reset(self):
         self._scene.clear()
     
     def sample(self) -> bool:
+        # Reset normal buffer every time (doesn't take long to render this but we could also keep render data for lights separately)
+        self._buffer.fill(0.0)
         for lgt in self._scene.getSunLights():
             u, v = 0.5, 0.5
             if len(lgt.direction) == 3:
@@ -55,8 +61,18 @@ class Renderer:
         
         for lgt in self._scene.getAreaLights():
             self.sampleArea(lgt.position, lgt.direction, lgt.angle, lgt.size, lgt.power, lgt.color)
+        
+        env_data = self._scene.getHdri()
+        if self._sample_count < self._hdri_samples and env_data.power != 0 and env_data.hdri is not None:
+            # Sample0
+            self.sampleHdri(env_data.hdri, env_data.rotation, env_data.power, 64)
+            self._sample_count += 1
+        if self._sample_count != 0:
+            # Add scaled down to render buffer
+            tib.addScaled(self._buffer, self._sample_buffer, 1.0/self._sample_count)
             
-        self.sampleHdri()
+        
+        return self._hdri_samples == 0 # True if done
     
     def get(self):
         return self._buffer.to_numpy()
@@ -146,5 +162,15 @@ class Renderer:
                 self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor  * 1/squared_length
     
     @ti.kernel
-    def sampleHdri(self):
-        pass
+    def sampleHdri(self, hdri: tib.pixarr, rotation: ti.f32, power: ti.f32, samples: ti.i32):
+        for y, x in self._buffer:
+            for i in range(samples):
+                # TODO Multiple Importance Sampling ?
+                # Idea: Sample low count in any direction with blurred HDRI, maybe even with half resolution
+                # Rank values and redo sampling around bright areas (gaussian distribution?) -> sampling bright, important values!
+                # Problem: Bright parts will be exaggerated, need factor of covered area to scale that down again. For non-gaussian distributions it's probably the spherical angle
+                # Far future TODO (especially when we settled on one algorithm): Analytical integration or gradient estimation?
+                u = ti.random()*0.65+0.3 # 0 - <1 # TODO Quick fix to mask out lower part of PTM function that shows only rubbish
+                v = ti.random()
+                #ti.randn(float) # univariate standard normal (Gaussian) distribution of mean 0 and variance 1
+                self._sample_buffer[y, x] += self._bsdf.sample(x, y, u, v) * hdri[ti.cast(u*hdri.shape[0], ti.i32), ti.cast((1+v-rotation)%1.0 * hdri.shape[1], ti.i32)] * power / samples

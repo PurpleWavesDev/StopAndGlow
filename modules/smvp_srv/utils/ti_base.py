@@ -67,3 +67,8 @@ def copyFrameToSequence(sequence: ti.template(), frame_index: ti.i32, copy_frame
     for y, x in ti.ndrange(H, W):
         # Copy frame
         sequence[frame_index, y, x] = copy_frame[y, x]
+
+@ti.kernel
+def addScaled(pix: ti.template(), pix_add: ti.template(), scale: ti.f32):
+    for y,x in pix:
+        pix[y,x] += pix_add[y,x] * scale

@@ -59,7 +59,7 @@ def smvpConnect(address, port) -> bool:
     # Connect to server
     send_sock = context.socket(zmq.REQ)
     server_address = f"tcp://{address}:{port}"
-    val = send_sock.connect(server_address)
+    send_sock.connect(server_address)
     # Set timeout and disconnect after timeout option
     send_sock.setsockopt(zmq.RCVTIMEO, 1000)
     send_sock.setsockopt(zmq.LINGER, 0)
@@ -174,7 +174,7 @@ def serviceRun(port):
     global image_requests
     global receiver_lock 
 
-    with receiver_lock:
+    with receiver_lock: # TODO what is this used for?!
         # Setup socket
         recv_addr = f"tcp://*:{port}"
         recv_sock = context.socket(zmq.REP)

@@ -1,4 +1,9 @@
+from ..data.imgbuffer import *
 from ..utils import *
+
+from ..utils import ti_base as tib
+import taichi as ti
+import taichi.types as tt
 
 class LightData:
     def __init__(self, position=None, direction=None, angle=0.0, blend=0.0, size=0.0, power=1.0, color=[1.0, 1.0, 1.0]):
@@ -10,18 +15,28 @@ class LightData:
         self.power=power
         self.color=color
 
+class EnvironmentData:
+    def __init__(self, hdri: tib.pixarr, rotation=0.0, power=1.0):
+       self.hdri=hdri
+       self.rotation=rotation 
+       self.power=power
+
 class Scene:
     def __init__(self):
         self._suns = []
         self._points = []
         self._spots = []
         self._areas = []
+        self._hdri = EnvironmentData(None)
         
     def clear(self):
         self._suns.clear()
         self._points.clear()
         self._spots.clear()
         self._areas.clear()
+    
+    def clearHdri(self):
+        self._hdri = EnvironmentData(None)
     
     def addLight(self, light_data):
         match light_data['type']:
@@ -48,6 +63,14 @@ class Scene:
     def addArea(self, light):
         self._areas.append(light)
     
+    def setHdri(self, hdri: ImgBuffer, rotation=0.0, power=1.0):
+        hdri_buf = ti.ndarray(tib.pixvec, hdri.shape())
+        hdri_buf.from_numpy(hdri.asDomain(ImgDomain.Lin).get())
+        self._hdri = EnvironmentData(hdri_buf, rotation, power)
+    
+    def setHdriRotation(self, rotation):
+        self._hdri.rotation = rotation
+    
     def getSunLights(self):
         return self._suns 
         
@@ -61,5 +84,5 @@ class Scene:
         return self._areas
     
     def getHdri(self):
-        return None
+        return self._hdri
     

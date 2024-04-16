@@ -36,7 +36,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--render", "config", "algorithm=poly", "--view", "render"],
+            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--load_hdri", "hdri.exr", "--render", "config", "algorithm=ptm", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

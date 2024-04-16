@@ -227,6 +227,10 @@ class ImgBuffer:
         if self.get() is not None:
             return (self._img.shape[1], self._img.shape[0])
         return (0, 0)
+    def shape(self) -> [int, int]:
+        if self.get() is not None:
+            return self._img.shape[0:2]
+        return (0, 0)
     def r(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,0], domain=self._domain)
     def g(self) -> ImgBuffer:
