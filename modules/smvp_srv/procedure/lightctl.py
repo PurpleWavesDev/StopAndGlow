@@ -40,7 +40,7 @@ class LightCtl:
         
         # Find 6 closest neighbours and assign IDs (2 above, 2 even, 2 below)
         for id in self._light_ids:
-            latlong = self._cal[id]['latlong']
+            latlong = self._cal[id].getLL()
             section = LightCtl.GetSection(latlong)
             # Check lights in section and neigbouring sections for distances
             for neigbour_section in LightCtl.GetNeigbouringSections():

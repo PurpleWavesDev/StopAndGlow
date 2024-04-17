@@ -233,7 +233,7 @@ class Calibrate(Viewer):
                 # Process frame
                 uv = self.findReflection(img, id)
                 if uv is not None:
-                    self._cal.addLight(id, uv, Calibrate.SphericalToLatlong(uv, self._viewing_angle_by2))
+                    self._cal.addLight(id, uv, LightPosition.MirrorballToCoordinates(uv, self._viewing_angle_by2))
             elif not self._interactive:
                 log.debug(f"Found blackframe '{id}'")
             if not self._interactive:
@@ -298,29 +298,3 @@ class Calibrate(Viewer):
         
         return None
     
-
-    ### Static functions ###
-    
-    def SphericalToLatlong(uv, viewing_angle_by_2=0):
-        uv=np.array(uv)
-        # First get the length of the UV coordinates
-        length = np.linalg.norm(uv)
-        uv_norm = uv/length
-        
-        # Get direction of light source
-        vec = np.array([0,0,1]) # Vector pointing into camera
-        axis = np.array([-uv_norm[1],uv_norm[0],0]) # Rotation axis that is the direction of the reflection rotated 90° on Z
-        theta = math.asin(length)*2 # Calculate the angle to the reflection which is two times the angle of the normal on the sphere
-        theta_corrected = theta / np.pi * (np.pi-viewing_angle_by_2) # Perspective correction: New range is to 180° - viewing_angle/2
-        vec = np.dot(RotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
-        
-        # Calculate Latitude and Longitude
-        latitude = math.asin(vec[1])
-        longitude = 90-math.degrees(math.acos(vec[0]/math.cos(latitude))) # -90 to 90 degree front side
-        latitude = math.degrees(latitude)
-        # Offsets for longitude
-        if vec[2] < 0: # Back side
-            longitude = (180-longitude) # 90 to 270 degree, correct value
-
-        return (latitude, (longitude+360) % 360) # make longitude all positive
-

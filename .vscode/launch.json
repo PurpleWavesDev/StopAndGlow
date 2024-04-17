@@ -27,7 +27,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome_pos1.json", "--load", "fisch_untersichtig_expoblend", "--process", "rti", "--save", "data", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome_pos1.json", "--load", "fisch_untersichtig_expoblend", "--process", "fitting", "fitter=ptm", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -36,7 +36,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--load_hdri", "hdri.exr", "--render", "config", "algorithm=ptm", "--view", "render"],
+            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--load_hdri", "syferfontein_0d_clear_puresky_1k.exr", "--render", "config", "algorithm=ptm", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -68,29 +68,38 @@
             "justMyCode": true
         },
         {
-            "name": "Lights On",
-            "type": "python",
+            "name": "Capture calibrate and view",
+            "type": "debugpy",
             "request": "launch",
-            "program": "domectl.py",
-            "args": ["--lightctl=on"],
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "20240410_1348.MP4", "--save", "all", "--view", "sequence"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Lights Random",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--lights", "rand", "power=0.2", "amount=0.3"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
         {
             "name": "Lights Top",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "program": "domectl.py",
-            "args": ["--lightctl=top"],
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--lights", "top", "power=0.2", "amount=0.3"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
         {
             "name": "Lights Off",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "program": "domectl.py",
-            "args": ["--lightctl=off"],
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--lights", "off"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

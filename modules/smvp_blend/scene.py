@@ -243,7 +243,7 @@ def updateTextures(scene):
 
 
 def updateScene(scene):
-    """Function to call when scene has changed"""
+    """Function to call when the scene has changed"""
     global scene_light_data
     
     if client.connected:

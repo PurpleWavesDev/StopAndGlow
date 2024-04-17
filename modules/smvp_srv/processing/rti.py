@@ -52,16 +52,16 @@ class RtiProcessor(Processor):
         self._fitter.computeCoefficients(img_seq, slices=4)
         
         # Save coord bounds
-        coord_min, coord_max = calibration.getCoordBounds()
-        self._u_min, self._v_min = mutils.NormalizeLatlong(coord_min)
-        self._u_max, self._v_max = mutils.NormalizeLatlong(coord_max)
+        #coord_min, coord_max = calibration.getCoordBounds()
+        #self._u_min, self._v_min = mutils.NormalizeLatlong(coord_min)
+        #self._u_max, self._v_max = mutils.NormalizeLatlong(coord_max)
 
     
     def get(self) -> Sequence:
         if self._fitter:
             seq = self._fitter.getCoefficients()
-            seq.setMeta('latlong_min', (self._u_min, self._v_min))
-            seq.setMeta('latlong_max', (self._u_max, self._v_max))
+            #seq.setMeta('latlong_min', (self._u_min, self._v_min))
+            #seq.setMeta('latlong_max', (self._u_max, self._v_max))
             return seq
         return Sequence()
     

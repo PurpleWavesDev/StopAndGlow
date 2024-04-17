@@ -4,6 +4,8 @@ import math
 from numpy.typing import ArrayLike
 from pathlib import Path
 
+from ..data.lightpos import *
+
 class Calibration:
     def __init__(self, path=None):
         self._id_min=-1
@@ -20,21 +22,20 @@ class Calibration:
                 'fitter': {},
             }
 
-    def addLight(self, id, uv, latlong):
-        self._data['lights'].append({'id': id, 'uv': uv, 'latlong': latlong})
-        self._findMinMax(id, latlong)
+    def addLight(self, id, mirror, lightpos: LightPosition):
+        self._data['lights'].append({'id': id, 'uv': mirror, 'xyz': lightpos.getXYZ()})
         self._changed = True
         
     def load(self, path):
         self._id_min=-1
         self._id_max=-1
-        self._lat_min = self._lat_max = self._long_min = self._long_max = -1
         self._changed = False
         
         with open(path, "r") as file:
             self._data = json.load(file)
-        for light in self._data['lights']:
-            self._findMinMax(light['id'], light['latlong'])
+            for light in self._data['lights']:
+                if not 'xyz' in light:
+                    light['xyz'] = LightPosition.MirrorballToCoordinates(light['uv']).getXYZ()
         if not 'fitter' in self._data:
             self._data['fitter'] = {}
 
@@ -54,27 +55,20 @@ class Calibration:
         self._data['fitter']['inverse'] if 'inverse' in self._data['fitter'] else None
 
 
-    def getLights(self):
-        return self._data['lights']
+    def getLights(self) -> list:
+        return {light['id']: LightPosition(light['xyz']) for light in self._data['lights']}
     
-    def getByIndex(self, index):
-        return self._data['lights'][index]
-
     def getIdBounds(self):
         return (self._id_min, self._id_max)
     
     def getIds(self):
         return [d['id'] for d in self._data['lights']]
     
-    def getCoordBounds(self):
-        """Returns minimum and maximum latlong values as (latlong_min, latlong_max)"""
-        return ((self._lat_min, self._long_min), (self._lat_max, self._long_max))
-
     def getCoords(self):
-        return [d['latlong'] for d in self._data['lights']]
+        return [LightPosition(light['xyz']) for light in self._data['lights']]
     
     def __getitem__(self, key):
-        return next((item for item in self._data['lights'] if item["id"] == key), None)
+        return next((LightPosition(light['xyz']) for light in self._data['lights'] if light["id"] == key), None)
 
     def __len__(self):
         return len(self._data['lights'])
@@ -86,17 +80,9 @@ class Calibration:
     def __iter__(self):
         return iter(self._data['lights'])
     
-    # Helper
-    def _findMinMax(self, id, latlong):
-        self._id_min, self._id_max = self._minMax(self._id_min, self._id_max, id)
-        self._lat_min, self._lat_max = self._minMax(self._lat_min, self._lat_max, latlong[0])
-        self._long_min, self._long_max = self._minMax(self._long_min, self._long_max, latlong[1])
-        
-    def _minMax(self, cur_val_min, cur_val_max, new_val):
-        min_val = new_val if cur_val_min == -1 else min(cur_val_min, new_val)
-        max_val = new_val if cur_val_max == -1 else max(cur_val_max, new_val)
-        return (min_val, max_val)
-
+    
+    ## Stitch functions
+    
     def stitch(self, other_configs):
         add_dict = {}
         for stitch_conf in other_configs:

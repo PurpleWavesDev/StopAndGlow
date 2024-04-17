@@ -72,7 +72,7 @@ class PseudoinverseFitter(ABC):
             
             # Copy frames to buffer
             for i, id in enumerate(img_seq.getKeys()):
-                tib.copyFrameToSequence(sequence_buf, i, img_seq[id].asFloat().get()[start:end])
+                tib.copyFrameToSequence(sequence_buf, i, img_seq[id].asFloat().get()[start:end]) # TODO: Single luminance channel mode change here!
             
             # Compute coefficient slice
             computeCoefficientSlice(sequence_buf, self._coefficients, self._inverse, start)
@@ -91,8 +91,8 @@ class PseudoinverseFitter(ABC):
         else:
             # Create array and fill it with light positions
             A = np.zeros((light_count, coefficient_count))
-            for i, light in enumerate(calibration.getLights()):
-                coord = mutils.NormalizeLatlong(light['latlong'])
+            for i, light in enumerate(calibration.getCoords()):
+                coord = light.getLLNorm()
                 self.fillLightMatrix(A[i], coord)
                 
             # Calculate inverse

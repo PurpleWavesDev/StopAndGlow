@@ -371,9 +371,9 @@ class Worker:
                 # --lights on power=0.5 range=0.2
                 log.info(f"Set Lights to '{arg}'")
                 
-                power = min(GetSetting(settings, 'power', 1/3), 1.0)
-                amount = min(GetSetting(settings, 'amount', 1/3), 1.0)
-                width = min(GetSetting(settings, 'width', 1/5), 1.0)
+                power = min(float(GetSetting(settings, 'power', 1/3)), 1.0)
+                amount = min(float(GetSetting(settings, 'amount', 1/3)), 1.0)
+                width = min(float(GetSetting(settings, 'width', 1/5)), 1.0)
 
                 match arg:
                     case 'on'|'rand':
