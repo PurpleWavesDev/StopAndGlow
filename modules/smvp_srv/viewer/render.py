@@ -47,9 +47,9 @@ class RenderViewer(Viewer):
                 case 0: # Directional Light
                     self.renderer.getScene().addSun(LightData(direction=[u, v], power=10))
                 case 1: # Point Light
-                    self.renderer.getScene().addPoint(LightData(position=[v-0.5, -0.5, u-0.5], power=100))
+                    self.renderer.getScene().addPoint(LightData(position=[v-0.5, -0.3, u-0.5], power=100))
                 case 2: # HDRI
-                    self.renderer.getScene().setHdriRotation(v)
+                    self.renderer.getScene().setHdriData(rotation=v, power=100)
                     
             self.renderer.initRender(hdri_samples=500 if self.render_mode==2 else 0)
         
