@@ -10,7 +10,6 @@ class Calibration:
     def __init__(self, path=None):
         self._id_min=-1
         self._id_max=-1
-        self._lat_min = self._lat_max = self._long_min = self._long_max = -1
         self._changed = False
 
         if path is not None:
@@ -55,30 +54,30 @@ class Calibration:
         self._data['fitter']['inverse'] if 'inverse' in self._data['fitter'] else None
 
 
-    def getLights(self) -> list:
+    def getLights(self) -> dict:
         return {light['id']: LightPosition(light['xyz']) for light in self._data['lights']}
     
-    def getIdBounds(self):
+    def getIdBounds(self) -> (int, int):
         return (self._id_min, self._id_max)
     
-    def getIds(self):
+    def getIds(self) -> list[int]:
         return [d['id'] for d in self._data['lights']]
     
-    def getCoords(self):
+    def getPositions(self) -> list[LightPosition]:
         return [LightPosition(light['xyz']) for light in self._data['lights']]
     
-    def __getitem__(self, key):
-        return next((LightPosition(light['xyz']) for light in self._data['lights'] if light["id"] == key), None)
+    def get(self, index) -> LightPosition:
+        return LightPosition(self._data['lights'][index]['xyz'])
+    
+    def __getitem__(self, id) -> LightPosition:
+        return next((LightPosition(light['xyz']) for light in self._data['lights'] if light["id"] == id), None)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data['lights'])
         
     # TODO: Nicht getestet
-    def __delitem__(self, key):
-        del self._data['lights'][key]
-    
-    def __iter__(self):
-        return iter(self._data['lights'])
+    def __delitem__(self, id):
+        del self._data['lights'][id]
     
     
     ## Stitch functions

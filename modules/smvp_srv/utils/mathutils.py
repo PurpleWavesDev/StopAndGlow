@@ -1,6 +1,8 @@
 import numpy as np
 import math
 
+pi_by_2 = math.pi/2
+pi_times_2 = math.pi*2
 
 def RotationMatrix(axis, theta):
     """

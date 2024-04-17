@@ -21,8 +21,8 @@ class PolyFitter(PseudoinverseFitter):
         return (self._order+1)*(self._order+2) // 2
         #return (order+1)**2 // 2 + (order+1) // 2
             
-    def fillLightMatrix(self, line, coord):
-        u, v = coord
+    def fillLightMatrix(self, line, lightpos: LightPosition):
+        u, v = lightpos.getLLNorm() # TODO coord switch
         # Start with order 0 and 1 
         line[0] = 1
         line[1] = u

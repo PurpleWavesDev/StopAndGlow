@@ -16,8 +16,9 @@ from ...data.sequence import *
 class PseudoinverseFitter(ABC):
     name = "Pseudoinverse Fitter"
     
-    def __init__(self, settings = {}):
+    def __init__(self, settings = {'rgb': True}):
         self._coefficients = self._inverse = None
+        self._settings = settings
         
     def loadCoefficients(self, coefficient_seq):
         # Load metadata
@@ -64,6 +65,7 @@ class PseudoinverseFitter(ABC):
         self._coefficients = ti.Vector.field(n=3, dtype=ti.f32, shape=(coefficient_count, res_y, res_x))
         
         # Image slices for memory reduction
+        rgb_chans = GetSetting(self._settings, 'rgb', True) # Switch for RGB or single channel fitting
         slice_length = res_y // slices
         sequence_buf = ti.Vector.field(n=3, dtype=ti.f32, shape=(len(img_seq), slice_length, res_x))
         for slice_count in range(res_y // slice_length):
@@ -72,10 +74,13 @@ class PseudoinverseFitter(ABC):
             
             # Copy frames to buffer
             for i, id in enumerate(img_seq.getKeys()):
-                tib.copyFrameToSequence(sequence_buf, i, img_seq[id].asFloat().get()[start:end]) # TODO: Single luminance channel mode change here!
+                if rgb_chans:
+                    tib.copyRgbToSequence(sequence_buf, i, img_seq[id].asFloat().get()[start:end])
+                else:
+                    tib.copyLuminanceToSequence(sequence_buf, i, img_seq[id].asFloat().RGB2Gray().get()[start:end])
             
             # Compute coefficient slice
-            computeCoefficientSlice(sequence_buf, self._coefficients, self._inverse, start)
+            computeCoefficientSlice(sequence_buf, self._coefficients, self._inverse, start) 
         del sequence_buf
         
 
@@ -91,15 +96,14 @@ class PseudoinverseFitter(ABC):
         else:
             # Create array and fill it with light positions
             A = np.zeros((light_count, coefficient_count))
-            for i, light in enumerate(calibration.getCoords()):
-                coord = light.getLLNorm()
-                self.fillLightMatrix(A[i], coord)
+            for i, light in enumerate(calibration.getPositions()):
+                self.fillLightMatrix(A[i], light)
                 
             # Calculate inverse
             self._inverse.from_numpy(np.linalg.pinv(A).astype(np.float32))
             
     @abstractmethod
-    def fillLightMatrix(self, line, coord):
+    def fillLightMatrix(self, line, lightpos: LightPosition):
         raise NotImplementedError()
     
 @ti.kernel
@@ -109,6 +113,4 @@ def computeCoefficientSlice(sequence: ti.template(), coefficients: ti.template()
     for y, x, m in ti.ndrange(H, W, C):
         # Matrix multiplication of inverse and sequence pixels
         for n in range(sequence.shape[0]): # n to 200/sequence count, m to 10/factor count
-            coefficients[m, y+row_offset, x][0] += inverse[m, n] * sequence[n, y, x][0]
-            coefficients[m, y+row_offset, x][1] += inverse[m, n] * sequence[n, y, x][1]
-            coefficients[m, y+row_offset, x][2] += inverse[m, n] * sequence[n, y, x][2]
+            coefficients[m, y+row_offset, x] += inverse[m, n] * sequence[n, y, x]

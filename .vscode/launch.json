@@ -27,7 +27,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome_pos1.json", "--load", "fisch_untersichtig_expoblend", "--process", "fitting", "fitter=ptm", "--save", "data", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome_pos1.json", "--load", "fisch_untersichtig_expoblend", "--process", "fitting", "fitter=ptm", "--process", "fitting", "fitter=normal", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

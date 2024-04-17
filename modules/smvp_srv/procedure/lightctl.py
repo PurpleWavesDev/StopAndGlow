@@ -126,22 +126,22 @@ class LightCtl:
 
     def sampleHdri(self, longitude_offset=0):
         res_y, res_x = self._processed_hdri.get().shape[:2]
-        for light in self._cal:
+        for id, pos in self._cal.getLights().items():
             # Sample point in HDRI
-            latlong = light['latlong']
-            x = int(res_x * (360 - (latlong[1]+longitude_offset) % 360) / 360.0) # TODO: Is round here wrong? Indexing error when rounding up on last value!
-            y = int(round(res_y/2 - res_y * latlong[0]/180.0))
-            self._lightVals[light['id']] = self._processed_hdri[x, y]
+            latlong = pos.getLL()
+            x = int(res_x * (2*math.pi - (latlong[1]+longitude_offset) % (2*math.pi)) / (2*math.pi)) # TODO: Is round here wrong? Indexing error when rounding up on last value!
+            y = int(round(res_y/2 - res_y * latlong[0]/math.pi))
+            self._lightVals[id] = self._processed_hdri[x, y]
     
     def sampleWithUV(self, f):
-        for light in self._cal:
-            sample = f(light['uv'])
-            self._lightVals[light['id']] = sample
+        for id, pos in self._cal.getLights().items():
+            sample = f(pos.getLL())
+            self._lightVals[id] = sample
     
     def sampleWithLatLong(self, f):
-        for light in self._cal:
-            sample = f(light['latlong'])
-            self._lightVals[light['id']] = sample
+        for id, pos in self._cal.getLights().items():
+            sample = f(pos.getLL())
+            self._lightVals[id] = sample
 
     # TODO!
     #def getLightDict(self, domain=ImgDomain.Lin, as_int=True):
@@ -158,13 +158,13 @@ class LightCtl:
 
     def setTop(self, latitude = 60, brightness = DMX_MAX_VALUE):
         # Sample lights
-        self.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > latitude else ImgBuffer.FromPix(0))
+        self.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > math.radians(latitude) else ImgBuffer.FromPix(0))
         # Write DMX values
         self.writeLights()
     
     def setRing(self, latitude = 45, ring_width = 15, brightness = DMX_MAX_VALUE):
         # Sample lights
-        self.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > latitude and latlong[0] < latitude+ring_width else ImgBuffer.FromPix(0))
+        self.sampleWithLatLong(lambda latlong: ImgBuffer.FromPix(brightness) if latlong[0] > math.radians(latitude) and latlong[0] < math.radians(latitude+ring_width) else ImgBuffer.FromPix(0))
         # Write DMX values
         self.writeLights()
     
@@ -173,9 +173,9 @@ class LightCtl:
             random.seed()
             self._lights.reset()
             self._lightVals.clear()
-            for light in self._cal:
+            for id in self._cal.getIds():
                 if random.randrange(0, nth) == 0:
-                    self._lightVals[light['id']] = ImgBuffer.FromPix(brightness)
+                    self._lightVals[id] = ImgBuffer.FromPix(brightness)
             self.writeLights()
             #self._mask = [light['id'] for i, light in enumerate(self._cal) if i % nth == 0] # TODO: This way every nth is lit and not random
     
@@ -193,7 +193,7 @@ class LightCtl:
 
             if self._cal[id] is not None:
                 # ID ist Lampen ID, entspricht der ID der calibration
-                latlong = self._cal[id]['latlong'] # -> Koordinaten der Lampe
+                latlong = math.degrees(self._cal[id].getLL()) # -> Koordinaten der Lampe
                 img = img.asDomain(ImgDomain.Lin, as_float=True) # -> Bild als Linear
 
                 # HDRI sampling

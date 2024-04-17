@@ -16,11 +16,11 @@ class RtiProcessor(Processor):
     name = "rti"
         
     def getDefaultSettings() -> dict:
-        return {'order': 3}
+        return {'coords': 'z_angle', 'rgb': True}
     
     def __init__(self):
         self._fitter = None
-        self._u_min = self._u_max = self._v_min = self._v_max = None
+        #self._u_min = self._u_max = self._v_min = self._v_max = None
     
     def initFitter(self, fitter, settings):
         """Initializes requested fitter instance"""

@@ -11,6 +11,7 @@ class NormalFitter(PseudoinverseFitter):
     
     def __init__(self, settings = {}):
         super().__init__(settings)
+        self._settings['rgb'] = False
         # Settings
         #self._scale_positive = settings['scale_to_positive'] if 'scale_to_positive' in settings else True
     
@@ -18,7 +19,6 @@ class NormalFitter(PseudoinverseFitter):
         """Returns number of coefficients"""
         return 3
             
-    def fillLightMatrix(self, line, coord):
-        u, v = coord
-        line = [u, v, 1]
+    def fillLightMatrix(self, line, lightpos: LightPosition):
+        line = lightpos.getXYZ()
     

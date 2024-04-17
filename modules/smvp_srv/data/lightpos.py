@@ -1,19 +1,27 @@
 import math
 import numpy as np
+from enum import Enum
 
 from ..utils import *
 
-pi_by_2 = math.pi/2
-pi_times_2 = math.pi*2
+
+class CoordType(Enum):
+    XYZ = 0
+    ZAngles = 1
+    LatLong = 2
+    Chromeball = 3
+    
 
 class LightPosition:
-    def __init__(self, xyz):
-        
+    def __init__(self, xyz, chromeball=None):
+        # 3D coordinates
         self._xyz = xyz
-        # Latlong in degrees: -180° to 180° Latitute, 0-360° Longitude
+        # Latlong in radians: -pi to +pi Latitute; 0 to 2pi Longitude
         self._latlong = None
-        # Angles 
+        # Angles seen from top, -pi to +pi
         self._zangle = None
+        # Chromeball uv coordinates (-1 to +1)
+        self._chromeball = chromeball
     
     def getXYZ(self):
         return self._xyz
@@ -33,27 +41,45 @@ class LightPosition:
     
     def getZAngles(self): # TODO: Name? Vertikalwinkel/Höhenwinkel/Zenitwinkel
         """Angles around X and Y axis where the zenith is (0, 0)"""
-        if self._zangle is None:
+        if self._zangles is None:
             if self._xyz[1] > 0:
                 # Calculate
                 angle1 = math.asin(self._xyz[2]) # Orthogonal of screen
                 angle2 = math.asin(self._xyz[0]) # Horizontal component
-                self._zangle = [angle1, angle2]
+                self._zangles = [angle1, angle2]
             else:
                 # Lower part of sphere
                 angle1 = pi_by_2 + math.acos(self._xyz[2]) if self._xyz[2] > 0 else -pi_by_2 - math.acos(math.abs(self._xyz[2]))
                 angle2 = pi_by_2 + math.acos(self._xyz[0]) if self._xyz[0] > 0 else -pi_by_2 - math.acos(math.abs(self._xyz[0]))
-                self._zangle = [angle1, angle2]
-        return self._zangle
+                self._zangles = [angle1, angle2]
+        return self._zangles
     
     def getLLNorm(self) -> [float, float]:
         """Returns Lat-Long coordinates in the range of 0 to 1"""
         ll = self.getLL()
-        return [(ll[0]+90) / math.pi, (ll[1]+math.pi) % pi_times_2 / pi_times_2]
+        return [(ll[0]+pi_by_2) / math.pi, (ll[1]+math.pi) % pi_times_2 / pi_times_2]
 
     def getZAnglesNorm(self) -> [float, float]:
         """Returns Zenith Angle from -1 to 1"""
         return self.getZAngles() / math.pi
+    
+    def getChromeball(self) -> [float, float]:
+        return self._chromeball
+    
+    def get(self, coords: CoordType, normalized=False):
+        match coords:
+            case CoordType.XYZ:
+                return self.getXYZ()
+            case CoordType.ZAngles:
+                if normalized:
+                    return self.getZAnglesNorm()
+                return self.getZAngles()
+            case CoordType.LatLong:
+                if normalized:
+                    return self.getLLNorm()
+                return self.getLL()
+            case CoordType.Chromeball:
+                return self.getChromeball()
 
     ### Static functions ###
     
@@ -68,7 +94,7 @@ class LightPosition:
         axis = np.array([-uv_norm[1],uv_norm[0],0]) # Rotation axis that is the direction of the reflection rotated 90° on Z
         theta = math.asin(length)*2 # Calculate the angle to the reflection which is two times the angle of the normal on the sphere
         theta_corrected = theta / np.pi * (np.pi-viewing_angle_by_2) # Perspective correction: New range is to 180° - viewing_angle/2
-        vec = np.dot(mutils.RotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
+        vec = np.dot(RotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
         
         return LightPosition(vec)
 

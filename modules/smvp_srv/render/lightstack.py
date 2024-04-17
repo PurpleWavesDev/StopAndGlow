@@ -57,7 +57,7 @@ class LightstackBsdf:
 #        
 #        # Light calibration values
 #        light_coords = ti.ndarray(dtype=tt.vector(2, ti.f32), shape=(len(calibration)))
-#        light_coords.from_numpy(np.array([utils.LatlongRadians(latlong) for latlong in calibration.getCoords()], dtype=np.float32))
+#        light_coords.from_numpy(np.array([utils.LatlongRadians(latlong) for latlong in calibration.getPositions()], dtype=np.float32))
 #        self._light_ids = calibration.getIds()
 #        
 #        # Calculate

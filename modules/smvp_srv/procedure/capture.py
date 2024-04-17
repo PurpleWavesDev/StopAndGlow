@@ -1,4 +1,5 @@
 import logging as log
+from math import radians
 
 # HW & data
 from ..hw import *
@@ -24,7 +25,7 @@ class Capture:
         # Generate preview frame
         nth = 4 # TODO
         if hw.cal is not None:
-            self._preview = [light['id'] for i, light in enumerate(hw.cal) if light['latlong'][0] > 45 and light['latlong'][0] < 60]
+            self._preview = [id for id, light in hw.cal.getLights().items() if light.getLL()[0] > radians(45) and light.getLL()[0] < radians(60)]
         else:
             self._preview = list(range(0, config['capture_max_addr'], step=nth))
 
@@ -64,7 +65,7 @@ class Capture:
         t.join()
         
         # Default light
-        self._lgtctl.setTop(brightness=50)
+        self._lgtctl.setTop(brightness=0.2)
 
 
     def captureVideo(self, lights, trigger_start=True):
@@ -93,7 +94,7 @@ class Capture:
                 self._cam.setExposure(f"1/{self._hdr_exposures[i+1]}")
             time.sleep(0.5)
 
-        self._lgtctl.setTop(brightness=50)
+        self._lgtctl.setTop(brightness=0.2)
         self._cam.triggerVideoEnd()
 
 

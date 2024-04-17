@@ -23,7 +23,7 @@ class TIBase:
             TIBase._initialized = True
 
 @ti.kernel
-def lin2sRGB(pix: tt.ndarray(tt.vector(3, ti.f32), ndim=2), exposure: ti.f32):
+def lin2sRGB(pix: pixarr, exposure: ti.f32):
     for y, x in pix:
         # Chroma correction from D65
         #pix[y, x] = XYZtosRGB @ pix[y, x]
@@ -37,7 +37,7 @@ def lin2sRGB(pix: tt.ndarray(tt.vector(3, ti.f32), ndim=2), exposure: ti.f32):
                 pix[y, x][i] = 12.92 * pix[y, x][i]
 
 @ti.kernel
-def sRGB2Lin(pix: tt.ndarray(tt.vector(3, ti.f32), ndim=2)):
+def sRGB2Lin(pix: pixarr):
     for y, x in pix:
         # Gamma correction
         for i in range(3):
@@ -50,7 +50,7 @@ def sRGB2Lin(pix: tt.ndarray(tt.vector(3, ti.f32), ndim=2)):
         #pix[y, x] = sRGBtosXYZ @ pix[y, x]
 
 @ti.kernel
-def exposure(pix: tt.ndarray(tt.vector(3, ti.f32), ndim=2), exposure: ti.f32):
+def exposure(pix: pixarr, exposure: ti.f32):
     for y, x in pix:
         pix[y, x] = pix[y, x] * exposure
     
@@ -61,12 +61,20 @@ def transpose(field_in: ti.template(), field_out: ti.template()):
    
 
 @ti.kernel
-def copyFrameToSequence(sequence: ti.template(), frame_index: ti.i32, copy_frame: pixarr):
+def copyRgbToSequence(sequence: ti.template(), frame_index: ti.i32, copy_frame: tt.ndarray(tt.vector(n=3, dtype=ti.f32), 2)): # TODO: Template for RGB and single channel ndarray
     # Iterate over pixels
     H, W = sequence.shape[1], sequence.shape[2]
     for y, x in ti.ndrange(H, W):
         # Copy frame
         sequence[frame_index, y, x] = copy_frame[y, x]
+
+@ti.kernel
+def copyLuminanceToSequence(sequence: ti.template(), frame_index: ti.i32, copy_frame: tt.ndarray(ti.f32, 2)):
+    # Iterate over pixels
+    H, W = sequence.shape[1], sequence.shape[2]
+    for y, x in ti.ndrange(H, W):
+        # Copy frame
+        sequence[frame_index, y, x][0] = copy_frame[y, x]
 
 @ti.kernel
 def addScaled(pix: ti.template(), pix_add: ti.template(), scale: ti.f32):
