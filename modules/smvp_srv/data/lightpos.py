@@ -19,7 +19,7 @@ class LightPosition:
         # Latlong in radians: -pi to +pi Latitute; 0 to 2pi Longitude
         self._latlong = None
         # Angles seen from top, -pi to +pi
-        self._zangle = None
+        self._topangles = None
         # Chromeball uv coordinates (-1 to +1)
         self._chromeball = chromeball
     
@@ -35,33 +35,33 @@ class LightPosition:
             # Offsets for longitude
             if self._xyz[2] < 0: # Back side
                 longitude = (math.pi-longitude) # pi/2 to 3* pi/2, correct value
-            self._latlong = [latitude, (longitude+360) % 360] # make longitude all positive
+            self._latlong = [latitude, (longitude+pi_times_2) % pi_times_2] # make longitude all positive
             
         return self._latlong
     
-    def getZAngles(self): # TODO: Name? Vertikalwinkel/Höhenwinkel/Zenitwinkel
-        """Angles around X and Y axis where the zenith is (0, 0)"""
-        if self._zangles is None:
+    def getTopAngles(self): # TODO: Does that even work? Rotation order problem? Maybe solve with scalar product?
+        """Angles around X and Z axis where the zenith is (0, 0)"""
+        if self._topangles is None:
             if self._xyz[1] > 0:
                 # Calculate
                 angle1 = math.asin(self._xyz[2]) # Orthogonal of screen
                 angle2 = math.asin(self._xyz[0]) # Horizontal component
-                self._zangles = [angle1, angle2]
+                self._topangles = [angle1, angle2]
             else:
                 # Lower part of sphere
                 angle1 = pi_by_2 + math.acos(self._xyz[2]) if self._xyz[2] > 0 else -pi_by_2 - math.acos(math.abs(self._xyz[2]))
                 angle2 = pi_by_2 + math.acos(self._xyz[0]) if self._xyz[0] > 0 else -pi_by_2 - math.acos(math.abs(self._xyz[0]))
-                self._zangles = [angle1, angle2]
-        return self._zangles
+                self._topangles = [angle1, angle2]
+        return self._topangles
     
     def getLLNorm(self) -> [float, float]:
         """Returns Lat-Long coordinates in the range of 0 to 1"""
         ll = self.getLL()
         return [(ll[0]+pi_by_2) / math.pi, (ll[1]+math.pi) % pi_times_2 / pi_times_2]
 
-    def getZAnglesNorm(self) -> [float, float]:
+    def getTopAnglesNorm(self) -> [float, float]:
         """Returns Zenith Angle from -1 to 1"""
-        return self.getZAngles() / math.pi
+        return self.getTopAngles() / math.pi
     
     def getChromeball(self) -> [float, float]:
         return self._chromeball
@@ -72,8 +72,8 @@ class LightPosition:
                 return self.getXYZ()
             case CoordType.ZAngles:
                 if normalized:
-                    return self.getZAnglesNorm()
-                return self.getZAngles()
+                    return self.getTopAnglesNorm()
+                return self.getTopAngles()
             case CoordType.LatLong:
                 if normalized:
                     return self.getLLNorm()
@@ -96,5 +96,5 @@ class LightPosition:
         theta_corrected = theta / np.pi * (np.pi-viewing_angle_by_2) # Perspective correction: New range is to 180° - viewing_angle/2
         vec = np.dot(RotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
         
-        return LightPosition(vec)
+        return LightPosition(vec, chromeball=uv)
 

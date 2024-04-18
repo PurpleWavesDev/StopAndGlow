@@ -1,6 +1,7 @@
 import os
 import json 
 import math
+import numpy as np
 from numpy.typing import ArrayLike
 from pathlib import Path
 
@@ -21,8 +22,11 @@ class Calibration:
                 'fitter': {},
             }
 
-    def addLight(self, id, mirror, lightpos: LightPosition):
-        self._data['lights'].append({'id': id, 'uv': list(mirror), 'xyz': list(lightpos.getXYZ())})
+    def addLight(self, id, lightpos: LightPosition):
+        if lightpos.getChromeball() is not None:
+            self._data['lights'].append({'id': id, 'uv': list(lightpos.getChromeball()), 'xyz': list(lightpos.getXYZ())})
+        else:
+            self._data['lights'].append({'id': id, 'xyz': list(lightpos.getXYZ())})
         self._changed = True
         self._id_max = max(self._id_max, id)
         self._id_min = min(self._id_min, id) if self._id_min != -1 else id
@@ -71,8 +75,19 @@ class Calibration:
     def get(self, index) -> LightPosition:
         return LightPosition(self._data['lights'][index]['xyz'])
     
+    def rotate(self, axis, angle):
+        m = RotationMatrix(axis, angle)
+        for light in self._data['lights']:
+            a = np.dot(m, light['xyz'])
+            b = m @ light['xyz']
+            light['xyz'] = a
+        
+    
     def __getitem__(self, id) -> LightPosition:
-        return next((LightPosition(light['xyz']) for light in self._data['lights'] if light["id"] == id), None)
+        return next((LightPosition(light['xyz']) for light in self._data['lights'] if light['id'] == id), None)
+    
+    def __contains__(self, id):
+        return next((True for light in self._data['lights'] if light['id'] == id), False)
 
     def __len__(self) -> int:
         return len(self._data['lights'])
@@ -83,38 +98,57 @@ class Calibration:
     
     
     ## Stitch functions
-    
-    def stitch(self, other_configs):
-        add_dict = {}
-        for stitch_conf in other_configs:
-            # Find lights that have a similar longitude and low latitude
-            # TODO This code gets longitude dirfference and adds all lights from the other configs. Not great but better than nothing for now
-            long_diff = 0
-            for light in self:
-                id = light['id']
-                if stitch_conf[id] is not None:
-                    # This light exists in other calibration as well
-                    long_diff += stitch_conf[id]['latlong'][1] - light['latlong'][1]
-                    break
+    def align(self, new_cals):
+        for new_cal in new_cals:
+            # Get longitude (Up axis) rotation differences
+            diffs = []
+            for id, light in self.getLights().items():
+                if id in new_cal:
+                    diffs.append((new_cal[id].getLL()[1] - light.getLL()[1] + pi_times_2) % pi_times_2)
+            # Get median and apply
+            rot_correction = np.median(diffs)
+            new_cal.rotate([0,1,0], -rot_correction)
+            # Get angle difference on Z-Axis
+            #diffs = []
+            #for id, light in self.getLights().items():
+            #    if id in new_cal:
+            #        diffs.append(new_cal[id].getXYZ()[2] - light.getXYZ[2])
+            ## Median and apply
+            #rot_correction = np.median(diffs)
+            #new_cal.rotate([0,0,1], rot_correction)
+            ## Get angle difference on X-Axis
+            #diffs = []
+            #for id, light in self.getLights().items():
+            #    if id in new_cal:
+            #        diffs.append(new_cal[id].getXYZ()[0] - light.getXYZ[0])
+            ## Median and apply
+            #rot_correction = np.median(diffs)
+            #new_cal.rotate([1,0,0], rot_correction)
+            
+        # new cals should now match with original
+        
+    def getMerged(self, new_cals):
+        """Join all calibratons into a new object"""
+        merged_cal = Calibration()
+        
+        # Join all IDs
+        cals = [self, ]+new_cals
+        ids = []
+        for cal in cals:
+            ids += cal.getIds()
+        ids = list(set(ids))
 
-            ids = self.getIds()
-            for light in stitch_conf:
-                if not light['id'] in ids:
-                    # This light does not exist, add to calibration
-                    light['latlong'][1] = (light['latlong'][1]-long_diff+360) % 360
-                    id = light['id']
-                    if not id in add_dict:
-                        add_dict[id] = (light['uv'], light['latlong'])
-                    else:
-                        pass
-                        #add_dict[id] = ((add_dict[id][0] + light['uv'])/2, (add_dict[id][0] + light['latlong'])/2)
-        for light_id, vals in add_dict.items():
-            self.addLight(light_id, vals[0], vals[1])
-
-                    #dist = abs(light['uv'][0])-abs(stitch_conf[id]['uv'][0])
-                    #dist = light['uv'][0] + stitch_conf[id]['uv'][0]
-                    #if abs(dist) < 0.1:
-                    #    # The lights with similar u distance on reflection we want to match first
-                    #    print(f"Matching light ID {id} with coords {light['latlong']}, {stitch_conf[id]['latlong']}, distance {dist}")
-                        
-                        
+        # Weighted merge of coords
+        for id in ids:
+            xyz = np.array([0,0,0], dtype=float)
+            weight = 0.0
+            for cal in cals:
+                if id in cal:
+                    #print(np.dot(self[id].getXYZ(), cal[id].getXYZ()))
+                    #print(cal[id].getXYZ())
+                    # TODO: Weighted sum
+                    xyz += cal[id].getXYZ()
+                    weight += 1.0
+            merged_cal.addLight(id, LightPosition(xyz/weight))
+        
+        return merged_cal

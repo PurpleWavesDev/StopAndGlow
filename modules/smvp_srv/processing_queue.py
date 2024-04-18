@@ -241,7 +241,7 @@ class Worker:
             
             
             case Commands.Calibrate:
-                # --calibrate calc/interactive/stack? setting=value
+                # --calibrate calc/interactive/merge threshold=245 min_size_ratio=0.011 calibrations=cal1,cal2,cal3 folder=path
                 log.info(f"Starting calibration '{arg}'")
                 # TODO!
                 if arg == 'calc':
@@ -263,10 +263,12 @@ class Worker:
                     # Assign new calibration
                     self.hw = self.hw._replace(cal=viewer.getCalibration())
                     
-                elif arg == 'stack':
-                    stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
-                    self.hw.cal.stitch(stack_cals)
-                    self.hw.cal.save(FLAGS.cal_folder, FLAGS.new_cal_name)
+                elif arg == 'merge':
+                    folder = GetSetting(settings, 'folder', self.config['cal_folder'])
+                    new_cals = [Calibration(os.path.join(folder, cal_name)) for cal_name in GetSetting(settings, 'calibrations', '').split(',')]
+                    self.hw.cal.align(new_cals)
+                    merged_cal = self.hw.cal.getMerged(new_cals)
+                    self.hw = self.hw._replace(cal=merged_cal)
                 
                  
             case Commands.Process:

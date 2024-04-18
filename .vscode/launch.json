@@ -86,6 +86,15 @@
             "justMyCode": true
         },
         {
+            "name": "Merge Calibrations",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=20240418_1810_front.json", "--calibrate", "merge", "calibrations=20240418_1820_left.json,20240418_1825_back.json,20240418_1833_right.json", "--calibration", "save", "name=merged.json"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Lights Random",
             "type": "debugpy",
             "request": "launch",
