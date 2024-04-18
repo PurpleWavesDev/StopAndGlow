@@ -38,14 +38,23 @@ class PseudoinverseFitter(ABC):
         seq = Sequence()
         arr = self._coefficients.to_numpy()
         
+        is_rgb = GetSetting(self._settings, 'rgb', True)
+        
         # Add frames to sequence
         coefficient_count = self._coefficients.shape[0]
-        for i in range(coefficient_count):
-            seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
+        if is_rgb:
+            for i in range(coefficient_count):
+                seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
+        else:
+            # TODO: Three channels in one image
+            for i in range(coefficient_count):
+                seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
         
         # Metadata
         seq.setMeta('fitter', type(self).__name__)
         seq.setMeta('coefficient_count', coefficient_count)
+        seq.setMeta('coefficient_count', coefficient_count)
+        seq.setMeta('fitter_rgb_channels', is_rgb)
         
         return seq
 
@@ -84,7 +93,7 @@ class PseudoinverseFitter(ABC):
         del sequence_buf
         
 
-    def computeInverse(self, calibration, recalculate=False):
+    def computeInverse(self, calibration, recalculate=True):
         # Init array
         light_count = len(calibration)
         coefficient_count = self.getCoefficientCount()

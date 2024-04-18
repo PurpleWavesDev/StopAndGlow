@@ -65,23 +65,30 @@ class Capture:
         t.join()
         
         # Default light
-        self._lgtctl.setTop(brightness=0.2)
+        self._lgtctl.setTop(brightness=50)
 
 
     def captureVideo(self, lights, trigger_start=True):
         log.info(f"Starting video capture for {len(self._id_list)} frames")
         # Settings
-        stops_increase = GetSetting(self._config, 'hdr_bracket_stops', 4)
-        #GetSetting(self._config, 'hdr_bracket_slowest', "1/50") # TODO: {int(base_exposure * stops_increase**i)} Must match camera setting, maybe try to find closest setting in camera config
+        # Get exposure base and check if value is valid camera entry
+        exposure_base = GetSetting(self._config, 'capture_exposure', CamConfigExposure[1/200])
+        if not exposure_base in CamConfigExposure.values(): exposure_base = CamConfigExposure[1/200]
+        
+        # Bracketing number and exposure list
         hdr_captures = self._config['hdr_bracket_num'] if self._config['hdr_capture'] else 1
-        self._hdr_exposures = [50, 200, 800] # TODO
+        stops_decrease = int(GetSetting(self._config, 'hdr_bracket_stops', 2))
+        for expo_index, expo in enumerate(CamConfigExposure):
+            if CamConfigExposure[expo] == exposure_base:
+                self._hdr_exposures = [list(CamConfigExposure.keys())[int(expo_index + 3 * i*stops_decrease)] for i in range(hdr_captures)] # 1/3 stop steps in config
+                break
 
         # Worker & Timer
         # Half a subframe for recording + odd number of half skip frames, add another one for each dmx repeat
-        subframes = (1+self._config['capture_frames_skip']) / 2 + self._config['capture_dmx_repeat']
+        subframes = (1+self._config['capture_frames_skip']) // 2 + self._config['capture_dmx_repeat']
         t = Timer(worker.LightVideoWorker(self._hw, lights, self._id_list, self._preview, subframe_count=subframes))
-        if self._config['hdr_capture']:
-            self._cam.setExposure(f"1/{self._hdr_exposures[0]}")
+        # Set base exposure
+        self._cam.setExposure(exposure_base)
 
         # Start capture
         if trigger_start:
@@ -91,10 +98,10 @@ class Capture:
             t.start(2/self._config['capture_fps'])
             t.join()
             if self._config['hdr_capture'] and i < hdr_captures-1:
-                self._cam.setExposure(f"1/{self._hdr_exposures[i+1]}")
+                self._cam.setExposure(CamConfigExposure[self._hdr_exposures[i+1]])
             time.sleep(0.5)
 
-        self._lgtctl.setTop(brightness=0.2)
+        self._lgtctl.setTop(brightness=50)
         self._cam.triggerVideoEnd()
 
 
@@ -108,7 +115,7 @@ class Capture:
         if self._cam.isVideoMode():
             # For HDR, download single sequence and convert those to separate sequences to perform exposure bracketing
             if self._config['hdr_capture']:
-                expo_list = [f"1/{expo}" for expo in self._hdr_exposures]
+                expo_list = [CamConfigExposure[expo] for expo in self._hdr_exposures]
                 # Load first sequence
                 sequences = [self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, exposure_list=expo_list, config=self._config, keep=keep)\
                     .convertSequence({'resolution': (1920, 1080)})]

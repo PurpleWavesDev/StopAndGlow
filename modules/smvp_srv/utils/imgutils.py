@@ -30,13 +30,13 @@ def SaveEval(img: ArrayLike, name, img_format=ImgFormat.PNG):
 
 ### Image properties ###
 # TODO: numpy arrays or ImgBuffers? Smart int/float logic?
-def similar(img1, img2, threshold=0.1, mask=None) -> bool:
+def similar(img1, img2, threshold=50, mask=None) -> bool:
     if mask is not None:
-        img = cv.bitwise_and(img, img, mask=mask)
-    argmax = np.argmax((img1-img2)>threshold)
-    return argmax == 0
+        img1 = cv.bitwise_and(img1, img1, mask=mask)
+        img2 = cv.bitwise_and(img2, img2, mask=mask)
+    return np.max(img1-img2) < threshold
     
 def blackframe(img, threshold=50, mask=None) -> bool:
     if mask is not None:
         img = cv.bitwise_and(img, img, mask=mask)
-    return np.argmax(img>threshold) == 0
+    return np.max(img) < threshold

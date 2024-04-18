@@ -154,7 +154,7 @@ class Sequence():
             match self._vid_state:
                 case VidParseState.PreBlack:
                     # Wait for black frame
-                    if imgutils.blackframe(self._vid_frame):
+                    if imgutils.blackframe(self._vid_frame, threshold=50):
                         log.debug(f"Found blackframe at frame {self._vid_frame_count}")
                         if self._frames_offset > 0:
                             self._vid_state = VidParseState.Black
@@ -189,7 +189,7 @@ class Sequence():
                         # Append
                         id = self.getKeys()[self._vid_frame_number]
                         self._frames[id] = ImgBuffer(path=self._img_name_base+f"_{id:03d}", img=self._vid_frame, domain=ImgDomain.sRGB)
-                        if imgutils.blackframe(self._vid_frame):
+                        if imgutils.blackframe(self._vid_frame, threshold=50):
                             log.warning(f"Black frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")
                         elif self._vid_frame_number == len(self._frames)-1:
                             log.debug(f"Last sequence frame {self._vid_frame_number:3d}, id {id:3d}, found at frame {self._vid_frame_count} in video")

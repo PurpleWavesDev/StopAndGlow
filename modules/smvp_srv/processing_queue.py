@@ -21,7 +21,7 @@ from .utils.utils import GetDatetimeNow
 class ProcessingQueue:
     def __init__(self, context=None):
         self._worker = Worker(context)
-        self._queue = multiprocessing.Queue(50)
+        self._queue = multiprocessing.Queue(255)
             
     def putCommand(self, command: Commands, arg, settings={}):
         self._queue.put((command, arg, settings))
