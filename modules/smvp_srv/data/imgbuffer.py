@@ -274,16 +274,18 @@ class ImgBuffer:
         img_cropped = self.get()[crop_from[1]:old_res[1]-crop_to[1], crop_from[0]:old_res[0]-crop_to[0]]
         return ImgBuffer(path=self._path, img=img_cropped, domain=self._domain)
     
-    def convert(self, resolution=None, crop=True, new_format=ImgFormat.Keep):
+    def convert(self, resolution=None, crop=True, new_format=ImgFormat.Keep, new_domain=ImgDomain.Keep, as_int=False): # TODO as_int to as_type?
         # Rescale
         img = ImgBuffer(path=self._path, img=self._img, domain=self._domain)
         if resolution is not None:
             img = img.rescale(resolution, crop=crop)
         if new_format != ImgFormat.Keep:
             # Change to linear domain for EXR files
-            if new_format == ImgFormat.EXR:
-                img = img.asDomain(ImgDomain.Lin)
             img.setFormat(new_format)
+        if new_domain != ImgDomain.Keep:
+            img = img.asDomain(new_domain)
+        if as_int:
+            img = img.asInt()
         return img
 
     

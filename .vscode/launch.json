@@ -68,11 +68,20 @@
             "justMyCode": true
         },
         {
-            "name": "Capture calibrate and view",
+            "name": "Capture & calibrate",
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "20240410_1348.MP4", "--save", "all", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--capture", "lights", "hdr_capture=0", "capture_exposure=1/200", "--save", "sequence", "format=jpg", "--calibrate", "interactive", "focal_length=135", "--calibration", "save"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Calibrate",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "20240418_1741_lights", "--calibrate", "interactive", "--calibration", "save"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

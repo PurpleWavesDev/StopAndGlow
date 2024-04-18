@@ -132,17 +132,19 @@ class Worker:
                 # --calibration load name=cal.json folder=/jada/jada
                 log.info(f"Processing '--calibration {arg}' ...")
                 
-                path = GetSetting(settings, 'folder', self.config['cal_folder'])
-                name = GetSetting(settings, 'name', self.config['cal_name'])
+                folder = GetSetting(settings, 'folder', self.config['cal_folder'])
                 match arg:
                     case 'load':
-                        path = os.path.join(path, name)
+                        name = GetSetting(settings, 'name', self.config['cal_name'])
+                        path = os.path.join(folder, name)
                         if os.path.isfile(path):
                             self.hw.cal.load(path)
                             print(f"Loaded calibration file with {len(self.hw.cal)} lights")
                         else:
                             raise Exception(f"File {path} does not exist")
                     case 'save':
+                        name = GetSetting(settings, 'name', GetDatetimeNow()+'.json')
+                        path = os.path.join(folder, name)
                         self.hw.cal.save(path)
                     case _:
                         raise Exception(f"Unknown argument '{arg}' for --calibration command, use load/save")
@@ -239,14 +241,28 @@ class Worker:
             
             
             case Commands.Calibrate:
-                # --calibrate new/stack? setting=value
+                # --calibrate calc/interactive/stack? setting=value
                 log.info(f"Starting calibration '{arg}'")
                 # TODO!
                 if arg == 'calc':
                     processor = Calibrate()
+                    processor.setSequence(self.sequence)
+                    processor.process()
+                    self.hw = self.hw._replace(cal=processor.getCalibration())
                 elif arg == 'interactive':
-                    if not interactive in settings: settings['interactive'] = True
-                    processor = Calibrate()
+                    # Init GUI and Viewer
+                    resolution = (int(self.config['resolution'][0]), int(self.config['resolution'][1]))
+                    gui = GUI(resolution)
+                    viewer = Calibrate()
+                    viewer.setSequence(self.sequence)
+                    viewer.process(settings, interactive=True)
+                    gui.setViewer(viewer)
+                    
+                    # Launch
+                    gui.launch()
+                    # Assign new calibration
+                    self.hw = self.hw._replace(cal=viewer.getCalibration())
+                    
                 elif arg == 'stack':
                     stack_cals = [Calibration(os.path.join(FLAGS.cal_folder, cal_name)) for cal_name in FLAGS.cal_stack_names]
                     self.hw.cal.stitch(stack_cals)
@@ -325,6 +341,7 @@ class Worker:
                 # Name and path
                 name = GetSetting(settings, 'name', self.sequence.name())
                 path = GetSetting(settings, 'basepath')
+                format = GetSetting(settings, 'format', 'exr').lower()
                 if path is None:
                     path = os.path.normpath(self.sequence.directory())
                 else:
@@ -333,10 +350,10 @@ class Worker:
                 # Save sequences
                 if arg == 'all' or arg == 'sequence':
                     # path: Parent of sequence directory -> joined with name is same directory again
-                    self.sequence.saveSequence(name, os.path.dirname(path), ImgFormat.EXR)
+                    self.sequence.saveSequence(name, os.path.dirname(path), ImgFormat.EXR if format == 'exr' else ImgFormat.JPG)
                 if arg == 'all' or arg == 'data':
                     for key in self.sequence.getDataKeys():
-                        self.sequence.getDataSequence(key).saveSequence(key, path, ImgFormat.EXR)
+                        self.sequence.getDataSequence(key).saveSequence(key, path, ImgFormat.EXR if format == 'exr' else ImgFormat.JPG)
                 
             case Commands.Send:
                 # --send address:port id=1 mode=render|baked|preview|live

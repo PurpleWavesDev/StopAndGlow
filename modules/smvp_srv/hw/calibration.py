@@ -22,8 +22,10 @@ class Calibration:
             }
 
     def addLight(self, id, mirror, lightpos: LightPosition):
-        self._data['lights'].append({'id': id, 'uv': mirror, 'xyz': lightpos.getXYZ()})
+        self._data['lights'].append({'id': id, 'uv': list(mirror), 'xyz': list(lightpos.getXYZ())})
         self._changed = True
+        self._id_max = max(self._id_max, id)
+        self._id_min = min(self._id_min, id) if self._id_min != -1 else id
         
     def load(self, path):
         self._id_min=-1
@@ -34,7 +36,7 @@ class Calibration:
             self._data = json.load(file)
             for light in self._data['lights']:
                 if not 'xyz' in light:
-                    light['xyz'] = LightPosition.MirrorballToCoordinates(light['uv']).getXYZ()
+                    light['xyz'] = list(LightPosition.MirrorballToCoordinates(light['uv']).getXYZ())
         if not 'fitter' in self._data:
             self._data['fitter'] = {}
 

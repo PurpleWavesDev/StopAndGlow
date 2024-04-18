@@ -15,63 +15,33 @@ class Calibrate(Viewer):
     def __init__(self):
         self._recalc = False
         self._cal = Calibration()
-        
-    def load(self, img_seq: Sequence):
-        pass
+        self._sequence = Sequence()
     
-    def get(self) -> Sequence:
-        return Sequence()
+    ## Viewer functions
+    def setResolution(self, resolution):
+        self._resolution = resolution
     
-    def getCalibration(self) -> Calibration:
-        return self._cal
-    
-    def process(self, img_seq: Sequence, calibration: Calibration, settings={'threshold': 245, 'min_size_ratio': 0.011, 'interactive': False}):
-        self._view_idx = 0
-        # Settings
-        self._rect_mask_offset = 0.85
-        self._mask_threshold = 100
-        self._mask_blur_size = 1
-        if img_seq.getMeta('focal_length') is None:
-            log.warning("Can't do perspective correction without focal_length metadata")
-        self._refl_threshold = settings['threshold'] if 'threshold' in settings else 245
-        self._min_size_ratio = settings['min_size_ratio'] if 'min_size_ratio' in settings else 0.011
-        
-        self._interactive = settings['interactive'] if 'interactive' in settings else False
-        
-        
-        log.info(f"Processing calibration sequencee with {len(img_seq)} frames")
-        
-        # Save members
-        self._sequence = img_seq
-        
-        # Find center of chrome ball and all reflections
-        self.findCenter()
-        self.findReflections()
-        self._recalc = False
-                
-    def setSequence(self, img_seq: Sequence):
-        pass
-
-    # Render settings
-    def getRenderModes(self) -> list:
+    def getModes(self) -> list:
         return ["EdgeFilter", "Chromeball", "Reflections", "Sequence"]
     
-    def getRenderSettings(self, render_mode) -> RenderSettings:
-        self._render_mode = render_mode
+    def setMode(self, mode):
+        self._mode = mode
         self.findCenter()
         self.findReflections()
         self._recalc = False
+        
+    def getRenderSettings(self, mode) -> RenderSettings:
         return RenderSettings(as_int=True, req_keypress_events=True, req_inputs=True)
 
     def keypressEvent(self, event_key):
-        if self._render_mode <=1:
+        if self._mode <=1:
             if event_key in ['a']: # Left
                 self._mask_blur_size = max(0, self._mask_blur_size-1)
                 self._recalc = True
             elif event_key in ['d']: # Right
                 self._mask_blur_size += 1
                 self._recalc = True
-        elif self._render_mode == 2:
+        elif self._mode == 2:
             # Inputs for reflections
             if event_key in [ti.ui.UP]:
                 self._refl_threshold += 1
@@ -95,9 +65,9 @@ class Calibrate(Viewer):
                 pass
             elif event_key in ['s']:
                 pass
-
+    
     def inputs(self, window, time_frame):
-        if self._render_mode <=1:
+        if self._mode <=1:
         # Inputs for EdgeFilter
             if window.is_pressed(ti.ui.UP):
                 self._mask_threshold += int(20*time_frame)
@@ -113,16 +83,14 @@ class Calibrate(Viewer):
                 self._recalc = True
                 
         if self._recalc:
-            if self._render_mode <= 1:
+            if self._mode <= 1:
                 self.findCenter()
-            elif self._render_mode == 2:
+            elif self._mode == 2:
                 self.findReflections()
             self._recalc = False
-                    
-
-    # Rendering
-    def render(self, render_mode, buffer, hdri=None):
-        match render_mode:
+    
+    def render(self, buffer, time_frame):
+        match self._mode:
             case 0: # EdgeFilter
                 buffer.from_numpy(np.dstack([self._cb_edges, self._cb_edges, self._cb_edges]))
             case 1: # Chromeball
@@ -132,6 +100,39 @@ class Calibrate(Viewer):
             case 3: # Sequence
                 buffer.from_numpy(self._sequence.get(self._view_idx).get())
 
+
+    ## Data functions (set sequence & return cal)
+    def setSequence(self, img_seq: Sequence):
+        self._sequence = img_seq
+        self._sequence.convertSequence({'domain': ImgDomain.sRGB, 'as_int': True})
+    
+    # Data return
+    def getCalibration(self) -> Calibration:
+        return self._cal
+    
+    
+    ## Processing methodes
+    def process(self, settings={'threshold': 245, 'min_size_ratio': 0.011}, interactive=False):
+        self._view_idx = 0
+        # Settings
+        self._rect_mask_offset = 0.85
+        self._mask_threshold = 100
+        self._mask_blur_size = 1
+        if self._sequence.getMeta('focal_length') is None:
+            log.warning("Can't do perspective correction without focal_length metadata")
+        self._refl_threshold = GetSetting(settings, 'threshold', 245, dtype=int)
+        self._min_size_ratio = GetSetting(settings, 'min_size_ratio', 0.011, dtype=float)
+        
+        self._interactive = interactive
+        
+        
+        log.info(f"Processing calibration sequencee with {len(self._sequence)} frames")
+                
+        # Find center of chrome ball and all reflections
+        self.findCenter()
+        self.findReflections()
+        self._recalc = False
+        
 
     # Find center and radius of chromeball
     # TODO: cv.bilateralFilter respects edges, could be used here

@@ -82,6 +82,8 @@ def GetSetting(settings, key, default=None, default_for_empty=False, dtype=None)
     if key in settings:
         if not default_for_empty or settings[key] != '':
             if dtype != None:
+                if dtype == bool:
+                    return settings[key].lower() in ['true', '1', 't', 'y', 'yes']
                 return dtype(settings[key])
             return settings[key]
     return default

@@ -18,6 +18,7 @@ class Capture:
         self._config = config
         self._lgtctl = LightCtl(hw)
         self._id_list = []
+        self._hdr_capture = GetSetting(self._config, 'hdr_capture', False, dtype=bool)
 
         # Init lights
         hw.lights.getInterface()
@@ -53,7 +54,7 @@ class Capture:
         
     def capturePhotos(self, lights):
         # Set configuration for camera
-        if self._config['hdr_capture']:
+        if self._hdr_capture:
             self._cam.setImgFormat(CamImgFormat.Raw)
         else:
             self._cam.setImgFormat(CamImgFormat.JpgMedium)
@@ -76,7 +77,7 @@ class Capture:
         if not exposure_base in CamConfigExposure.values(): exposure_base = CamConfigExposure[1/200]
         
         # Bracketing number and exposure list
-        hdr_captures = self._config['hdr_bracket_num'] if self._config['hdr_capture'] else 1
+        hdr_captures = self._config['hdr_bracket_num'] if self._hdr_capture else 1
         stops_decrease = int(GetSetting(self._config, 'hdr_bracket_stops', 2))
         for expo_index, expo in enumerate(CamConfigExposure):
             if CamConfigExposure[expo] == exposure_base:
@@ -97,7 +98,7 @@ class Capture:
         for i in range(hdr_captures):
             t.start(2/self._config['capture_fps'])
             t.join()
-            if self._config['hdr_capture'] and i < hdr_captures-1:
+            if self._hdr_capture and i < hdr_captures-1:
                 self._cam.setExposure(CamConfigExposure[self._hdr_exposures[i+1]])
             time.sleep(0.5)
 
@@ -114,7 +115,7 @@ class Capture:
         sequence = Sequence()
         if self._cam.isVideoMode():
             # For HDR, download single sequence and convert those to separate sequences to perform exposure bracketing
-            if self._config['hdr_capture']:
+            if self._hdr_capture:
                 expo_list = [CamConfigExposure[expo] for expo in self._hdr_exposures]
                 # Load first sequence
                 sequences = [self._cam.getVideoSequence(self._config['seq_folder'], name, self._id_list, exposure_list=expo_list, config=self._config, keep=keep)\

@@ -268,17 +268,19 @@ class Sequence():
     def convertSequence(self, settings):
         # Resolution
         resolution = GetSetting(settings, 'resolution', (1920, 1080))
-        # Format
-        new_format = GetSetting(settings, 'format', ImgFormat.Keep)
         crop = GetSetting(settings, 'crop', True)
+        # Format & domain
+        new_format = GetSetting(settings, 'format', ImgFormat.Keep)
+        new_domain = GetSetting(settings, 'domain', ImgDomain.Keep)
+        as_int = GetSetting(settings, 'as_int', False)
                 
         # Iterate over frames and convert
         for id in self.getKeys():
             if self[id].get() is not None:
-                self[id] = self[id].convert(resolution, crop, new_format)
+                self[id] = self[id].convert(resolution, crop, new_format, new_domain, as_int)
         # Don't forget preview 
         if self._preview.get() is not None:
-            self._preview = self._preview.convert(resolution, crop, new_format)
+            self._preview = self._preview.convert(resolution, crop, new_format, new_domain, as_int)
             
         return self
     
