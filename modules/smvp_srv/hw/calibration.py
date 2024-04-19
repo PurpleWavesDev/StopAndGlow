@@ -144,11 +144,13 @@ class Calibration:
             weight = 0.0
             for cal in cals:
                 if id in cal:
+                    # TODO: See if vector is totally off (what is the base though?)
                     #print(np.dot(self[id].getXYZ(), cal[id].getXYZ()))
-                    #print(cal[id].getXYZ())
-                    # TODO: Weighted sum
-                    xyz += cal[id].getXYZ()
-                    weight += 1.0
+                    # Weighted sum
+                    uv = cal[id].getChromeball()
+                    cur_weight = 1 - math.sqrt(uv[0]**2 + uv[1]**2) if uv is not None else 1
+                    xyz += cal[id].getXYZ() * cur_weight
+                    weight += cur_weight
             merged_cal.addLight(id, LightPosition(xyz/weight))
         
         return merged_cal
