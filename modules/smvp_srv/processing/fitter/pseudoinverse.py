@@ -16,10 +16,12 @@ from ...data.sequence import *
 class PseudoinverseFitter(ABC):
     name = "Pseudoinverse Fitter"
     
-    def __init__(self, settings = {'rgb': True}):
+    def __init__(self, settings = {}):
         self._coefficients = self._inverse = None
         self._settings = settings
-        
+        self._is_rgb = GetSetting(self._settings, 'rgb', True)
+        self._coord_sys = CoordSys[GetSetting(settings, 'coordinate_system', CoordSys.LatLong.name)].value
+
     def loadCoefficients(self, coefficient_seq):
         # Load metadata
         coefficient_count = coefficient_seq.getMeta('coefficient_count', 0)
@@ -38,11 +40,10 @@ class PseudoinverseFitter(ABC):
         seq = Sequence()
         arr = self._coefficients.to_numpy()
         
-        is_rgb = GetSetting(self._settings, 'rgb', True)
         
         # Add frames to sequence
         coefficient_count = self._coefficients.shape[0]
-        if is_rgb:
+        if self._is_rgb:
             for i in range(coefficient_count):
                 seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
         else:
@@ -54,7 +55,8 @@ class PseudoinverseFitter(ABC):
         seq.setMeta('fitter', type(self).__name__)
         seq.setMeta('coefficient_count', coefficient_count)
         seq.setMeta('coefficient_count', coefficient_count)
-        seq.setMeta('fitter_rgb_channels', is_rgb)
+        seq.setMeta('fitter_rgb_channels', self._is_rgb)
+        seq.setMeta('coordinate_system', CoordSys(self._coord_sys).name)
         
         return seq
 
@@ -74,7 +76,6 @@ class PseudoinverseFitter(ABC):
         self._coefficients = ti.Vector.field(n=3, dtype=ti.f32, shape=(coefficient_count, res_y, res_x))
         
         # Image slices for memory reduction
-        rgb_chans = GetSetting(self._settings, 'rgb', True) # Switch for RGB or single channel fitting
         slice_length = res_y // slices
         sequence_buf = ti.Vector.field(n=3, dtype=ti.f32, shape=(len(img_seq), slice_length, res_x))
         for slice_count in range(res_y // slice_length):
@@ -83,7 +84,7 @@ class PseudoinverseFitter(ABC):
             
             # Copy frames to buffer
             for i, id in enumerate(img_seq.getKeys()):
-                if rgb_chans:
+                if self._is_rgb:
                     tib.copyRgbToSequence(sequence_buf, i, img_seq[id].asFloat().get()[start:end])
                 else:
                     tib.copyLuminanceToSequence(sequence_buf, i, img_seq[id].asFloat().RGB2Gray().get()[start:end])

@@ -22,6 +22,9 @@ class PtmBsdf(BSDF):
             # Copy
             arr = np.stack([frame.get() for _, frame in rti_seq], axis=0)
             self._coeff.from_numpy(arr)
+            
+            # Set coordinate system switch
+            self.coord_sys = CoordSys[data.getMeta('coordinate_system', CoordSys.LatLong.name)].value
             return True
         return False
     

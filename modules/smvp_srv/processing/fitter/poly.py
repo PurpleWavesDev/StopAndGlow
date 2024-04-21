@@ -15,7 +15,7 @@ class PolyFitter(PseudoinverseFitter):
         super().__init__(settings)
         # Settings: Limit polynom order
         self._order = max(2, min(6, GetSetting(settings, 'order', 3)))
-        self._coord_sys = GetSetting(settings, 'coordinate_system', CoordSys.LatLong)
+        #self._coord_sys = CoordSys.ZVec.value
     
     def getCoefficientCount(self) -> int:
         """Returns number of coefficients"""
@@ -23,7 +23,7 @@ class PolyFitter(PseudoinverseFitter):
         #return (order+1)**2 // 2 + (order+1) // 2
             
     def fillLightMatrix(self, line, lightpos: LightPosition):
-        u, v = lightpos.get(self._coord_sys, True)
+        u, v = lightpos.get(CoordSys(self._coord_sys), True)
         # Start with order 0 and 1 
         line[0] = 1
         line[1] = u

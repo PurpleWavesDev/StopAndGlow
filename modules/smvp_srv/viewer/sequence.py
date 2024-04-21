@@ -61,9 +61,11 @@ class SequenceViewer(Viewer):
             if event_key in ['s']:
                 self.data_idx = self.data_idx = (data_length + self.data_idx - 1) % data_length
                 self.idx = 0
+                log.info(f"Displaying data '{self.data_keys[self.data_idx]}'")
             elif event_key in ['w']:
                 self.data_idx = (self.data_idx + 1) % data_length
                 self.idx = 0
+                log.info(f"Displaying data '{self.data_keys[self.data_idx]}'")
         
         # Set image depending on render mode
         if self.render_mode == 1:

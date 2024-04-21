@@ -10,6 +10,9 @@ from ..hw.calibration import *
 
 @ti.data_oriented
 class BSDF:
+    def __init__(self):
+        self.coord_sys = CoordSys.LatLong.value
+    
     def load(self, sequence: Sequence, calibration: Calibration, settings={}) -> bool:
         return True
     

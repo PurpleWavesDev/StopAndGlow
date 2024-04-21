@@ -82,11 +82,11 @@ class LightPosition:
         uv_norm = uv/length
         
         # Get direction of light source
-        vec = np.array([0,1,0]) # Vector pointing into camera
+        vec = np.array([0,-1,0]) # Vector pointing into camera
         axis = np.array([-uv_norm[1],0,uv_norm[0]]) # Rotation axis that is the direction of the reflection rotated 90° on Y
         theta = math.asin(length)*2 # Calculate the angle to the reflection which is two times the angle of the normal on the sphere
         theta_corrected = theta / np.pi * (np.pi-viewing_angle_by_2) # Perspective correction: New range is to 180° - viewing_angle/2
-        vec = np.dot(RotationMatrix(axis, -theta_corrected), vec) # Rotate vector to light source
+        vec = np.dot(RotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
         
         return LightPosition(vec, chromeball=uv)
 
@@ -115,7 +115,7 @@ class LightPosTi:
         longitude = tm.asin(self.xyz[0]/tm.cos(latitude)) # -pi/2 to pi/2 front side, zero is middle
         
         # Offsets for longitude
-        if self.xyz[1] < 0: # Back side
+        if self.xyz[1] > 0: # Back side
             longitude = tm.pi-longitude # 1/2 * pi to 3/2 * pi
             if longitude > tm.pi: longitude -= pi_times_2 # Range -pi to +pi
         return ti.Vector([latitude, longitude], dt=ti.f32)
@@ -123,17 +123,17 @@ class LightPosTi:
     @ti.pyfunc
     def getZVec(self):
         """2D Vector vec around zenith with max length PI"""
-        if self.xyz == [0,0,1]:
-            return ti.Vector([0,0], dt=ti.f32)
-        elif self.xyz == [0,0,-1]:
-            return ti.Vector([tm.pi,0], dt=ti.f32) # Could be any point on the circle with radius pi
+        zvec = ti.Vector([self.xyz[1], self.xyz[0]], dt=ti.f32)
+        if self.xyz[2] == 1.0:
+            zvec = [0,0]
+        elif self.xyz[2] == -1.0:
+            zvec = [tm.pi,0] # Could be any point on the circle with radius pi
         else:
             # Vector around 0,0 with direction of xz-plane (longitude) and length of angle from zenith
-            zvec = ti.Vector([self.xyz[1], self.xyz[0]], dt=ti.f32)
             zvec /= tm.sqrt(zvec[0]**2 + zvec[1]**2) # Normalize
             zvec *= tm.acos(self.xyz[2]) # Range 0 to pi (zenith is 0)
             #alt_angle = zvec * (1-np.dot(self.xyz, [0,0,1]))/2 * tm.pi # Alternative calculation
-            return zvec
+        return zvec
     
     @ti.pyfunc
     def getLLNorm(self):
@@ -144,5 +144,6 @@ class LightPosTi:
     @ti.pyfunc
     def getZVecNorm(self):
         """Returns Zenith Angle with max length 1"""
-        return self.getZVec() / tm.pi
+        z1, z2 = self.getZVec()
+        return ti.Vector([z1 / tm.pi, z2 / tm.pi], dt=ti.f32)
     

@@ -97,7 +97,11 @@ class Renderer:
             squared_length = pix2light[0]**2 + pix2light[1]**2 + pix2light[2]**2
             # Calculate light direction
             dir = tm.normalize(pix2light)
-            u, v = LightPosTi(xyz=dir).getLLNorm()
+            u, v = 0.0, 0.0
+            if self._bsdf.coord_sys == CoordSys.LatLong.value:
+                u, v = LightPosTi(xyz=dir).getLLNorm()
+            else:
+                u, v = LightPosTi(xyz=dir).getZVecNorm()
             self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
     
     @ti.kernel
@@ -116,7 +120,11 @@ class Renderer:
             ray_angle = tm.acos(tm.dot(ray_dir, dir))
             if ray_angle <= angle:
                 # Calculate light direction
-                u, v = LightPosTi(xyz=ray_dir).getLLNorm()
+                u, v = 0.0, 0.0
+                if self._bsdf.coord_sys == CoordSys.LatLong.value:
+                    u, v = LightPosTi(xyz=dir).getLLNorm()
+                else:
+                    u, v = LightPosTi(xyz=dir).getZVecNorm()
                 
                 # Falloff/blend
                 if blend > 0:
@@ -141,7 +149,11 @@ class Renderer:
             ray_angle = tm.acos(tm.dot(ray_dir, dir))
             if ray_angle <= angle:
                 # Calculate light direction and sample
-                u, v = LightPosTi(xyz=ray_dir).getLLNorm()
+                u, v = 0.0, 0.0
+                if self._bsdf.coord_sys == CoordSys.LatLong.value:
+                    u, v = LightPosTi(xyz=dir).getLLNorm()
+                else:
+                    u, v = LightPosTi(xyz=dir).getZVecNorm()
                 self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
     
     @ti.kernel
@@ -153,6 +165,8 @@ class Renderer:
                 # Rank values and redo sampling around bright areas (gaussian distribution?) -> sampling bright, important values!
                 # Problem: Bright parts will be exaggerated, need factor of covered area to scale that down again. For non-gaussian distributions it's probably the spherical angle
                 # Far future TODO (especially when we settled on one algorithm): Analytical integration or gradient estimation?
+                
+                # TODO: Other coordinate systems
                 u = ti.random()*0.65+0.3 # 0 - <1 # TODO Quick fix to mask out lower part of PTM function that shows only rubbish
                 v = ti.random()
                 #ti.randn(float) # univariate standard normal (Gaussian) distribution of mean 0 and variance 1

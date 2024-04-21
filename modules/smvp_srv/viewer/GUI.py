@@ -97,8 +97,8 @@ class GUI:
             if self._render_settings.needs_coords:
                 if mouse_control:
                     v, u = window.get_cursor_pos()
-                    u = u%1 * 2 - 1
-                    v = v%1 * 2 - 1
+                    u = u*2 - 1
+                    v = v*2 - 1
                 else:
                     v = (v+time_frame/3)
                     v -= math.floor(abs(v)) * 2 # Range -1 to +1
