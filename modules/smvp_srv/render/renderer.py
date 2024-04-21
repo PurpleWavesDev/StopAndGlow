@@ -43,10 +43,8 @@ class Renderer:
         for lgt in self._scene.getSunLights():
             u, v = 0.0, 0.0
             if len(lgt.direction) == 3:
-                u = math.asin(lgt.direction[2]) / pi_by_2
-                xy_length = math.sqrt(lgt.direction[0]**2 + lgt.direction[1]**2)
-                if xy_length > 0:
-                    v = math.acos(lgt.direction[1]/xy_length)/pi_times_2 if lgt.direction[0] < 0 else 1-math.acos(lgt.direction[1]/xy_length)/pi_times_2
+                lp = LightPosition(lgt.direction)
+                u,v = lp.getLLNorm()
             else:
                 u, v = lgt.direction
             self.sampleSun(u, v, lgt.angle, lgt.power, lgt.color)
@@ -89,75 +87,62 @@ class Renderer:
     @ti.kernel
     def samplePoint(self, pos: tib.pixvec, size: ti.f32, power: ti.f32, color: tib.pixvec):
         factor = power * color
-        width = self._buffer.shape[1]
-        height_offset = (self._buffer.shape[1]-self._buffer.shape[0]) / 2
+        width, height = self._buffer.shape[1], self._buffer.shape[0]
+        height_factor = self._buffer.shape[0]/self._buffer.shape[1]
         
         for y, x in self._buffer:
-            # Calculate vector to pixel: We assume the canvas is 1m wide and centered
+            # Calculate vector to pixel: We assume the canvas is 1m wide and 0,0 is in the center
             # Canvas is flat for now
-            pix2pos = pos - ti.Vector([x/width - 0.5, 0, 0.5-(y+height_offset)/width], dt=ti.f32)
-            squared_length = pix2pos[0]**2 + pix2pos[1]**2 + pix2pos[2]**2
-            dir = tm.normalize(pix2pos)
-            # Calculate angle
-            u = tm.asin(dir[2]) / tm.pi + 0.5
-            v = 0.5
-            xy_length = tm.sqrt(dir[0]**2 + dir[1]**2)
-            if xy_length > 0:
-                v = tm.acos(tm.clamp(dir[1]/xy_length, -1.0, 1.0))/pi_times_2 if dir[0] < 0 else 1-tm.acos(tm.clamp(dir[1]/xy_length, -1.0, 1.0))/pi_times_2
+            pix2light = pos - ti.Vector([x/width - 0.5, 0, (0.5 - y/height) * height_factor], dt=ti.f32)
+            squared_length = pix2light[0]**2 + pix2light[1]**2 + pix2light[2]**2
+            # Calculate light direction
+            dir = tm.normalize(pix2light)
+            u, v = LightPosTi(xyz=dir).getLLNorm()
             self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
     
     @ti.kernel
     def sampleSpot(self, pos: tib.pixvec, dir: tib.pixvec, angle: ti.f32, blend: ti.f32, size:ti.f32, power: ti.f32, color: tib.pixvec):
         factor = power * color
-        width = self._buffer.shape[1]
-        height_offset = (self._buffer.shape[1]-self._buffer.shape[0]) / 2
+        width, height = self._buffer.shape[1], self._buffer.shape[0]
+        height_factor = self._buffer.shape[0]/self._buffer.shape[1]
         
         for y, x in self._buffer:
-            # Calculate vector to pixel: We assume the canvas is 1m wide and centered
+            # Calculate vector to pixel: We assume the canvas is 1m wide and 0,0 is in the center
             # Canvas is flat for now
-            pix2pos = pos - ti.Vector([x/width - 0.5, 0, 0.5-(y+height_offset)/width], dt=ti.f32)
-            squared_length = pix2pos[0]**2 + pix2pos[1]**2 + pix2pos[2]**2
+            pix2light = pos - ti.Vector([x/width - 0.5, 0, (0.5 - y/height) * height_factor], dt=ti.f32)
+            squared_length = pix2light[0]**2 + pix2light[1]**2 + pix2light[2]**2
             # Calculate angles
-            ray_dir = tm.normalize(pix2pos)
+            ray_dir = tm.normalize(pix2light)
             ray_angle = tm.acos(tm.dot(ray_dir, dir))
             if ray_angle <= angle:
-                # UV coordinates
-                u = tm.asin(ray_dir[2]) / tm.pi + 0.5
-                v = 0.5
-                xy_length = tm.sqrt(ray_dir[0]**2 + ray_dir[1]**2)
-                if xy_length > 0:
-                    v = tm.acos(tm.clamp(ray_dir[1]/xy_length, -1.0, 1.0))/pi_times_2 if ray_dir[0] < 0 else 1-tm.acos(tm.clamp(ray_dir[1]/xy_length, -1.0, 1.0))/pi_times_2
+                # Calculate light direction
+                u, v = LightPosTi(xyz=ray_dir).getLLNorm()
                 
                 # Falloff/blend
                 if blend > 0:
                     falloff = tm.min(tm.sqrt((angle - ray_angle)/angle / blend), 1)
                     self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * falloff * 1/squared_length
                 else:
-                    self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor  * 1/squared_length
+                    self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
     
     @ti.kernel
     def sampleArea(self, pos: tib.pixvec, dir: tib.pixvec, angle: ti.f32, size: ti.f32, power: ti.f32, color: tib.pixvec): # Size 2D and rectangle/ellipse shape
         factor = power * color
-        width = self._buffer.shape[1]
-        height_offset = (self._buffer.shape[1]-self._buffer.shape[0]) / 2
+        width, height = self._buffer.shape[1], self._buffer.shape[0]
+        height_factor = self._buffer.shape[0]/self._buffer.shape[1]
         
         for y, x in self._buffer:
-            # Calculate vector to pixel: We assume the canvas is 1m wide and centered
+            # Calculate vector to pixel: We assume the canvas is 1m wide and 0,0 is in the center
             # Canvas is flat for now
-            pix2pos = pos - ti.Vector([x/width - 0.5, 0, 0.5-(y+height_offset)/width], dt=ti.f32)
-            squared_length = pix2pos[0]**2 + pix2pos[1]**2 + pix2pos[2]**2
+            pix2light = pos - ti.Vector([x/width - 0.5, 0, (0.5 - y/height) * height_factor], dt=ti.f32)
+            squared_length = pix2light[0]**2 + pix2light[1]**2 + pix2light[2]**2
             # Calculate angles
-            ray_dir = tm.normalize(pix2pos)
+            ray_dir = tm.normalize(pix2light)
             ray_angle = tm.acos(tm.dot(ray_dir, dir))
             if ray_angle <= angle:
-                # UV coordinates
-                u = tm.asin(ray_dir[2]) / tm.pi + 0.5
-                v = 0.5
-                xy_length = tm.sqrt(ray_dir[0]**2 + ray_dir[1]**2)
-                if xy_length > 0:
-                    v = tm.acos(tm.clamp(ray_dir[1]/xy_length, -1.0, 1.0))/pi_times_2 if ray_dir[0] < 0 else 1-tm.acos(tm.clamp(ray_dir[1]/xy_length, -1.0, 1.0))/pi_times_2
-                
-                self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor  * 1/squared_length
+                # Calculate light direction and sample
+                u, v = LightPosTi(xyz=ray_dir).getLLNorm()
+                self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
     
     @ti.kernel
     def sampleHdri(self, hdri: tib.pixarr, rotation: ti.f32, power: ti.f32, samples: ti.i32):
@@ -171,4 +156,4 @@ class Renderer:
                 u = ti.random()*0.65+0.3 # 0 - <1 # TODO Quick fix to mask out lower part of PTM function that shows only rubbish
                 v = ti.random()
                 #ti.randn(float) # univariate standard normal (Gaussian) distribution of mean 0 and variance 1
-                self._sample_buffer[y, x] += self._bsdf.sample(x, y, u, v) * hdri[ti.cast(u*hdri.shape[0], ti.i32), ti.cast((1+v-rotation)%1.0 * hdri.shape[1], ti.i32)] * power / samples
+                self._sample_buffer[y, x] += self._bsdf.sample(x, y, u*2-1, v*2-1) * hdri[ti.cast(u*hdri.shape[0], ti.i32), ti.cast((1+v-rotation)%1.0 * hdri.shape[1], ti.i32)] * power / samples

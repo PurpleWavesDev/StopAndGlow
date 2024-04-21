@@ -10,12 +10,12 @@ import taichi.types as tt
 
 class PolyFitter(PseudoinverseFitter):
     name = "Polynomial Fitter"
-    get_cursor_pos
+    
     def __init__(self, settings):
         super().__init__(settings)
         # Settings: Limit polynom order
         self._order = max(2, min(6, GetSetting(settings, 'order', 3)))
-        self._coord_sys = GetSetting(settings, 'coordinate_system', CoordSys.ZVec)
+        self._coord_sys = GetSetting(settings, 'coordinate_system', CoordSys.LatLong)
     
     def getCoefficientCount(self) -> int:
         """Returns number of coefficients"""

@@ -23,6 +23,11 @@ class TIBase:
             TIBase._initialized = True
 
 @ti.kernel
+def copyToPixarr(pix: pixarr, field_in: ti.template()):
+    for y,x in pix:
+        pix[y,x] = field_in[y,x]
+
+@ti.kernel
 def lin2sRGB(pix: pixarr, exposure: ti.f32):
     for y, x in pix:
         # Chroma correction from D65
@@ -55,7 +60,7 @@ def exposure(pix: pixarr, exposure: ti.f32):
         pix[y, x] = pix[y, x] * exposure
     
 @ti.kernel
-def transpose(field_in: ti.template(), field_out: ti.template()):
+def transpose(field_out: ti.template(), field_in: ti.template()):
     for x, y in field_out:
         field_out[x, field_out.shape[1]-y-1] = field_in[y, x]
    

@@ -8,10 +8,10 @@ import taichi.types as tt
 from ..utils import ti_base as tib
 from ..data import *
 from ..hw.calibration import *
+from .bsdf import BSDF
 
 
-@ti.dataclass
-class PtmBsdf:
+class PtmBsdf(BSDF):
     def load(self, data: Sequence, calibration: Calibration, settings={}) -> bool:
         rti_seq = data.getDataSequence('ptm') # TODO rti_poly to allow for more fitters to save their data
         if len(rti_seq) > 0:

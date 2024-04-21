@@ -8,7 +8,7 @@ from ..utils import ti_base as tib
 from ..data import *
 from ..hw.calibration import *
 
-@ti.dataclass
+@ti.data_oriented
 class BSDF:
     def load(self, sequence: Sequence, calibration: Calibration, settings={}) -> bool:
         return True

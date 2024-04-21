@@ -1,7 +1,7 @@
 from enum import Enum
 import logging as log
 import time
-
+import math
 import taichi as ti
 import taichi.math as tm
 import numpy as np
@@ -57,8 +57,8 @@ class GUI:
         # Controls
         mouse_control = False
         exposure: np.float32 = 1.0
-        u: np.float32 = 0.75
-        v: np.float32 = 0.5
+        u: np.float32 = 0.5
+        v: np.float32 = 0.0
         
         buffer_float = ti.ndarray(ti.types.vector(3, ti.f32), (self._res[1], self._res[0]))
         buffer_int = ti.ndarray(ti.types.vector(3, ti.u8), (self._res[1], self._res[0]))
@@ -97,10 +97,11 @@ class GUI:
             if self._render_settings.needs_coords:
                 if mouse_control:
                     v, u = window.get_cursor_pos()
-                    u = (u+1) % 1
-                    v = (v+1) % 1
+                    u = u%1 * 2 - 1
+                    v = v%1 * 2 - 1
                 else:
-                    v = (v+time_frame/5) % 1
+                    v = (v+time_frame/3)
+                    v -= math.floor(abs(v)) * 2 # Range -1 to +1
                 self._viewer.setCoords(u, v)
             
             # General inputs for viewer

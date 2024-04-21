@@ -14,8 +14,8 @@ class RenderViewer(Viewer):
     
     def __init__(self):
         self.render_mode = 0
-        self.u = -1
-        self.v = -1
+        self.u = None
+        self.v = None
     
     def setRenderer(self, renderer):
         # Set sequence and reset to current render mode
@@ -30,8 +30,8 @@ class RenderViewer(Viewer):
 
     def setMode(self, mode):
         self.render_mode = mode
-        self.u = -1
-        self.v = -1
+        self.u = None
+        self.v = None
         
     def getRenderSettings(self, mode) -> RenderSettings:
         return RenderSettings(with_exposure=True, is_linear=True, needs_coords=True)
@@ -47,14 +47,12 @@ class RenderViewer(Viewer):
                 case 0: # Directional Light
                     self.renderer.getScene().addSun(LightData(direction=[u, v], power=10))
                 case 1: # Point Light
-                    self.renderer.getScene().addPoint(LightData(position=[v-0.5, -0.3, u-0.5], power=100))
+                    self.renderer.getScene().addPoint(LightData(position=[v*0.5, 0.3, u*0.5 * 9/16], power=100))
                 case 2: # HDRI
-                    self.renderer.getScene().setHdriData(rotation=v, power=100)
+                    self.renderer.getScene().setHdriData(rotation=v*0.5+1, power=100)
                     
             self.renderer.initRender(hdri_samples=500 if self.render_mode==2 else 0)
-        
-        self.renderer.sample()
-    
+            
     #def keypressEvent(self, event_key):
     #    seq_length = len(self.sequence) if self.render_mode == 1 else len(self.sequence.getDataSequence(self.data_keys[self.data_idx]))
     #    data_length = len(self.data_keys)
@@ -79,4 +77,5 @@ class RenderViewer(Viewer):
 
     # Rendering
     def render(self, buffer, time_frame):
-        buffer.from_numpy(self.renderer.get()) # TODO: getBuffer and copy directly
+        self.renderer.sample()
+        tib.copyToPixarr(buffer, self.renderer.getBuffer()) # TODO: Pass buffer to renderer instead of copying multiple times
