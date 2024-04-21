@@ -13,8 +13,6 @@ from ..hw import Calibration
 from .scene import *
 from .bsdf import *
 
-pi_by_2 = np.pi/2
-pi_times_2 = np.pi*2
 
 @ti.data_oriented
 class Renderer:
@@ -43,9 +41,9 @@ class Renderer:
         # Reset normal buffer every time (doesn't take long to render this but we could also keep render data for lights separately)
         self._buffer.fill(0.0)
         for lgt in self._scene.getSunLights():
-            u, v = 0.5, 0.5
+            u, v = 0.0, 0.0
             if len(lgt.direction) == 3:
-                u = math.asin(lgt.direction[2]) / np.pi + 0.5
+                u = math.asin(lgt.direction[2]) / pi_by_2
                 xy_length = math.sqrt(lgt.direction[0]**2 + lgt.direction[1]**2)
                 if xy_length > 0:
                     v = math.acos(lgt.direction[1]/xy_length)/pi_times_2 if lgt.direction[0] < 0 else 1-math.acos(lgt.direction[1]/xy_length)/pi_times_2

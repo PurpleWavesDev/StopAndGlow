@@ -5,7 +5,7 @@ from enum import Enum
 from ..utils import *
 
 
-class CoordType(Enum):
+class CoordSys(Enum):
     XYZ = 0
     LatLong = 1
     ZVec = 2
@@ -16,7 +16,7 @@ class LightPosition:
     def __init__(self, xyz, chromeball=None):
         # 3D coordinates
         self._xyz = xyz
-        # Latlong in radians: -pi to +pi Latitute; 0 to 2pi Longitude
+        # Latlong in radians: -pi/2 to +pi/2 Latitute; -pi to +pi Longitude
         self._latlong = None
         # Angles seen from top, -pi to +pi
         self._zvec = None
@@ -26,16 +26,17 @@ class LightPosition:
     def getXYZ(self):
         return self._xyz
         
-    def getLL(self):
+    def getLL(self): # Longitude from -pi to +pi
         if self._latlong is None:
             # Calculate Latlong
             latitude = math.asin(self._xyz[1])
-            longitude = pi_by_2 - math.acos(self._xyz[0]/math.cos(latitude)) # -pi/2 to pi/2 front side
+            longitude = math.asin(self._xyz[0]/math.cos(latitude)) # -pi/2 to pi/2 front side, zero is middle
             
             # Offsets for longitude
             if self._xyz[2] < 0: # Back side
-                longitude = (math.pi-longitude) # pi/2 to 3* pi/2, correct value
-            self._latlong = np.array([latitude, (longitude+pi_times_2) % pi_times_2], dtype=np.float32) # make longitude all positive
+                longitude = math.pi-longitude # 1/2 * pi to 3/2 * pi
+                if longitude > pi_by_2: longitude -= math.tau # Range -pi to +pi
+            self._latlong = np.array([latitude, longitude], dtype=np.float32)
             
         return self._latlong
     
@@ -55,9 +56,9 @@ class LightPosition:
         return self._zvec
     
     def getLLNorm(self) -> [float, float]:
-        """Returns Lat-Long coordinates in the range of 0 to 1"""
+        """Returns Lat-Long coordinates in the range of -1 to 1"""
         ll = self.getLL()
-        return np.array([(ll[0]+pi_by_2) / math.pi, (ll[1]+math.pi) % pi_times_2 / pi_times_2], dtype=np.float32)
+        return np.array([ll[0] / pi_by_2, ll[1] / math.pi], dtype=np.float32)
 
     def getZVecNorm(self) -> [float, float]:
         """Returns Zenith Angle with max length 1"""
@@ -66,24 +67,27 @@ class LightPosition:
     def getChromeball(self) -> [float, float]:
         return self._chromeball
     
-    def get(self, coords: CoordType, normalized=False):
+    def get(self, coords: CoordSys, normalized=False):
         match coords:
-            case CoordType.XYZ:
+            case CoordSys.XYZ:
                 return self.getXYZ()
-            case CoordType.LatLong:
+            case CoordSys.LatLong:
                 if normalized:
                     return self.getLLNorm()
                 return self.getLL()
-            case CoordType.ZVec:
+            case CoordSys.ZVec:
                 if normalized:
                     return self.getTopAnglesNorm()
                 return self.getTopAngles()
-            case CoordType.Chromeball:
+            case CoordSys.Chromeball:
                 return self.getChromeball()
+    
+    def __str__(self):
+        return str(self._xyz)
 
     ### Static functions ###
     
-    def MirrorballToCoordinates(uv, viewing_angle_by_2=0) -> "LightPosition":
+    def FromMirrorball(uv, viewing_angle_by_2=0) -> "LightPosition":
         uv=np.array(uv)
         # First get the length of the UV coordinates
         length = np.linalg.norm(uv)
@@ -97,4 +101,17 @@ class LightPosition:
         vec = np.dot(RotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
         
         return LightPosition(vec, chromeball=uv)
+
+    def FromLatLong(ll, normalized=False) -> "LightPosition":
+        if normalized:
+            # 'De'normalize
+            ll = np.array([ll[0]*pi_by_2, ll[1]*math.pi], dtype=np.float32)
+        # Calculate XYZ vector
+        xz_length = math.cos(ll[0])
+        xyz = np.array([xz_length * math.sin(ll[1]), math.sin(ll[0]), xz_length * math.cos(ll[1])], dtype=np.float32)
+        
+        # LP object with LatLong vector
+        lp = LightPosition(xyz)
+        lp._ll = ll
+        return lp
 

@@ -234,7 +234,7 @@ class Calibrate(Viewer):
                 # Process frame
                 uv = self.findReflection(img, id)
                 if uv is not None:
-                    self._cal.addLight(id, LightPosition.MirrorballToCoordinates(uv, self._viewing_angle_by2))
+                    self._cal.addLight(id, LightPosition.FromMirrorball(uv, self._viewing_angle_by2))
             elif not self._interactive:
                 log.debug(f"Found blackframe '{id}'")
             if not self._interactive:

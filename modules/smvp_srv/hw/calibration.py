@@ -40,7 +40,7 @@ class Calibration:
             self._data = json.load(file)
             for light in self._data['lights']:
                 if not 'xyz' in light:
-                    light['xyz'] = list(LightPosition.MirrorballToCoordinates(light['uv']).getXYZ())
+                    light['xyz'] = list(LightPosition.FromMirrorball(light['uv']).getXYZ())
         if not 'fitter' in self._data:
             self._data['fitter'] = {}
 

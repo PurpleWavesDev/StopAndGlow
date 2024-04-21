@@ -10,11 +10,12 @@ import taichi.types as tt
 
 class PolyFitter(PseudoinverseFitter):
     name = "Polynomial Fitter"
-    
+    get_cursor_pos
     def __init__(self, settings):
         super().__init__(settings)
         # Settings: Limit polynom order
         self._order = max(2, min(6, GetSetting(settings, 'order', 3)))
+        self._coord_sys = GetSetting(settings, 'coordinate_system', CoordSys.ZVec)
     
     def getCoefficientCount(self) -> int:
         """Returns number of coefficients"""
@@ -22,7 +23,7 @@ class PolyFitter(PseudoinverseFitter):
         #return (order+1)**2 // 2 + (order+1) // 2
             
     def fillLightMatrix(self, line, lightpos: LightPosition):
-        u, v = lightpos.getLLNorm() # TODO coord switch
+        u, v = lightpos.get(self._coord_sys, True)
         # Start with order 0 and 1 
         line[0] = 1
         line[1] = u
