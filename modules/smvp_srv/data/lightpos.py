@@ -29,11 +29,11 @@ class LightPosition:
     def getLL(self): # Longitude from -pi to +pi
         if self._latlong is None:
             # Calculate Latlong
-            latitude = math.asin(self._xyz[1])
+            latitude = math.asin(self._xyz[2])
             longitude = math.asin(self._xyz[0]/math.cos(latitude)) # -pi/2 to pi/2 front side, zero is middle
             
             # Offsets for longitude
-            if self._xyz[2] < 0: # Back side
+            if self._xyz[1] < 0: # Back side
                 longitude = math.pi-longitude # 1/2 * pi to 3/2 * pi
                 if longitude > pi_by_2: longitude -= math.tau # Range -pi to +pi
             self._latlong = np.array([latitude, longitude], dtype=np.float32)
@@ -43,16 +43,16 @@ class LightPosition:
     def getZVec(self):
         """2D Vector vec around zenith with max length PI"""
         if self._zvec is None:
-            if self._xyz == [0,1,0]:
+            if self._xyz == [0,0,1]:
                 self._zvec = np.array([0,0], dtype=np.float32)
-            elif self._xyz == [0,-1,0]:
+            elif self._xyz == [0,0,-1]:
                 self._zvec = np.array([math.pi,0], dtype=np.float32) # Could be any point on the circle with radius pi
             else:
                 # Vector around 0,0 with direction of xz-plane (longitude) and length of angle from zenith
-                self._zvec = np.array([self._xyz[0], self._xyz[2]], dtype=np.float32)
-                self._zvec /= math.sqrt(self._zvec[0]**2 + self._zvec[1]**2) # Normalize
-                self._zvec *= math.acos(self._xyz[1]) # Range 0 to pi (zenith is 0)
-                #alt_angle = self._zvec * (1-np.dot(self._xyz, [0,1,0]))/2 * math.pi # Alternative calculation
+                self._zvec = np.array([self._xyz[0], self._xyz[1]], dtype=np.float32)
+                self._zvec /= math.sqrt(self._zvec[0]**2 + self._zvec[2]**2) # Normalize
+                self._zvec *= math.acos(self._xyz[2]) # Range 0 to pi (zenith is 0)
+                #alt_angle = self._zvec * (1-np.dot(self._xyz, [0,0,1]))/2 * math.pi # Alternative calculation
         return self._zvec
     
     def getLLNorm(self) -> [float, float]:
@@ -94,8 +94,8 @@ class LightPosition:
         uv_norm = uv/length
         
         # Get direction of light source
-        vec = np.array([0,0,1]) # Vector pointing into camera
-        axis = np.array([-uv_norm[1],uv_norm[0],0]) # Rotation axis that is the direction of the reflection rotated 90° on Z
+        vec = np.array([0,1,0]) # Vector pointing into camera
+        axis = np.array([-uv_norm[1],0,uv_norm[0]]) # Rotation axis that is the direction of the reflection rotated 90° on Z
         theta = math.asin(length)*2 # Calculate the angle to the reflection which is two times the angle of the normal on the sphere
         theta_corrected = theta / np.pi * (np.pi-viewing_angle_by_2) # Perspective correction: New range is to 180° - viewing_angle/2
         vec = np.dot(RotationMatrix(axis, theta_corrected), vec) # Rotate vector to light source
@@ -108,7 +108,7 @@ class LightPosition:
             ll = np.array([ll[0]*pi_by_2, ll[1]*math.pi], dtype=np.float32)
         # Calculate XYZ vector
         xz_length = math.cos(ll[0])
-        xyz = np.array([xz_length * math.sin(ll[1]), math.sin(ll[0]), xz_length * math.cos(ll[1])], dtype=np.float32)
+        xyz = np.array([xz_length * math.sin(ll[1]), xz_length * math.cos(ll[1]), math.sin(ll[0])], dtype=np.float32)
         
         # LP object with LatLong vector
         lp = LightPosition(xyz)
