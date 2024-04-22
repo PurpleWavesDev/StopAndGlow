@@ -41,11 +41,17 @@ if not parent_module_path in sys.path:
 def checkDependencies():
     # Check dependencies and install if needed
     import pip
+    # ZeroMQ
     try:
         import zmq
     except:
         pip.main(['install', 'pyzmq', '--user'])
-
+    
+    # OpenCV
+    try:
+        import cv2
+    except:
+        pip.main(['install', 'opencv-python', '--user'])
 
 
 def register():
