@@ -4,7 +4,7 @@ import bpy
 from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
 import numpy as np
-
+import cv2 as cv
 import smvp_ipc as ipc
 
 from . import properties as props
@@ -61,40 +61,56 @@ def updateCanvas(scene, obj):
         frames= []
         keyframes = getKeyframes(obj)
         w,h = img.size
-        cur_img_data = np.zeros((w,h,4), 'f') #numpy arrays 
-        prev_img_data = np.zeros((w,h,4), 'f')
-        foll_img_data = np.zeros((w,h,4), 'f')
         key_img_data = np.zeros((w,h,4), 'f')
-        new_img_data = np.zeros((w,h,4), 'f')
-        op = obj.smvp_ghost.opacity
-               
-        img.pixels.foreach_get(cur_img_data.ravel()) #copy data from img into array
-
-        for i, key in enumerate(keyframes):
-            framedistance = scene.frame_current - key[0] #[0] ist x wert - timeline
-            if framedistance <= obj.smvp_ghost.previous_frames:
-                if -framedistance > obj.smvp_ghost.following_frames:
-                    break
-                frames.append((i,framedistance))
-        #new_img_data=cur_img_data
-        for idx, distance in frames:
-            getTextureForIdx(obj, idx, display_mode='prev').pixels.foreach_get(key_img_data.ravel())
-            prev_img_data = prev_img_data*op+ key_img_data*(1-op)
-            if distance <= 0:
-                prev_img_data[:,:,(1,2)]=0 #turn image red 
-                break
+        prev_ghost_data = np.zeros((w,h,4), 'f')
+        post_ghost_data = np.zeros((w,h,4), 'f')
+        frame_img_data = None #space for array for current frame texture pixels
+        ghost_img_data = None #space for array for final combined texture pixels
+        opac1 = obj.smvp_ghost.opacity # opacity from ui prop
+        opac2 = 1 - opac1
+        postghost = False
+        preghost = False
         
-        for idx, distance in reversed(frames):
-            getTextureForIdx(obj, idx, display_mode='prev').pixels.foreach_get(key_img_data.ravel())
-            foll_img_data = foll_img_data*op+ key_img_data*(1-op)
-            if distance >= 0:
-                foll_img_data[:,:,(0,2)]=0 # turn image green
-                break
+        
+        for i, key in reversed(list(enumerate(keyframes))): #count from latest keyframe to earliest, so the current frame can be cought
+            getTextureForIdx(obj, i, display_mode='prev').pixels.foreach_get(key_img_data.ravel())
             
-           
-        new_img_data = prev_img_data*(0.5*op) + foll_img_data*(0.5*op) + cur_img_data*(1-op)
+            if key[0] > scene.frame_current:
+                postghost = True             
+                if post_ghost_data.all() == 0: #if this is the first keyframe to be added, add to empty array 
+                   post_ghost_data += key_img_data      
+                else:
+                    post_ghost_data = cv.addWeighted(key_img_data, opac1, post_ghost_data, opac2, 1.0) #add every keyframe behind current frame to a post ghost image, weighted with opacity as a factor
+            
+            else:
+                if frame_img_data is None:
+                    frame_img_data = np.zeros((w,h,4), 'f') 
+                    img.pixels.foreach_get(frame_img_data.ravel()) # get either the keyframe directly on or, if there is none, the one before the current frame 
+
+                elif prev_ghost_data.all() == 0:
+                    prev_ghost_data += key_img_data #add next keyframe before current shown texture to empty array
+                    preghost = True
+                else:
+                    prev_ghost_data = cv.addWeighted(key_img_data, opac1, prev_ghost_data, opac2, 1.0) # add the remaining previous keyframes weighted to array 
+
+        
+        if preghost:
+            gray_prev = cv.cvtColor(prev_ghost_data, cv.COLOR_RGBA2GRAY)
+            prev_ghost_data = np.dstack((gray_prev, np.zeros_like(gray_prev), np.zeros_like(gray_prev),np.ones_like(gray_prev)))
+            prev_ghost_data = cv.addWeighted(prev_ghost_data, opac1, frame_img_data, opac2, 0.0)
+            ghost_img_data = prev_ghost_data
+        if postghost:
+            gray_post = cv.cvtColor(post_ghost_data, cv.COLOR_RGBA2GRAY)
+            post_ghost_data = np.dstack((np.zeros_like(gray_post),gray_post, np.zeros_like(gray_post),np.ones_like(gray_post)))
+            post_ghost_data = cv.addWeighted(post_ghost_data, opac1, frame_img_data, opac2, 0.0)
+            ghost_img_data = post_ghost_data
+       
+
+        if preghost and postghost:
+            ghost_img_data= cv.addWeighted(prev_ghost_data, 0.5, post_ghost_data,0.5, 0.0)
+        
         img = bpy.data.images[obj.smvp_canvas.ghost_texture]
-        img.pixels.foreach_set(new_img_data.ravel())
+        img.pixels.foreach_set(ghost_img_data.ravel())
 
     try:
         obj.active_material.node_tree.nodes["ImageTexture"].image = img
