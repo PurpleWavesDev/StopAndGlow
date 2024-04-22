@@ -131,7 +131,7 @@ class LightPosTi:
         else:
             # Vector around 0,0 with direction of xz-plane (longitude) and length of angle from zenith
             zvec /= tm.sqrt(zvec[0]**2 + zvec[1]**2) # Normalize
-            zvec *= tm.acos(self.xyz[2]) # Range 0 to pi (zenith is 0)
+            zvec *= tm.acos(self.xyz[2]) # Range 0 to pi (zenith is 0) # TODO: Is this coorect?
             #alt_angle = zvec * (1-np.dot(self.xyz, [0,0,1]))/2 * tm.pi # Alternative calculation
         return zvec
     
