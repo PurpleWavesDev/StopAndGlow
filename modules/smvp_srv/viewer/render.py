@@ -48,6 +48,8 @@ class RenderViewer(Viewer):
                     # Range -1 to +1
                     u -= math.floor(abs(u)) * 2
                     v -= math.floor(abs(v)) * 2
+                    if self.renderer.getBsdfCoordSys() == CoordSys.ZVec:
+                        u, v = LightPosition.FromLatLong([u, v], True).getZVecNorm()
                     self.renderer.getScene().addSun(LightData(direction=[u, v], power=10))
                 case 1: # Point Light
                     self.renderer.getScene().addPoint(LightData(position=[v*0.5, -0.3, u*0.5 * 9/16], power=100))

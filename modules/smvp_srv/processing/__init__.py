@@ -17,7 +17,10 @@ from .depthestim import *
 # Configured fitter with corresponding BSDFs in render submodule
 # Key, full name, class, settings
 fitters = {
-    'ptm':     ('Polynominal Texture Mapping',  RtiProcessor,   {'fitter': PolyFitter.__name__, 'order': 3}),
+    'ptm':     ('Polynominal Texture Mapping',  RtiProcessor,   {'fitter': PolyFitter.__name__, 'coordinate_system': CoordSys.LatLong.name, 'order': 3}),
+    'ptm4':    ('Polynominal Texture Mapping',  RtiProcessor,   {'fitter': PolyFitter.__name__, 'coordinate_system': CoordSys.LatLong.name, 'order': 4}),
+    'ptmz':    ('Polynominal Texture Mapping',  RtiProcessor,   {'fitter': PolyFitter.__name__, 'coordinate_system': CoordSys.ZVec.name, 'order': 3}),
+    'ptmz4':   ('Polynominal Texture Mapping',  RtiProcessor,   {'fitter': PolyFitter.__name__, 'coordinate_system': CoordSys.ZVec.name, 'order': 4}),
     'hsh2':    ('Hemispherical Harmonics',      RtiProcessor,   {}),
     'hsh3':    ('Hemispherical Harmonics',      RtiProcessor,   {}),
     'normal':  ('Normal fitter',                RtiProcessor,   {'fitter': NormalFitter.__name__}),

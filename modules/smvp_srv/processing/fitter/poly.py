@@ -15,7 +15,6 @@ class PolyFitter(PseudoinverseFitter):
         super().__init__(settings)
         # Settings: Limit polynom order
         self._order = max(2, min(6, GetSetting(settings, 'order', 3)))
-        #self._coord_sys = CoordSys.ZVec.value
     
     def getCoefficientCount(self) -> int:
         """Returns number of coefficients"""

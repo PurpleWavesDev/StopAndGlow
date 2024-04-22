@@ -26,6 +26,9 @@ class Renderer:
         
     def getScene(self):
         return self._scene
+    
+    def getBsdfCoordSys(self) -> CoordSys:
+        return CoordSys(self._bsdf.coord_sys)
 
     ## Rendering    
     def initRender(self, hdri_samples=0):  
@@ -179,7 +182,7 @@ class Renderer:
                     u = ti.random()*2-1
                     v = ti.random()*2-1
                     # Latitude is length of vector, max 1
-                    uv_length = tm.min(ti.sqrt(u**2, v**2), 1.0)
+                    uv_length = tm.min(ti.sqrt(u**2 + v**2), 1.0)
                     hdri_y = ti.cast(uv_length * hdri.shape[0], ti.i32)
                     # Longitude is direction of vector
                     if uv_length > 0:
