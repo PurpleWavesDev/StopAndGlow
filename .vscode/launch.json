@@ -23,7 +23,7 @@
             "justMyCode": true
         },
         {
-            "name": "Process RTI, save and view",
+            "name": "Process PTM",
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
@@ -32,7 +32,16 @@
             "justMyCode": true
         },
         {
-            "name": "Render RTI",
+            "name": "Process NeuralRTI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=0306_front.json", "--load", "fisch_untersichtig_expoblend", "--process", "fitting", "fitter=nrti", "--save", "data", "--view", "sequence"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Render PTM",
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
@@ -41,7 +50,7 @@
             "justMyCode": true
         },
         {
-            "name": "Estimate Depth for Preview and view",
+            "name": "Estimate Depth for Preview",
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",

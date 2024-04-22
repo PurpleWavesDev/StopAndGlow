@@ -98,7 +98,7 @@ class NeuralRti(Processor):
         
 
 class RtiEncoder(nn.Module):
-    def __init__(self, input_channels, base_channel_size, latent_dim, act_fn: object):
+    def __init__(self, input_channels, latent_dim, act_fn: object):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_channels, input_channels),
@@ -115,7 +115,7 @@ class RtiEncoder(nn.Module):
         return self.net(lights_rgb)
     
 class RtiDecoder(nn.Module):
-    def __init__(self, input_channels, base_channel_size, latent_dim, act_fn: object):
+    def __init__(self, input_channels, latent_dim, act_fn: object):
         super().__init__()
         self.linear = nn.Sequential(nn.Linear(latent_dim + 2, input_channels), act_fn())
         self.net = nn.Sequential(
