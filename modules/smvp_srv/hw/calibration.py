@@ -78,9 +78,7 @@ class Calibration:
     def rotate(self, axis, angle):
         m = RotationMatrix(axis, angle)
         for light in self._data['lights']:
-            a = np.dot(m, light['xyz'])
-            b = m @ light['xyz']
-            light['xyz'] = a
+            light['xyz'] = m @ light['xyz']
         
     
     def __getitem__(self, id) -> LightPosition:
@@ -107,7 +105,7 @@ class Calibration:
                     diffs.append((new_cal[id].getLL()[1] - light.getLL()[1] + pi_times_2) % pi_times_2)
             # Get median and apply
             rot_correction = np.median(diffs)
-            new_cal.rotate([0,1,0], -rot_correction)
+            new_cal.rotate([0,0,1], -rot_correction)
             # Get angle difference on Z-Axis
             #diffs = []
             #for id, light in self.getLights().items():

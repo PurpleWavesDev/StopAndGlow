@@ -243,7 +243,8 @@ class Worker:
             case Commands.Calibrate:
                 # --calibrate calc/interactive/merge threshold=245 min_size_ratio=0.011 calibrations=cal1,cal2,cal3 folder=path
                 log.info(f"Starting calibration '{arg}'")
-                # TODO!
+                if 'focal_length' in settings: self.sequence.setMeta('focal_length', int(GetSetting(settings, 'focal_length')))
+                
                 if arg == 'calc':
                     processor = Calibrate()
                     processor.setSequence(self.sequence)

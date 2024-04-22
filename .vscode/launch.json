@@ -90,7 +90,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "20240418_1741_lights", "--calibrate", "interactive", "--calibration", "save"],
+            "args": ["--loglevel", "DEBUG", "--load", "20240418_1828_lights", "--calibrate", "interactive", "focal_length=135", "--calibration", "save"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -99,7 +99,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=20240418_1810_front.json", "--calibrate", "merge", "calibrations=20240418_1820_left.json,20240418_1825_back.json,20240418_1833_right.json", "--calibration", "save", "name=merged.json"],
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=0422_front.json", "--calibrate", "merge", "calibrations=0422_left.json,0422_back.json,0422_right.json", "--calibration", "save", "name=merged.json"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

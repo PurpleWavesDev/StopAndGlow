@@ -18,7 +18,7 @@ class CoordSys(Enum):
 class LightPosition:
     def __init__(self, xyz, chromeball=None):
         # 3D coordinates
-        self._xyz = np.array(xyz, dtype=np.float32) # TODO: Numpy array?
+        self._xyz = np.array(xyz, dtype=float) # TODO: Numpy array?
         # Latlong in radians: -pi/2 to +pi/2 Latitute; -pi to +pi Longitude
         self._latlong = None
         # Angles seen from top, -pi to +pi
@@ -93,10 +93,10 @@ class LightPosition:
     def FromLatLong(ll, normalized=False) -> "LightPosition":
         if normalized:
             # 'De'normalize
-            ll = np.array([ll[0]*pi_by_2, ll[1]*math.pi], dtype=np.float32)
+            ll = np.array([ll[0]*pi_by_2, ll[1]*math.pi], dtype=float)
         # Calculate XYZ vector
         xz_length = math.cos(ll[0])
-        xyz = np.array([xz_length * math.sin(ll[1]), xz_length * math.cos(ll[1]), math.sin(ll[0])], dtype=np.float32)
+        xyz = np.array([xz_length * math.sin(ll[1]), xz_length * math.cos(ll[1]), math.sin(ll[0])], dtype=float)
         
         # LP object with LatLong vector
         lp = LightPosition(xyz)

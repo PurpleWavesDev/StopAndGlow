@@ -209,9 +209,9 @@ class Calibrate(Viewer):
                 log.info(f"Found chrome ball at ({self.cb_center[0]:5.2f}, {self.cb_center[1]:5.2f}), radius {self.cb_radius:5.2f}")
                 
             # Calculate viewing angle
-            if self._sequence.getMeta('focal_length', 135) is not None: # TODO: Remove default as soon as metadata works
+            if self._sequence.getMeta('focal_length') is not None:
                 sensor = self._sequence.getMeta('sensor_size', (22.0, 15.0)) # APS-C is default, only works without cropping
-                f = self._sequence.getMeta('focal_length', 135) # TODO
+                f = self._sequence.getMeta('focal_length')
                 size_on_sensor = sensor[0] / (res_x/(self.cb_radius*2))
                 self._viewing_angle_by2 = math.atan(size_on_sensor/(2*f))
         else:
