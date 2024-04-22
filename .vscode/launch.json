@@ -27,7 +27,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=0306_front.json", "--load", "fisch_untersichtig_expoblend", "--process", "fitting", "fitter=ptm", "--process", "fitting", "fitter=normal", "--save", "data", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "fitting", "fitter=ptm", "--process", "fitting", "fitter=normal", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -45,7 +45,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--load_hdri", "syferfontein_0d_clear_puresky_1k.exr", "--render", "config", "algorithm=ptm", "--view", "render"],
+            "args": ["--loglevel", "DEBUG", "--load", "0422_eichhoernchen", "--load_hdri", "pretville_cinema_1k.exr", "--render", "config", "algorithm=ptm", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

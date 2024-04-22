@@ -179,13 +179,13 @@ def execute(socket, port, queue):
             
             ## Render Algorithmns
             case Command.GetRenderAlgorithms:
-                answer = {'algorithms': [(name, values[0]) for name, values in bsdfs.items()]}
+                answer = {'algorithms': [(name, values[0]) for name, values in bsdfs.items()]} # TODO: Fitters instead of BSDFs
                 send(socket, Message(Command.CommandAnswer, answer))
             
             case Command.GetRenderSettings: # TODO: What settings should be exposed anyway?
                 algorithm = message.data['algorithm']
                 try:
-                    name, bsdf_class, bsdf_settings = bsdfs[algorithm]
+                    name, bsdf_class, bsdf_settings = bsdfs[algorithm] # TODO: Map Fitter to BSDF
                     answer = bsdf_class.getDefaultSettings()
                     send(socket, Message(Command.CommandAnswer, answer))
                 except:

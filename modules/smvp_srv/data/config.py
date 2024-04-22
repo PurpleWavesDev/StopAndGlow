@@ -20,9 +20,9 @@ class Config:
             'config_name': 'config.json',
             # Capture settings
             'hdr_capture': True,
-            'hdr_bracket_num': 2,
+            'hdr_bracket_num': 3,
             'hdr_bracket_stops': 2,
-            'capture_exposure': "1/200",
+            'capture_exposure': "1/50", # TODO: As string?
             'capture_fps': 25,
             'capture_frames_skip': 3,
             'capture_dmx_repeat': 0,
