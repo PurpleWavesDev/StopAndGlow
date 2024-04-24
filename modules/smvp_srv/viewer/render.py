@@ -46,15 +46,15 @@ class RenderViewer(Viewer):
             match self.render_mode:
                 case 0: # Directional Light
                     # Range -1 to +1
-                    u -= math.floor(abs(u)) * 2
-                    v -= math.floor(abs(v)) * 2
+                    u -= math.floor(u) * 2 if u > 0 else math.ceil(u) * 2
+                    v -= math.floor(v) * 2 if v > 0 else math.ceil(v) * 2
                     if self.renderer.getBsdfCoordSys() == CoordSys.ZVec:
                         u, v = LightPosition.FromLatLong([u, v], True).getZVecNorm()
                     self.renderer.getScene().addSun(LightData(direction=[u, v], power=10))
                 case 1: # Point Light
                     self.renderer.getScene().addPoint(LightData(position=[v*0.5, -0.3, u*0.5 * 9/16], power=100))
                 case 2: # HDRI
-                    self.renderer.getScene().setHdriData(rotation=v*0.5+1, power=100)
+                    self.renderer.getScene().setHdriData(rotation=v*0.5+1, power=200)
                     
             self.renderer.initRender(hdri_samples=500 if self.render_mode==2 else 0)
             

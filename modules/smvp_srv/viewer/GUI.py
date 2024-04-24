@@ -8,6 +8,13 @@ import numpy as np
 
 from ..utils import ti_base as tib
 
+class ControlMode(Enum):
+    Automatic = 0
+    Mouse = 1
+    Static = 2
+    
+    def next(self):
+        return ControlMode((self.value+1) % len(ControlMode))
 
 class GUI:
     def __init__(self, res=(1920, 1080)):
@@ -54,8 +61,8 @@ class GUI:
         canvas = window.get_canvas()
         time_last = time.time()
         
-        # Controls
-        mouse_control = False
+        # Controls            
+        control_mode = ControlMode.Automatic
         exposure: np.float32 = 1.0
         u: np.float32 = 0.5
         v: np.float32 = 0.0
@@ -76,7 +83,7 @@ class GUI:
                 if window.event.key in [ti.ui.ESCAPE]: break
                 # Space for control switch
                 elif window.event.key in [ti.ui.SPACE]:
-                    mouse_control = not mouse_control
+                    control_mode = control_mode.next()
                 # Arrows for mode changes
                 elif window.event.key in [ti.ui.RIGHT]:
                     self.cycleMode()
@@ -95,13 +102,14 @@ class GUI:
 
             # Coordinate inputs
             if self._render_settings.needs_coords:
-                if mouse_control:
-                    v, u = window.get_cursor_pos()
-                    u = u*2 - 1
-                    v = v*2 - 1
-                else:
-                    v = (v+time_frame/3)
-                    v -= math.floor(abs(v)) * 2 # Range -1 to +1
+                match control_mode:
+                    case ControlMode.Automatic:
+                        v = (v+time_frame/3)
+                        v -= math.floor(abs(v)) * 2 # Reset to -1 for values above 1
+                    case ControlMode.Mouse:
+                        v, u = window.get_cursor_pos()
+                        u = u*2 - 1
+                        v = v*2 - 1
                 self._viewer.setCoords(u, v)
             
             # General inputs for viewer
