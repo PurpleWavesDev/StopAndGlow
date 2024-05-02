@@ -285,17 +285,18 @@ class Worker:
                     case 'config':
                         if 'algorithm' in settings:
                             algo_key = GetSetting(settings, 'algorithm')
-                            if algo_key in bsdfs:
-                                log.info(f"Render configuration with bsdf '{algo_key}'")
-                                name, bsdf_class, bsdf_settigs = bsdfs[algo_key]
+                            if algo_key in algorithms:
+                                log.info(f"Render configuration with algorithm '{algo_key}'")
+                                name, _, algo_settings = algorithms[algo_key]
+                                bsdf_class, bsdf_settings = bsdfs[algo_settings['bsdf']]
                                 bsdf = bsdf_class()
-                                if bsdf.load(self.sequence, self.hw.cal):
+                                if bsdf.load(self.sequence, self.hw.cal, algo_key, bsdf_settings):
                                     self.renderer = Renderer(bsdf, self.config['resolution'])
                                     # Set HDRI
                                     if self.hdri.get() is not None:
                                         self.renderer.getScene().setHdri(self.hdri)
                                 else:
-                                    log.error("No data for BSDF!")
+                                    log.error("Can't load BSDF data!")
                             else:
                                 log.error(f"Render configuration with bsdf '{algo_key}'")
                     case 'reset':
@@ -522,7 +523,7 @@ class Worker:
             case 'fitting':
                 # Apply settings from fitter list
                 seq_name = settings['fitter']
-                _, fitter, fitter_settings = fitters[seq_name]
+                _, fitter, fitter_settings = algorithms[seq_name]
                 processor = fitter()
                 settings = settings | fitter_settings
             case 'convert':

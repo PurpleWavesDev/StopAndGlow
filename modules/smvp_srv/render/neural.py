@@ -12,7 +12,7 @@ from ..hw.calibration import *
 
 @ti.dataclass
 class NeuralRtiBsdf:
-    def load(self, data: Sequence, calibration: Calibration, settings={}) -> bool:
+    def load(self, data: Sequence, calibration: Calibration, data_key: str, settings={}) -> bool:
         pass
     
     

@@ -1,15 +1,16 @@
 from .renderer import *
 # BSDFs
-from .lightstack import *
+from .lightstack import * # TODO: Rename to lightblend?
 from .ptm import *
 from .neural import *
+class ShmBsdf: # TODO
+    pass
 
-# Key, full name, class, settings
+# key to bsdf class
 bsdfs = {
-    'ptm':     ('Polynominal Texture Mapping',  PtmBsdf,        {}),
-    'hsh2':    ('Hemispherical Harmonics 2',    PtmBsdf,        {}),
-    'hsh3':    ('Hemispherical Harmonics 3',    PtmBsdf,        {}),
-    'nrti':    ('Neural RTI',                   NeuralRtiBsdf,  {}),
-    'nrti3d':  ('Neural RTI 3D',                NeuralRtiBsdf,  {}),
-    'stack':   ('Light Stack',                  LightstackBsdf, {}),
+    'ptm':     (PtmBsdf, {'coordinate_system': CoordSys.LatLong}),
+    'ptmz':    (PtmBsdf, {'coordinate_system': CoordSys.ZVec}),
+    'shm':     (ShmBsdf, {}),
+    'nrti':    (NeuralRtiBsdf, {}),
+    'blend':   (LightstackBsdf, {}),
 }

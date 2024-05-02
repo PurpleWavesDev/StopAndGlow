@@ -21,7 +21,7 @@ class LightstackBsdf:
     def __init__(self):
         pass
     
-    def load(self, data: Sequence, calibration: Calibration, settings={}) -> bool:
+    def load(self, data: Sequence, calibration: Calibration, data_key: str, settings={}) -> bool:
         return True
     
     @ti.func

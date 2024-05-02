@@ -179,27 +179,27 @@ def execute(socket, port, queue):
             
             ## Render Algorithmns
             case Command.GetRenderAlgorithms:
-                answer = {'algorithms': [(name, values[0]) for name, values in bsdfs.items()]} # TODO: Fitters instead of BSDFs
+                answer = {'algorithms': [(name, values[0]) for name, values in algorithms.items() if 'bsdf' in values[2]]}
                 send(socket, Message(Command.CommandAnswer, answer))
             
             case Command.GetRenderSettings: # TODO: What settings should be exposed anyway?
-                algorithm = message.data['algorithm']
+                algo_key = message.data['algorithm']
                 try:
-                    name, bsdf_class, bsdf_settings = bsdfs[algorithm] # TODO: Map Fitter to BSDF
-                    answer = bsdf_class.getDefaultSettings()
+                    name, algo_class, algo_settings = algorithms[algo_key]
+                    answer = algo_class.getDefaultSettings()
                     send(socket, Message(Command.CommandAnswer, answer))
                 except:
                     send(socket, Message(Command.CommandError, {'message': 'No valid algorithm specified'}))
             
             case Command.SetRenderer:
-                algorithm = message.data['algorithm']
-                if algorithm in bsdfs:
+                algo_key = message.data['algorithm']
+                if algo_key in algorithms:
                     send(socket, Message(Command.CommandOkay))
                     
                     # Generate algorithm data if needed
-                    if algorithm in fitters:
-                        queue.putCommand(Commands.If, 'empty', {'data': algorithm})
-                        queue.putCommand(Commands.Process, 'fitting', {'fitter': algorithm, 'target': 'sequence', 'destination': 'data'})
+                    if algorithms[algo_key][1] is not None: # Processing class for algorithm exists
+                        queue.putCommand(Commands.If, 'empty', {'data': algo_key})
+                        queue.putCommand(Commands.Process, 'fitting', {'fitter': algo_key, 'target': 'sequence', 'destination': 'data'})
                         queue.putCommand(Commands.Save, 'data')
                         queue.putCommand(Commands.EndIf, 'empty')
                     # Also generate normal map
