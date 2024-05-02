@@ -18,7 +18,7 @@ class CoordSys(Enum):
 class LightPosition:
     def __init__(self, xyz, chromeball=None):
         # 3D coordinates
-        self._xyz = np.array(xyz, dtype=float) # TODO: Numpy array?
+        self._xyz = ti.Vector([xyz[0], xyz[1], xyz[2]], dt=ti.f32)
         # Latlong in radians: -pi/2 to +pi/2 Latitute; -pi to +pi Longitude
         self._latlong = None
         # Angles seen from top, -pi to +pi
@@ -46,12 +46,12 @@ class LightPosition:
     def getLLNorm(self) -> [float, float]:
         """Returns Lat-Long coordinates in the range of -1 to 1"""
         ll = self.getLL()
-        return [ll[0] / pi_by_2, ll[1] / math.pi]
+        return [ll[0] / pi_by_2, ll[1] / tm.pi]
 
     def getZVecNorm(self) -> [float, float]:
         """Returns Zenith Angle with max length 1"""
-        return self.getZVec() / math.pi
-    
+        return self.getZVec() / tm.pi
+#    
     def getChromeball(self) -> [float, float]:
         return self._chromeball
     
@@ -91,15 +91,8 @@ class LightPosition:
         return LightPosition(vec, chromeball=uv)
 
     def FromLatLong(ll, normalized=False) -> "LightPosition":
-        if normalized:
-            # 'De'normalize
-            ll = np.array([ll[0]*pi_by_2, ll[1]*math.pi], dtype=float)
-        # Calculate XYZ vector
-        xz_length = math.cos(ll[0])
-        xyz = np.array([xz_length * math.sin(ll[1]), xz_length * math.cos(ll[1]), math.sin(ll[0])], dtype=float)
-        
         # LP object with LatLong vector
-        lp = LightPosition(xyz)
+        lp = LightPosition(LightPosTi().FromLL(ll, normalized).xyz)
         lp._ll = ll
         return lp
 
@@ -122,16 +115,16 @@ class LightPosTi:
     
     @ti.pyfunc
     def getZVec(self):
-        """2D Vector vec around zenith with max length PI"""
-        zvec = ti.Vector([self.xyz[1], self.xyz[0]], dt=ti.f32)
+        """2D Vector vec around zenith with directions in X and Y and max length of PI"""
+        zvec = ti.Vector([self.xyz[0], self.xyz[1]], dt=ti.f32)
         if self.xyz[2] == 1.0:
-            zvec = [0,0]
+            zvec = ti.Vector([0,0], dt=ti.f32)
         elif self.xyz[2] == -1.0:
-            zvec = [tm.pi,0] # Could be any point on the circle with radius pi
+            zvec = ti.Vector([0,tm.pi], dt=ti.f32) # Could be any point on the circle with radius pi
         else:
-            # Vector around 0,0 with direction of xz-plane (longitude) and length of angle from zenith
+            # Vector around 0,0 with direction of xy-plane (longitude) and length of angle from zenith
             zvec /= tm.sqrt(zvec[0]**2 + zvec[1]**2) # Normalize
-            zvec *= tm.acos(self.xyz[2]) # Range 0 to pi (zenith is 0) # TODO: Is this coorect?
+            zvec *= tm.acos(self.xyz[2]) # Range 0 to pi (zenith is 0
             #alt_angle = zvec * (1-np.dot(self.xyz, [0,0,1]))/2 * tm.pi # Alternative calculation
         return zvec
     
@@ -144,6 +137,57 @@ class LightPosTi:
     @ti.pyfunc
     def getZVecNorm(self):
         """Returns Zenith Angle with max length 1"""
-        z1, z2 = self.getZVec()
-        return ti.Vector([z1 / tm.pi, z2 / tm.pi], dt=ti.f32)
+        return self.getZVec() / tm.pi
     
+    @ti.pyfunc
+    def FromLL(self, ll, normalized=False):
+        if normalized:
+            # 'De'normalize
+            ll = ti.Vector([ll[0]*pi_by_2, ll[1]*tm.pi], dt=ti.f32)
+        # Calculate XYZ vector
+        xy_length = tm.cos(ll[0])
+        self.xyz = ti.Vector([xy_length * math.sin(ll[1]), -xy_length * math.cos(ll[1]), math.sin(ll[0])], dt=ti.f32)
+        return self
+    
+    @ti.pyfunc
+    def ZVec2LL(self, zvec, normalized=False):
+        """Returns LatLong from ZVec in the range of -Pi/2 to +Pi/2 for Latitude and -Pi to +Pi for Longitude"""
+        # Denormalize
+        coords = ti.Vector([zvec[0], zvec[1]], dt=ti.f32)
+        if normalized:
+            coords = ti.Vector([zvec[0]*tm.pi, zvec[1]*tm.pi], dt=ti.f32)
+        
+        # Latitude is length of vector, max pi
+        lat = tm.min(ti.sqrt(coords[0]**2 + coords[1]**2), tm.pi) # Range 0 to +Pi, correct later
+        
+        # Longitude is direction of vector
+        long = 0.0
+        if lat > 0:
+            # arctan y/x where x points towards camera, y to the right -> x is -coords[0] (points away from cam), y is coords[1] (points to the right)
+            long = tm.atan2(-coords[0], coords[1]) # Range -Pi to +Pi TODO check order again
+        
+        return ti.Vector([lat-pi_by_2, long], dt=ti.f32) # Offset for Latitude
+    
+    @ti.pyfunc
+    def ZVec2LLNorm(self, zvec, normalized=False): # TODO Copy implementation and adapt for normalized
+        """Returns LatLong from ZVec in the range of -1 to +1"""
+        lat, long = self.ZVec2LL(zvec, normalized)
+        return ti.Vector([lat / pi_by_2, long / tm.pi], dt=ti.f32)
+    
+    @ti.pyfunc
+    def LL2ZVec(self, ll, normalized=False):
+        """Returns the Zenith Vector from LatLong in the range of -Pi to +Pi"""
+        lat, long = ll
+        if normalized:
+            # 'De'normalize
+            lat = lat * pi_by_2
+            long = long * tm.pi
+
+        length = pi_by_2-lat
+        return ti.Vector([length * tm.sin(long), -length * tm.cos(long)], dt=ti.f32)
+        
+    
+    @ti.pyfunc
+    def LL2ZVecNorm(self, ll, normalized=False): # TODO Copy implementation and adapt for normalized
+        """Returns the Zenith Vector from LatLong in the range of -1 to +1"""
+        return self.LL2ZVec(ll, normalized) / tm.pi

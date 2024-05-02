@@ -27,7 +27,16 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "fitting", "fitter=ptmz", "--process", "fitting", "fitter=normal", "--save", "data", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "fitting", "fitter=ptm", "--process", "fitting", "fitter=normal", "--save", "data", "--view", "sequence"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Process PTMZ",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "fitting", "fitter=ptmz4", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -45,7 +54,16 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "0422_eichhoernchen", "--load_hdri", "pretville_cinema_1k.exr", "--render", "config", "algorithm=ptmz", "--view", "render"],
+            "args": ["--loglevel", "DEBUG", "--load", "0422_eichhoernchen", "--load_hdri", "hdri.exr", "--render", "config", "algorithm=ptm", "--view", "render"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Render PTMZ",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "0422_eichhoernchen", "--load_hdri", "hdri.exr", "--render", "config", "algorithm=ptmz4", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

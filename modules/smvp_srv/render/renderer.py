@@ -24,11 +24,14 @@ class Renderer:
         ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._buffer)
         ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._sample_buffer)
         
+        # Coordinate debugging
+        self._coord_debug = False
+        
     def getScene(self):
         return self._scene
     
     def getBsdfCoordSys(self) -> CoordSys:
-        return CoordSys(self._bsdf.coord_sys)
+        return self._bsdf.coord_sys
 
     ## Rendering    
     def initRender(self, hdri_samples=0):  
@@ -85,7 +88,10 @@ class Renderer:
         factor = power * color * 50 # TODO what is this factor?
         
         for y, x in self._buffer:
-            self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor
+            if not self._coord_debug:
+                self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor
+            else:
+                self._buffer[y, x] = [u, v, 0]
     
     @ti.kernel
     def samplePoint(self, pos: tib.pixvec, size: ti.f32, power: ti.f32, color: tib.pixvec):
@@ -101,11 +107,15 @@ class Renderer:
             # Calculate light direction
             dir = tm.normalize(pix2light)
             u, v = 0.0, 0.0
-            if self._bsdf.coord_sys == CoordSys.LatLong.value:
+            if self._bsdf.coord_sys.value == CoordSys.LatLong.value:
                 u, v = LightPosTi(xyz=dir).getLLNorm()
-            else: # self._bsdf.coord_sys == CoordSys.ZVec.value
+            else: # self._bsdf.coord_sys.value == CoordSys.ZVec.value
                 u, v = LightPosTi(xyz=dir).getZVecNorm()
-            self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
+            
+            if not self._coord_debug:
+                self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
+            else:
+                self._buffer[y, x] = [u, v, -u]
     
     @ti.kernel
     def sampleSpot(self, pos: tib.pixvec, dir: tib.pixvec, angle: ti.f32, blend: ti.f32, size:ti.f32, power: ti.f32, color: tib.pixvec):
@@ -124,9 +134,9 @@ class Renderer:
             if ray_angle <= angle:
                 # Calculate light direction
                 u, v = 0.0, 0.0
-                if self._bsdf.coord_sys == CoordSys.LatLong.value:
+                if self._bsdf.coord_sys.value == CoordSys.LatLong.value:
                     u, v = LightPosTi(xyz=dir).getLLNorm()
-                else: # self._bsdf.coord_sys == CoordSys.ZVec.value
+                else: # self._bsdf.coord_sys.value == CoordSys.ZVec.value
                     u, v = LightPosTi(xyz=dir).getZVecNorm()
                 
                 # Falloff/blend
@@ -153,9 +163,9 @@ class Renderer:
             if ray_angle <= angle:
                 # Calculate light direction and sample
                 u, v = 0.0, 0.0
-                if self._bsdf.coord_sys == CoordSys.LatLong.value:
+                if self._bsdf.coord_sys.value == CoordSys.LatLong.value:
                     u, v = LightPosTi(xyz=dir).getLLNorm()
-                else: # self._bsdf.coord_sys == CoordSys.ZVec.value
+                else: # self._bsdf.coord_sys.value == CoordSys.ZVec.value
                     u, v = LightPosTi(xyz=dir).getZVecNorm()
                 self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
     
@@ -168,31 +178,18 @@ class Renderer:
                 # Rank values and redo sampling around bright areas (gaussian distribution?) -> sampling bright, important values!
                 # Problem: Bright parts will be exaggerated, need factor of covered area to scale that down again. For non-gaussian distributions it's probably the spherical angle
                 # Far future TODO (especially when we settled on one algorithm): Analytical integration or gradient estimation?
-                u, v = 0.0, 0.0
-                hdri_y, hdri_x = 0, 0
                 
-                if self._bsdf.coord_sys == CoordSys.LatLong.value:
-                    #ti.randn(float) # univariate standard normal (Gaussian) distribution of mean 0 and variance 1
-                    u = ti.random()*0.65+0.3# TODO Quick fix to mask out lower part of PTM function that shows only rubbish
-                    v = ti.random()
-                    hdri_y = ti.cast(u*hdri.shape[0], ti.i32)
-                    hdri_x = ti.cast((1+v-rotation)%1.0 * hdri.shape[1], ti.i32)
-                    u, v = u*2-1, v*2-1
-                else: # self._bsdf.coord_sys == CoordSys.ZVec.value
-                    u = ti.random()*2-1
-                    v = ti.random()*2-1
-                    # Latitude is length of vector, max 1
-                    uv_length = tm.min(ti.sqrt(u**2 + v**2), 1.0)
-                    hdri_y = ti.cast(uv_length * hdri.shape[0], ti.i32)
-                    # Longitude is direction of vector
-                    if uv_length > 0:
-                        # arctan y/x where x points towards camera, y to the right -> x is -u (points away), y is v
-                        longitude = tm.atan2(-u, v) / pi_times_2 + 0.5 # Range -Pi to +Pi, normalized to -1 to +1
-                        hdri_x = ti.cast(longitude * hdri.shape[1], ti.i32)
-                        # TODO: Remove if above works
-                        #u_norm = tm.clamp(u/uv_length, 0.0, 1.0)
-                        #if v > 0: # Right hand side, 0 to 0.5
-                        #    hdri_x = ti.cast( (tm.acos(u_norm) / pi_times_2) * hdri.shape[1], ti.i32) # u points away from camera, acos starts with 0 for +1 to -1
-                        #else: # Left hand side, 0.5 to 1
-                        #    hdri_x = ti.cast( ((tm.pi-tm.acos(u_norm)) / pi_times_2 + 0.5) * hdri.shape[1], ti.i32)
+                #ti.randn(float) # univariate standard normal (Gaussian) distribution of mean 0 and variance 1
+                u = ti.random()*0.6 # TODO Quick fix to mask out lower part of PTM function that shows only rubbish
+                v = ti.random()
+                hdri_y = ti.cast(u*hdri.shape[0], ti.i32)
+                hdri_x = ti.cast((1-v+rotation)%1.0 * hdri.shape[1], ti.i32)
+                # Fix range of LatLong coords
+                length = u
+                u, v = 1-u*2, v*2-1
+                
+                if self._bsdf.coord_sys.value == CoordSys.ZVec.value:
+                    # Get ZVec from LatLong
+                    u, v = LightPosTi().LL2ZVecNorm([u, v], normalized=True)
+                    
                 self._sample_buffer[y, x] += self._bsdf.sample(x, y, u, v) * hdri[hdri_y, hdri_x] * power / samples

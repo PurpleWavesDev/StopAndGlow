@@ -13,9 +13,7 @@ class RenderViewer(Viewer):
     name = "sequence"
     
     def __init__(self):
-        self.render_mode = 0
-        self.u = None
-        self.v = None
+        self.setMode(0)
     
     def setRenderer(self, renderer):
         # Set sequence and reset to current render mode
@@ -32,53 +30,47 @@ class RenderViewer(Viewer):
         self.render_mode = mode
         self.u = None
         self.v = None
+        self.y_pos = -0.3
+        self.y_changed = True
         
     def getRenderSettings(self, mode) -> RenderSettings:
-        return RenderSettings(with_exposure=True, is_linear=True, needs_coords=True)
+        return RenderSettings(with_exposure=True, is_linear=True, needs_coords=True, req_inputs=True if mode == 1 else False)
 
     def setCoords(self, u, v):
         # Only reset render if coordinates have changed
-        if u != self.u or v != self.v:
+        if u != self.u or v != self.v or self.y_changed:
             self.u = u
             self.v = v
+            self.y_changed = False
             self.renderer.reset()
             
             match self.render_mode:
                 case 0: # Directional Light
                     # Range -1 to +1
-                    u -= math.floor(u) * 2 if u > 0 else math.ceil(u) * 2
+                    if u > 1:
+                        u = 1 - u%1
+                        v += 1
+                    elif u < -1:
+                        u = -(u%1)
+                        v += 1
                     v -= math.floor(v) * 2 if v > 0 else math.ceil(v) * 2
                     if self.renderer.getBsdfCoordSys() == CoordSys.ZVec:
                         u, v = LightPosition.FromLatLong([u, v], True).getZVecNorm()
                     self.renderer.getScene().addSun(LightData(direction=[u, v], power=10))
                 case 1: # Point Light
-                    self.renderer.getScene().addPoint(LightData(position=[v*0.5, -0.3, u*0.5 * 9/16], power=100))
+                    self.renderer.getScene().addPoint(LightData(position=[v*0.5, self.y_pos, u*0.5 * 9/16], power=100))
                 case 2: # HDRI
                     self.renderer.getScene().setHdriData(rotation=v*0.5+1, power=200)
                     
             self.renderer.initRender(hdri_samples=500 if self.render_mode==2 else 0)
             
-    #def keypressEvent(self, event_key):
-    #    seq_length = len(self.sequence) if self.render_mode == 1 else len(self.sequence.getDataSequence(self.data_keys[self.data_idx]))
-    #    data_length = len(self.data_keys)
-    #    
-    #    if event_key in ['a']:
-    #        self.idx = self.idx = (seq_length + self.idx - 1) % seq_length
-    #    elif event_key in ['d']:
-    #        self.idx = (self.idx + 1) % seq_length
-    #    elif self.render_mode == 2 and data_length > 0:
-    #        if event_key in ['s']:
-    #            self.data_idx = self.data_idx = (data_length + self.data_idx - 1) % data_length
-    #            self.idx = 0
-    #        elif event_key in ['w']:
-    #            self.data_idx = (self.data_idx + 1) % data_length
-    #            self.idx = 0
-    #    
-    #    # Set image depending on render mode
-    #    if self.render_mode == 1:
-    #        self.scaled_buf = self.sequence.get(self.idx).rescale(self.resolution)
-    #    elif self.render_mode == 2 and data_length > 0:
-    #        self.scaled_buf = self.sequence.getDataSequence(self.data_keys[self.data_idx]).get(self.idx).rescale(self.resolution)
+    def inputs(self, window, time_frame):
+        if window.is_pressed('w'):
+            self.y_pos += 0.3 * time_frame
+            self.y_changed = True
+        elif window.is_pressed('s'):
+            self.y_pos -= 0.3 * time_frame
+            self.y_changed = True
 
     # Rendering
     def render(self, buffer, time_frame):

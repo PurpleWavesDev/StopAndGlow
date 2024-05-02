@@ -24,7 +24,7 @@ class PtmBsdf(BSDF):
             self._coeff.from_numpy(arr)
             
             # Set coordinate system switch
-            self.coord_sys = data.getMeta('coordinate_system', CoordSys.LatLong)
+            self.coord_sys = GetSetting(settings, 'coordinate_system', CoordSys.LatLong)
             return True
         return False
     
