@@ -115,7 +115,7 @@ class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
         client.sendMessage(message)
         # Update object
         setUpdateFlags(obj)
-        updateCanvas(scn, obj)
+        updateScene(scn)
         return{'FINISHED'}
 
 

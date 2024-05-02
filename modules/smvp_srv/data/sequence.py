@@ -247,10 +247,10 @@ class Sequence():
     def saveSequence(self, name: str, base_path: str, format: ImgFormat = ImgFormat.Keep): # TODO: name and base path optional
         path = os.path.join(base_path, name, name)
         for id in self.getKeys():
-            # Get image to load old path
-            self[id].get()
-            self[id].setPath(f"{path}_{id:03d}")
-            self[id].save(format=format)
+            # Only save images that were loaded already
+            if self[id].hasImg():
+                self[id].setPath(f"{path}_{id:03d}")
+                self[id].save(format=format)
         if self._preview.get() is not None:
             self._preview.setPath(f"{path}_preview")
             self._preview.save(format=format)

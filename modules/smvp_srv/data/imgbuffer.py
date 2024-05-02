@@ -46,10 +46,10 @@ class ImgBuffer:
         self._domain=domain
         self._format=ImgFormat.Keep
         self._from_file=False
-        if self._format == ImgFormat.Keep:
+        
+        # Set path when not none to extract the image format
+        if self._path is not None:
             self.setPath(path)
-        else:
-            self._path = path
         
     def __del__(self):
         self.unload()
@@ -58,18 +58,31 @@ class ImgBuffer:
         return self._path
         
     def setPath(self, path):
-        if path != self._path:
-            self._path = path
+        # Set from file flag if
+        new_path, ext = os.path.splitext(path)
+        
+        # Check if base path is different
+        if self._path is None or new_path != os.path.splitext(self._path)[0]:
             self._from_file = False
+        
+        # Check for extension change
+        if ext != "":
+            new_format = ImgFormat.Keep
             
-        if self._path is not None:
-            root, ext = os.path.splitext(self._path)
-            if ext.lower() == ".jpg" or ext.lower() == ".jpeg":
-                self._format=ImgFormat.JPG
-            elif ext.lower() == ".png":
-                self._format=ImgFormat.PNG
-            elif ext.lower() == ".exr":
-                self._format=ImgFormat.EXR
+            match ext.lower():
+                case ".jpg" | ".jpeg":
+                    new_format=ImgFormat.JPG
+                case ".png":
+                    new_format=ImgFormat.PNG
+                case ".exr":
+                    new_format=ImgFormat.EXR
+                    
+            if new_format != ImgFormat.Keep and new_format != self._format:
+                self._from_file = False
+                self._format = new_format
+        
+        # Apply new path
+        self._path = path
     
     def getFormat(self) -> ImgFormat:
         return self._format           
