@@ -1,3 +1,3 @@
-from .fourier import *
-from .normal import *
 from .poly import *
+from .spherical import *
+from .normal import *

@@ -3,6 +3,7 @@ import math
 
 pi_by_2 = math.pi/2
 pi_times_2 = math.pi*2
+root_two = math.sqrt(2)
 
 def RotationMatrix(axis, theta):
     """
@@ -18,3 +19,16 @@ def RotationMatrix(axis, theta):
     return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
                      [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
                      [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
+
+def factorial(n: int) -> int:
+    """Factorial"""
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+
+def factorial2(n: int) -> int:
+    """The double factorial"""
+    if n <= 1:
+        return 1
+    return n * factorial2(n - 2)
+

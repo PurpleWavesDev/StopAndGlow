@@ -54,7 +54,6 @@ class PseudoinverseFitter(ABC):
         # Metadata
         seq.setMeta('fitter', type(self).__name__)
         seq.setMeta('coefficient_count', coefficient_count)
-        seq.setMeta('coefficient_count', coefficient_count)
         seq.setMeta('fitter_rgb_channels', self._is_rgb)
         seq.setMeta('coordinate_system', CoordSys(self._coord_sys).name)
         
