@@ -57,8 +57,8 @@ class Worker:
         self._keep_running = keep_running
         self.if_stack = []
         # Setup Taichi
-        tib.TIBase.gpu = True
-        tib.TIBase.debug = True
+        tib.TIBase.gpu = True #false fürs surface
+        tib.TIBase.debug = True #false fürs surface
         tib.TIBase.init()
         
         # Default config
