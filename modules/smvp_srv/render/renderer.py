@@ -13,6 +13,8 @@ from ..hw import Calibration
 from .scene import *
 from .bsdf import *
 
+# Coordinate debugging
+coord_debug = False
 
 @ti.data_oriented
 class Renderer:
@@ -24,8 +26,6 @@ class Renderer:
         ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._buffer)
         ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._sample_buffer)
         
-        # Coordinate debugging
-        self._coord_debug = False
         
     def getScene(self):
         return self._scene
@@ -88,7 +88,7 @@ class Renderer:
         factor = power * color * 50 # TODO what is this factor?
         
         for y, x in self._buffer:
-            if not self._coord_debug:
+            if not ti.static(coord_debug):
                 self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor
             else:
                 self._buffer[y, x] = [u, v, 0]
@@ -112,7 +112,7 @@ class Renderer:
             else: # self._bsdf.coord_sys.value == CoordSys.ZVec.value
                 u, v = LightPosTi(xyz=dir).getZVecNorm()
             
-            if not self._coord_debug:
+            if not ti.static(coord_debug):
                 self._buffer[y, x] += self._bsdf.sample(x, y, u, v) * factor * 1/squared_length
             else:
                 self._buffer[y, x] = [u, v, -u]

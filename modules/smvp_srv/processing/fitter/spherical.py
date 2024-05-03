@@ -17,7 +17,7 @@ class SHFitter(PseudoinverseFitter):
     def __init__(self, settings):
         super().__init__(settings)
         # Settings: Limit polynom degree
-        self._degree = max(2, min(6, settings['degree'])) if 'degree' in settings else 3
+        self._degree = max(1, min(3, settings['degree'])) if 'degree' in settings else 2
     
     def getCoefficientCount(self) -> int:
         """Returns number of coefficients"""
@@ -40,11 +40,11 @@ class SHFitter(PseudoinverseFitter):
     def SH(l, m, theta, phi) -> float:
         """Spherical harmonics for the given degrees l & m and and spherical coordinates"""
         if m < 0:
-            return SHFitter.RootFactor(l, m) * SHFitter.P(l, -m, math.cos(theta)) * math.sin(-m * phi)
+            return SHFitter.RootFactor(l, m) * SHFitter.P(l, -m, -math.sin(theta)) * math.sin(-m * phi)
         elif m == 0:
-            return SHFitter.RootFactor(l, m) * SHFitter.P(l, 0, math.cos(theta))
+            return SHFitter.RootFactor(l, m) * SHFitter.P(l, 0, -math.sin(theta))
         else:
-            return SHFitter.RootFactor(l, m) * SHFitter.P(l, m, math.cos(theta)) * math.cos(m * phi)
+            return SHFitter.RootFactor(l, m) * SHFitter.P(l, m, -math.sin(theta)) * math.cos(m * phi)
 
     def RootFactor(l, m) -> float:
         fac = (2*l + 1) / (4*math.pi)
@@ -57,13 +57,13 @@ class SHFitter(PseudoinverseFitter):
     def P(l: int, m: int, x: float) -> float: # TODO: I have no clue if that's right
         """associated Legendre polynomials"""
         if l == 0 and m == 0:
-            return 1
+            return 1.0
         elif l == 1 and m == 0:
             return x
         elif l == 1 and m == 1:
             return -math.sqrt(1.0 - x*x)
         elif l == m:
-            return factorial2(2 * m - 1) * math.sqrt(math.pow(1 - x*x, m))
+            return factorial2(2*m - 1) * math.sqrt((1.0 - x*x)**m)
         elif l-1 == m:
             return (2*m + 1) * x * SHFitter.P(m, m, x)
         else:

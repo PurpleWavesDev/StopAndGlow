@@ -31,28 +31,29 @@ class ShmBsdf(BSDF):
     
     @ti.func
     def sample(self, x: ti.i32, y: ti.i32, u: ti.f32, v: ti.f32) -> tib.pixvec:
+        # Pixel buffer
         rgb = ti.Vector([0.0, 0.0, 0.0], dt=ti.f32)
+        # Convert UV to 
+        lat_conv = -ti.sin(u*pi_by_2)
+        long     = v*tm.pi
         
         for i in range(self._coeff.shape[0]):
-            rgb += self._coeff[i, y, x] * self.getBivariantCoeff(i, u, v)
+            rgb += self._coeff[i, y, x] * self.getBivariantCoeff(i, lat_conv, long)
 
         return tm.max(rgb, 0.0)
 
     @ti.func
-    def getBivariantCoeff(self, coeff_num: ti.i32, u: ti.f32, v: ti.f32):
+    def getBivariantCoeff(self, coeff_num: ti.i32, lat_conv: ti.f32, long: ti.f32):
         l = tm.floor(ti.sqrt(coeff_num))
         m = coeff_num - l * (l + 1)
         coeff = 0.0
-        lat  = -ti.sin(u*pi_by_2)
-        long = v*tm.pi+tm.pi
         
-        # TODO: U & V values must not be normalized (I guess?)
         if m < 0:
-            coeff = self.shRoot(l, -m) * self.shP(l, -m, lat) * tm.sin(-m * long)
+            coeff = self.shRoot(l, -m) * self.shP(l, -m, lat_conv) * tm.sin(-m * long)
         elif m == 0:
-            coeff = self.shRoot(l, 0) * self.shP(l, m, lat)
+            coeff = self.shRoot(l, 0) * self.shP(l, m, lat_conv)
         else:
-            coeff = self.shRoot(l, m) * self.shP(l, m, lat) * tm.cos(m * long)
+            coeff = self.shRoot(l, m) * self.shP(l, m, lat_conv) * tm.cos(m * long)
         
         return coeff
     
@@ -67,49 +68,64 @@ class ShmBsdf(BSDF):
     def shP(self, l: ti.i32, m: ti.i32, s: ti.f32) -> ti.f32:
         fac = 1.0
         
+        #if l-2 > m:
+        #    # Double recursion for higher degrees
+        #    rec = (2*(l-1) - 1) * s * self.shPNoRec(l-2, m, s) - (l + m - 2) * self.shPNoRec(l-3, m, s) / (l - m - 1)
+        #    fac = (2*l - 1) * s * rec - (l + m - 1) * self.shPNoRec(l-2, m, s) / (l - m)
+        if l-1 > m:
+            fac = (2*l - 1) * s * self.shPNoRec(l-1, m, s) - (l + m - 1) * self.shPNoRec(l-2, m, s) / (l - m)
+        else:
+            fac = self.shPNoRec(l, m, s)
+        
+        return fac
+            
+    @ti.func
+    def shPNoRec(self, l: ti.i32, m: ti.i32, s: ti.f32) -> ti.f32:
+        fac = 1.0
         if l == 0 and m == 0:
-            fac = 1.0
+            pass # fac = 1.0
         elif l == 1 and m == 0:
             fac = s
         elif l == 1 and m == 1:
             fac = -tm.sqrt(1.0 - s*s)
         elif l == m:
             fac = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m)
-        elif l-1 == m:
+        else: #if l-1 == m:
             fac = (2*m + 1) * s
             if m == 1: # l=2, m=1
                 fac *= -tm.sqrt(1.0 - s*s)
             else: # l=3, m=2 and higher
                 fac *= factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m)
-        else:
-            p1 = 1.0
-            p2 = 1.0
-            if l == 2:
-                p1 = s # 1, 0
-                #p2 = 1.0 # 0, 0
-            elif l == 3:
-                # l=3, m=1
-                if m == 1:
-                    p1 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,1
-                    p2 = -tm.sqrt(1.0 - s*s) # 1,1
-                # l=3, m=0
-                else: #if m == 0:
-                    p1 = (2*(l-1) - 1) * s*s - (l + m - 2) / (l - m - 1) # 2,0 Recursion
-                    p2 = s # 1,0
-            else: #if l == 4:
-                # l=4, m=2
-                if m == 2:
-                    p2 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,2
-                    p1 = (2*m + 1) * s * p2 # 3,2
-                # l=4, m=1
-                elif m == 1:
-                    p2 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,1
-                    p1 = (2*(l-1) - 1) * s * p2 - (l + m - 2) * -tm.sqrt(1.0 - s*s) / (l - m - 1) # 3,1 Recursion
-                # l=4, m=0
-                else: #if m == 0:
-                    p2 = (2*(l-1) - 1) * s*s - (l + m - 2) / (l - m - 1) # 2,0 Recursion
-                    p1 = (2*(l-1) - 1) * s * ((2*(l-2) - 1) * s*s - (l + m - 3) / (l - m - 2)) - (l + m - 2) * s / (l - m - 1) # 3,0 Double-Recursion
-            #fac = (2*l - 1) * s * self.shP(l-1, m, s) - (l + m - 1) * self.shP(l-2, m, s) / (l - m)
-            fac = (2*l - 1) * s * p1 - (l + m - 1) * p2 / (l - m)
+        #else:
+        #    p1 = 1.0
+        #    p2 = 1.0
+        #    if l == 2:
+        #        # l=2, m=0
+        #        p1 = s # 1, 0
+        #        #p2 = 1.0 # 0, 0
+        #    elif l == 3:
+        #        # l=3, m=1
+        #        if m == 1:
+        #            p1 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,1
+        #            p2 = -tm.sqrt(1.0 - s*s) # 1,1
+        #        # l=3, m=0
+        #        else: #if m == 0:
+        #            p1 = (2*(l-1) - 1) * s*s - (l + m - 2) / (l - m - 1) # 2,0 Recursion
+        #            p2 = s # 1,0
+        #    else: #if l == 4:
+        #        # l=4, m=2
+        #        if m == 2:
+        #            p2 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,2
+        #            p1 = (2*m + 1) * s * p2 # 3,2
+        #        # l=4, m=1
+        #        elif m == 1:
+        #            p2 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,1
+        #            p1 = (2*(l-1) - 1) * s * p2 - (l + m - 2) * -tm.sqrt(1.0 - s*s) / (l - m - 1) # 3,1 Recursion
+        #        # l=4, m=0
+        #        else: #if m == 0:
+        #            p2 = (2*(l-1) - 1) * s*s - (l + m - 2) / (l - m - 1) # 2,0 Recursion
+        #            p1 = (2*(l-1) - 1) * s * ((2*(l-2) - 1) * s*s - (l + m - 3) / (l - m - 2)) - (l + m - 2) * s / (l - m - 1) # 3,0 Double-Recursion
+        #    #fac = (2*l - 1) * s * self.shP(l-1, m, s) - (l + m - 1) * self.shP(l-2, m, s) / (l - m)
+        #    fac = (2*l - 1) * s * p1 - (l + m - 1) * p2 / (l - m)
         
         return fac
