@@ -27,6 +27,8 @@ class RtiProcessor(Processor):
         match fitter:
             case PolyFitter.__name__:
                 self._fitter = PolyFitter(settings)
+            case SHFitter.__name__:
+                self._fitter = SHFitter(settings)
             case NormalFitter.__name__:
                 self._fitter = NormalFitter(settings)
         

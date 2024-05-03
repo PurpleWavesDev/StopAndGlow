@@ -41,6 +41,15 @@
             "justMyCode": true
         },
         {
+            "name": "Process SHM",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "fitting", "fitter=shm", "--save", "data", "--view", "sequence"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Process NeuralRTI",
             "type": "debugpy",
             "request": "launch",
@@ -64,6 +73,15 @@
             "request": "launch",
             "program": "stop_lighting.py",
             "args": ["--loglevel", "DEBUG", "--load", "0422_eichhoernchen", "--load_hdri", "hdri.exr", "--render", "config", "algorithm=ptmz4", "--view", "render"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Render SHM",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--load", "0422_eichhoernchen", "--load_hdri", "hdri.exr", "--render", "config", "algorithm=shm", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

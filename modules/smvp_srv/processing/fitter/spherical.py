@@ -32,23 +32,36 @@ class SHFitter(PseudoinverseFitter):
             m = coeff_num - l * (l + 1)
             # l & m are parameters of the degree of the harmonics in the shape of:
             # (0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), ...
-            line[num] = H(l, m, u, v)
+            line[coeff_num] = SHFitter.SH(l, m, u, v)
             
         
-    # Helper function for HSH calculation
+    # Helper function for Spherical Harmonics calculation
+    
     def SH(l, m, theta, phi) -> float:
         """Spherical harmonics for the given degrees l & m and and spherical coordinates"""
-        if m == 0:
-            return SHFitter.K(l, 0) * SHFitter.P(l, 0, theta)
-        elif m < 0:
-            return root_two * SHFitter.K(l, m) * math.sin(-m * phi) * SHFitter.P(l, -m, theta)
+        if m < 0:
+            return SHFitter.RootFactor(l, m) * SHFitter.P(l, -m, math.cos(theta)) * math.sin(-m * phi)
+        elif m == 0:
+            return SHFitter.RootFactor(l, m) * SHFitter.P(l, 0, math.cos(theta))
         else:
-            return root_two * SHFitter.K(l, m) * math.cos(m * phi) * SHFitter.P(l, m, theta)
-        
-    def K(l: int, m: int) -> float:
-        return math.sqrt(((2*l + 1) / math.tau) * (factorial(-m if l - m < 0 else m) / factorial(-m if l + m < 0 else m)))
+            return SHFitter.RootFactor(l, m) * SHFitter.P(l, m, math.cos(theta)) * math.cos(m * phi)
+        #if m == 0:
+        #    return SHFitter.K(l, 0) * SHFitter.P(l, 0, theta)
+        #elif m < 0:
+        #    return root_two * SHFitter.K(l, m) * math.sin(-m * phi) * SHFitter.P(l, -m, theta)
+        #else:
+        #    return root_two * SHFitter.K(l, m) * math.cos(m * phi) * SHFitter.P(l, m, theta)
 
-    def P(l: int, m: int, x: float) -> float:
+    def RootFactor(l, m) -> float:
+        fac = (2*l + 1) / (4*math.pi)
+        if m != 0:
+            fac *= 2 * (factorial(l-abs(m))) / (factorial(l+abs(m)))
+        return math.sqrt(fac)
+    #def K(l: int, m: int) -> float:
+    #    return math.sqrt((2*l + 1) / (4 * math.pi) * (factorial(l - m) / factorial(l + m)))
+
+    def P(l: int, m: int, x: float) -> float: # TODO: I have no clue if that's right
+        """associated Legendre polynomials"""
         if l == 0 and m == 0:
             return 1
         elif l == 1 and m == 0:
@@ -61,4 +74,4 @@ class SHFitter(PseudoinverseFitter):
             return (2 * m + 1) * x * SHFitter.P(m, m, x)
         else:
             return ((2 * l - 1) * x * SHFitter.P(l - 1, m, x) - (l + m - 1) * SHFitter.P(l - 2, m, x)) / (l - m)
-        
+
