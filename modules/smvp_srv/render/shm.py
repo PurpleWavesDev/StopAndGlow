@@ -31,26 +31,36 @@ class ShmBsdf(BSDF):
     
     @ti.func
     def sample(self, x: ti.i32, y: ti.i32, u: ti.f32, v: ti.f32) -> tib.pixvec:
-        rgb = self._coeff[0, y, x]
+        rgb = self._coeff[0, y, x] # ti.Vector([0.0, 0.0, 0.0], dt=ti.f32) # 
         
-        for i in range(_number_of_coefficients):
-            rgb += v4tmp0[i % 4] * getBivariantCoeff(i)
+        for i in range(self._coeff.shape[0]):
+            rgb += self._coeff[i, y, x] * self.getBivariantCoeff(i, u, v)
 
         return tm.max(rgb, 0.0)
 
     @ti.func
-    def getBivariantCoeff(coeff_num: ti.i32):
+    def getBivariantCoeff(self, coeff_num: ti.i32, u: ti.f32, v: ti.f32):
         l = tm.floor(ti.sqrt(coeff_num))
         m = coeff_num - l * (l + 1)
-
-        if m == 0:
-            hshK(l, 0)
-            hshP(s, l, m)
+        coeff = 0.0
+        
+        # TODO: U & V values must not be normalized (I guess?)
+        if m < 0:
+            coeff = root_two * self.shRoot(l, m) * self.shP(l, -m, u) * tm.sin(-m * v) # ftmp2 is phi/long, s is cosine of theta/lat?
+        elif m == 0:
+            coeff = self.shRoot(l, 0) * self.shP(l, m, u)
         else:
-            if m < 0:
-                root_two * hshK(l, m) * sin(-m * ftmp2)
-                hshP(s, l, -m)
-            else:
-                root_two * hshK(l, m) * cos(m * ftmp2)
-                hshP(s, l, m)
+            coeff = root_two * self.shRoot(l, m) * self.shP(l, m, u) * tm.cos(m * v)
+        
+        return coeff
+    
+    @ti.func
+    def shRoot(self, l: ti.i32, m: ti.i32) -> ti.f32:
+        if m == 0:
+            pass
+        return 0.0
+    
+    @ti.func
+    def shP(self, l: ti.i32, m: ti.i32, s: ti.f32) -> ti.f32:
+        return 0.0
 
