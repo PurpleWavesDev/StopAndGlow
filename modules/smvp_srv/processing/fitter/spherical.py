@@ -45,12 +45,6 @@ class SHFitter(PseudoinverseFitter):
             return SHFitter.RootFactor(l, m) * SHFitter.P(l, 0, math.cos(theta))
         else:
             return SHFitter.RootFactor(l, m) * SHFitter.P(l, m, math.cos(theta)) * math.cos(m * phi)
-        #if m == 0:
-        #    return SHFitter.K(l, 0) * SHFitter.P(l, 0, theta)
-        #elif m < 0:
-        #    return root_two * SHFitter.K(l, m) * math.sin(-m * phi) * SHFitter.P(l, -m, theta)
-        #else:
-        #    return root_two * SHFitter.K(l, m) * math.cos(m * phi) * SHFitter.P(l, m, theta)
 
     def RootFactor(l, m) -> float:
         fac = (2*l + 1) / (4*math.pi)
@@ -67,11 +61,11 @@ class SHFitter(PseudoinverseFitter):
         elif l == 1 and m == 0:
             return x
         elif l == 1 and m == 1:
-            return -math.sqrt(1.0 - x * x)
+            return -math.sqrt(1.0 - x*x)
         elif l == m:
-            return factorial2(2 * m - 1) * math.sqrt(math.pow(1 - x * x, m))
-        elif m == l - 1:
-            return (2 * m + 1) * x * SHFitter.P(m, m, x)
+            return factorial2(2 * m - 1) * math.sqrt(math.pow(1 - x*x, m))
+        elif l-1 == m:
+            return (2*m + 1) * x * SHFitter.P(m, m, x)
         else:
-            return ((2 * l - 1) * x * SHFitter.P(l - 1, m, x) - (l + m - 1) * SHFitter.P(l - 2, m, x)) / (l - m)
+            return ((2*l - 1) * x * SHFitter.P(l-1, m, x) - (l + m - 1) * SHFitter.P(l-2, m, x)) / (l-m)
 

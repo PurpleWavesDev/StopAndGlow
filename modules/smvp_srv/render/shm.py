@@ -31,7 +31,7 @@ class ShmBsdf(BSDF):
     
     @ti.func
     def sample(self, x: ti.i32, y: ti.i32, u: ti.f32, v: ti.f32) -> tib.pixvec:
-        rgb = ti.Vector([0.0, 0.0, 0.0], dt=ti.f32) # self._coeff[0, y, x] # 
+        rgb = ti.Vector([0.0, 0.0, 0.0], dt=ti.f32)
         
         for i in range(self._coeff.shape[0]):
             rgb += self._coeff[i, y, x] * self.getBivariantCoeff(i, u, v)
@@ -43,8 +43,8 @@ class ShmBsdf(BSDF):
         l = tm.floor(ti.sqrt(coeff_num))
         m = coeff_num - l * (l + 1)
         coeff = 0.0
-        lat  = u*tm.pi
-        long = v*tm.pi
+        lat  = -ti.sin(u*pi_by_2)
+        long = v*tm.pi+tm.pi
         
         # TODO: U & V values must not be normalized (I guess?)
         if m < 0:
@@ -72,12 +72,44 @@ class ShmBsdf(BSDF):
         elif l == 1 and m == 0:
             fac = s
         elif l == 1 and m == 1:
-            fac = (-1.0) * tm.sqrt(1.0 - s * s)
+            fac = -tm.sqrt(1.0 - s*s)
         elif l == m:
             fac = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m)
-        elif m == l-1:
-            fac = 2*m + s# * self.shP(m, m, s)
+        elif l-1 == m:
+            fac = (2*m + 1) * s
+            if m == 1: # l=2, m=1
+                fac *= -tm.sqrt(1.0 - s*s)
+            else: # l=3, m=2 and higher
+                fac *= factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m)
         else:
-            fac = 1#(2*l - 1) * s * self.shP(l-1, m, s) - (l + m - 1) * self.shP(l - 2, m, s) / (l - m)
+            p1 = 1.0
+            p2 = 1.0
+            if l == 2:
+                p1 = s # 1, 0
+                #p2 = 1.0 # 0, 0
+            elif l == 3:
+                # l=3, m=1
+                if m == 1:
+                    p1 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,1
+                    p2 = -tm.sqrt(1.0 - s*s) # 1,1
+                # l=3, m=0
+                else: #if m == 0:
+                    p1 = (2*(l-1) - 1) * s*s - (l + m - 2) / (l - m - 1) # 2,0 Recursion
+                    p2 = s # 1,0
+            else: #if l == 4:
+                # l=4, m=2
+                if m == 2:
+                    p2 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,2
+                    p1 = (2*m + 1) * s * p2 # 3,2
+                # l=4, m=1
+                elif m == 1:
+                    p2 = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m) # 2,1
+                    p1 = (2*(l-1) - 1) * s * p2 - (l + m - 2) * -tm.sqrt(1.0 - s*s) / (l - m - 1) # 3,1 Recursion
+                # l=4, m=0
+                else: #if m == 0:
+                    p2 = (2*(l-1) - 1) * s*s - (l + m - 2) / (l - m - 1) # 2,0 Recursion
+                    p1 = (2*(l-1) - 1) * s * ((2*(l-2) - 1) * s*s - (l + m - 3) / (l - m - 2)) - (l + m - 2) * s / (l - m - 1) # 3,0 Double-Recursion
+            #fac = (2*l - 1) * s * self.shP(l-1, m, s) - (l + m - 1) * self.shP(l-2, m, s) / (l - m)
+            fac = (2*l - 1) * s * p1 - (l + m - 1) * p2 / (l - m)
         
         return fac
