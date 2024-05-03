@@ -73,7 +73,7 @@ class GUI:
         while window.running:
             # Frame times
             time_cur = time.time()
-            time_frame = time_cur - time_last
+            time_frame = min(time_cur - time_last, 1.0)
             time_last = time_cur
             
             ### Events ###

@@ -31,7 +31,7 @@ class ShmBsdf(BSDF):
     
     @ti.func
     def sample(self, x: ti.i32, y: ti.i32, u: ti.f32, v: ti.f32) -> tib.pixvec:
-        rgb = self._coeff[0, y, x] # ti.Vector([0.0, 0.0, 0.0], dt=ti.f32) # 
+        rgb = ti.Vector([0.0, 0.0, 0.0], dt=ti.f32) # self._coeff[0, y, x] # 
         
         for i in range(self._coeff.shape[0]):
             rgb += self._coeff[i, y, x] * self.getBivariantCoeff(i, u, v)
@@ -43,24 +43,41 @@ class ShmBsdf(BSDF):
         l = tm.floor(ti.sqrt(coeff_num))
         m = coeff_num - l * (l + 1)
         coeff = 0.0
+        lat  = u*tm.pi
+        long = v*tm.pi
         
         # TODO: U & V values must not be normalized (I guess?)
         if m < 0:
-            coeff = root_two * self.shRoot(l, m) * self.shP(l, -m, u) * tm.sin(-m * v) # ftmp2 is phi/long, s is cosine of theta/lat?
+            coeff = self.shRoot(l, -m) * self.shP(l, -m, lat) * tm.sin(-m * long)
         elif m == 0:
-            coeff = self.shRoot(l, 0) * self.shP(l, m, u)
+            coeff = self.shRoot(l, 0) * self.shP(l, m, lat)
         else:
-            coeff = root_two * self.shRoot(l, m) * self.shP(l, m, u) * tm.cos(m * v)
+            coeff = self.shRoot(l, m) * self.shP(l, m, lat) * tm.cos(m * long)
         
         return coeff
     
     @ti.func
     def shRoot(self, l: ti.i32, m: ti.i32) -> ti.f32:
-        if m == 0:
-            pass
-        return 0.0
+        fac = (2*l + 1) / (4*tm.pi)
+        if m != 0:
+            fac *= 2 * (factorial(l-m)) / (factorial(l+m))
+        return ti.sqrt(fac)
     
     @ti.func
     def shP(self, l: ti.i32, m: ti.i32, s: ti.f32) -> ti.f32:
-        return 0.0
-
+        fac = 1.0
+        
+        if l == 0 and m == 0:
+            fac = 1.0
+        elif l == 1 and m == 0:
+            fac = s
+        elif l == 1 and m == 1:
+            fac = (-1.0) * tm.sqrt(1.0 - s * s)
+        elif l == m:
+            fac = factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m)
+        elif m == l-1:
+            fac = 2*m + s# * self.shP(m, m, s)
+        else:
+            fac = 1#(2*l - 1) * s * self.shP(l-1, m, s) - (l + m - 1) * self.shP(l - 2, m, s) / (l - m)
+        
+        return fac
