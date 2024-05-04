@@ -35,17 +35,48 @@ class ShmBsdf(BSDF):
         rgb = ti.Vector([0.0, 0.0, 0.0], dt=ti.f32)
         # Convert UV to 
         lat_conv = -ti.sin(u*pi_by_2)
-        long     = v*tm.pi
+        lat  = u*pi_by_2
+        long = v*tm.pi
         
         for i in range(self._coeff.shape[0]):
-            rgb += self._coeff[i, y, x] * self.getBivariantCoeff(i, lat_conv, long)
+            l = tm.floor(ti.sqrt(i))
+            m = i - l * (l + 1)
+            rgb += self._coeff[i, y, x] * self.shHardCoded(l, m, lat, long)
+            # TODO: Slow and not really working
+            #rgb += self._coeff[i, y, x] * self.getBivariantCoeff(i, lat_conv, long)
 
         return tm.max(rgb, 0.0)
-
+    
+    @ti.func
+    def shHardCoded(self, l, m, lat: ti.f32, long: ti.f32) -> ti.f32:
+        val = 0.0
+        
+        if l == 0:
+            val = ti.sqrt(1/(4*math.pi))
+        elif l == 1:
+            if m == -1:
+                val = ti.sqrt(3/(4*math.pi)) * -tm.cos(lat) * tm.cos(long)
+            elif m == 0:
+                val = ti.sqrt(3/(4*math.pi)) * tm.sin(lat)
+            else: # m == 1:
+                val = ti.sqrt(3/(4*math.pi)) * -tm.cos(lat) * -tm.sin(long)
+        elif l == 2:
+            if m == -2:
+                val = ti.sqrt(15/(16*math.pi)) * (-tm.cos(lat))**2 * tm.cos(2*long)
+            if m == -1:
+                val = ti.sqrt(15/(16*math.pi)) * -tm.cos(2*lat) * tm.cos(long)
+            elif m == 0:
+                val = ti.sqrt(5/(16*math.pi)) * (3*tm.sin(lat)**2 - 1)
+            elif m == 1:
+                val = ti.sqrt(15/(16*math.pi)) * -tm.cos(2*lat) * -tm.sin(long)
+            else: #if m == 2:
+                val = ti.sqrt(15/(4*math.pi)) * (-tm.cos(lat))**2 * -tm.sin(2*long)
+        return val
+    
+    
+    ## TODO: Unused approach for flexible amount of degrees (with limits)
     @ti.func
     def getBivariantCoeff(self, coeff_num: ti.i32, lat_conv: ti.f32, long: ti.f32):
-        l = tm.floor(ti.sqrt(coeff_num))
-        m = coeff_num - l * (l + 1)
         coeff = 0.0
         
         if m < 0:
@@ -69,10 +100,11 @@ class ShmBsdf(BSDF):
         fac = 1.0
         
         #if l-2 > m:
-        #    # Double recursion for higher degrees
+        #    # Double recursion for higher degrees, slow to compile and not working -> disallow higher degrees
         #    rec = (2*(l-1) - 1) * s * self.shPNoRec(l-2, m, s) - (l + m - 2) * self.shPNoRec(l-3, m, s) / (l - m - 1)
         #    fac = (2*l - 1) * s * rec - (l + m - 1) * self.shPNoRec(l-2, m, s) / (l - m)
         if l-1 > m:
+            # Solves single recursions
             fac = (2*l - 1) * s * self.shPNoRec(l-1, m, s) - (l + m - 1) * self.shPNoRec(l-2, m, s) / (l - m)
         else:
             fac = self.shPNoRec(l, m, s)
@@ -96,6 +128,7 @@ class ShmBsdf(BSDF):
                 fac *= -tm.sqrt(1.0 - s*s)
             else: # l=3, m=2 and higher
                 fac *= factorial2(2*m - 1) * tm.sqrt((1.0 - s*s)**m)
+        # TODO: Tried to resolve recursions directly in function -> Not best solution
         #else:
         #    p1 = 1.0
         #    p2 = 1.0

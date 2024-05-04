@@ -26,7 +26,6 @@ algorithms = {
     'ptmz4':   ('PTM Z-Vec Coordinates 4',          RtiProcessor,   {'fitter': PolyFitter.__name__, 'coordinate_system': CoordSys.ZVec.name,    'degree': 4, 'bsdf': 'ptmz'}),
     'shm':     ('Spherical Harmonics Mapping 1',    RtiProcessor,   {'fitter': SHFitter.__name__,   'coordinate_system': CoordSys.ZVec.name,    'degree': 1, 'bsdf': 'shm'}),
     'shm2':    ('Spherical Harmonics Mapping 2',    RtiProcessor,   {'fitter': SHFitter.__name__,   'coordinate_system': CoordSys.ZVec.name,    'degree': 2, 'bsdf': 'shm'}),
-    'shm3':    ('Spherical Harmonics Mapping 3',    RtiProcessor,   {'fitter': SHFitter.__name__,   'coordinate_system': CoordSys.ZVec.name,    'degree': 3, 'bsdf': 'shm'}),
     'nrti':    ('Neural RTI',                       NeuralRti,      {'bsdf': 'nrti'}),
     'nrti3d':  ('Neural RTI 3D',                    NeuralRti,      {'bsdf': 'nrti'}),
     'blend':   ('Light Blending',                   None,           {'bsdf': 'blend'}),
