@@ -17,7 +17,7 @@ from .bsdf import *
 
 
 @ti.dataclass
-class LightstackBsdf:
+class LightblendBsdf:
     def __init__(self):
         pass
     

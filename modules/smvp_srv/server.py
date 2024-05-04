@@ -204,7 +204,7 @@ def execute(socket, port, queue):
                         queue.putCommand(Commands.EndIf, 'empty')
                     # Also generate normal map
                     queue.putCommand(Commands.If, 'empty', {'data': 'normal'})
-                    queue.putCommand(Commands.Process, 'fitting', {'fitter': 'normal', 'target': 'sequence', 'destination': 'data'})
+                    queue.putCommand(Commands.Process, 'generate', {'generator': 'normal', 'target': 'sequence', 'destination': 'data'})
                     queue.putCommand(Commands.Save, 'data')
                     queue.putCommand(Commands.EndIf, 'empty')
                     # Configure renderer

@@ -24,7 +24,7 @@ class DepthAnythingModels(StrEnum):
 
 class DepthEstimator(Processor):
     """Wrapper of the Depth-Anything framework"""
-    name = "depth"
+    name = "depthestim"
     
     def __init__(self):
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")

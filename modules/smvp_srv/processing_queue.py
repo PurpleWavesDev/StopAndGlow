@@ -526,6 +526,11 @@ class Worker:
                 _, fitter, fitter_settings = algorithms[seq_name]
                 processor = fitter()
                 settings = settings | fitter_settings
+            case 'generate':
+                seq_name = settings['generator']
+                _, generator, generator_settings = generators[seq_name]
+                processor = generator()
+                settings = settings | generator_settings
             case 'convert':
                 self.sequence.convertSequence(settings)
             case DepthEstimator.name:
@@ -535,7 +540,9 @@ class Worker:
             case RgbStacker.name:
                 processor = RgbStacker()
             case RtiProcessor.name:
-                processor = RtiProcessor()     
+                processor = RtiProcessor()
+            case LightstackProcessor.name:
+                processor = LightstackProcessor()
             case _:
                 log.error(f"Unknown processor type '{arg}'")
         

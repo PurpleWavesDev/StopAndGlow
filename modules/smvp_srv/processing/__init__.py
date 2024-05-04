@@ -1,8 +1,9 @@
-from .exposureblend import *
-from .rgbstack import *
-
 from .rti import *
 from .neural import *
+
+from .exposureblend import *
+from .rgbstack import *
+from .lightstack import *
 from .depthestim import *
 
 
@@ -18,7 +19,7 @@ from .depthestim import *
 # Configured fitter with corresponding BSDFs in render submodule
 # Key, full name, class, settings
 algorithms = {
-    # With BSDFs
+    # Fitter algorithms with BSDF
     'ptm':     ('Polynominal Texture Mapping 3',    RtiProcessor,   {'fitter': PolyFitter.__name__, 'coordinate_system': CoordSys.LatLong.name, 'degree': 3, 'bsdf': 'ptm'}),
     'ptm4':    ('Polynominal Texture Mapping 4',    RtiProcessor,   {'fitter': PolyFitter.__name__, 'coordinate_system': CoordSys.LatLong.name, 'degree': 4, 'bsdf': 'ptm'}),
     'ptmz':    ('PTM Z-Vec Coordinates 3',          RtiProcessor,   {'fitter': PolyFitter.__name__, 'coordinate_system': CoordSys.ZVec.name,    'degree': 3, 'bsdf': 'ptmz'}),
@@ -29,7 +30,12 @@ algorithms = {
     'nrti':    ('Neural RTI',                       NeuralRti,      {'bsdf': 'nrti'}),
     'nrti3d':  ('Neural RTI 3D',                    NeuralRti,      {'bsdf': 'nrti'}),
     'blend':   ('Light Blending',                   None,           {'bsdf': 'blend'}),
-    # No BSDFs
-    'normal':  ('Normal fitter',                    RtiProcessor,   {'fitter': NormalFitter.__name__}),
-    'depth':   ('Depth Estimator',                  DepthEstimator, {}),
+}
+
+generators = {
+    # Generators without BSDF
+    'normal':       ('Normal generator',            RtiProcessor,           {'fitter': NormalFitter.__name__}),
+    'alpha':        ('Alpha Mask Generator',        LightstackProcessor,    {'mode': 'alpha'}),
+    'alphadepth':   ('Alpha from Depth Generator',  DepthEstimator,         {'threshold': 0.3}),#TODO
+    'depth':        ('Depth Estimator',             DepthEstimator,         {}),
 }

@@ -1,6 +1,6 @@
 from .renderer import *
 # BSDFs
-from .lightstack import * # TODO: Rename to lightblend?
+from .lightblend import *
 from .ptm import *
 from .shm import *
 from .neural import *
@@ -11,5 +11,5 @@ bsdfs = {
     'ptmz':    (PtmBsdf, {'coordinate_system': CoordSys.ZVec}),
     'shm':     (ShmBsdf, {}),
     'nrti':    (NeuralRtiBsdf, {}),
-    'blend':   (LightstackBsdf, {}),
+    'blend':   (LightblendBsdf, {}),
 }
