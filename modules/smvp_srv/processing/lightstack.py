@@ -31,7 +31,7 @@ class LightstackProcessor(Processor):
         exposure = GetSetting(settings, 'exposure', 50)
         
         self._view_idx = 0
-                
+        
         # Execute command for mode
         match self._mode:
             case 'alpha':
@@ -41,6 +41,10 @@ class LightstackProcessor(Processor):
                 imgutils.SaveEval(buf.get(), 'alpha_lights')
                 # Binary Filter
                 threshold = cv.threshold(buf.asDomain(ImgDomain.sRGB).asInt().get(), threshold, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
+            
+            case 'hdri':
+                # Sums up all lights with value from blurred HDRI
+                pass
 
         self._result = ImgBuffer(img=threshold)
 

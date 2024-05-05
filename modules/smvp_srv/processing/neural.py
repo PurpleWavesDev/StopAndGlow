@@ -35,55 +35,38 @@ class NeuralRti(Processor):
         self.sequence = Sequence()
         
         # Init model
-        model = RtiAutoencoder(len(img_seq))
-
-        # Build input / training tensor
-        # Transformations applied on each image => only make them a tensor
-        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+        num_lights = 50 #len(img_seq)
+        model = RtiAutoencoder(num_lights)
+        with utils.logging_disabled():
+            L.seed_everything(42)
 
         # Loading the training dataset. We need to split it into a training and validation part
-        train_dataset = CIFAR10(root=DATASET_PATH, train=True, transform=transform, download=True)
-        L.seed_everything(42)
-        train_set, val_set = torch.utils.data.random_split(train_dataset, [45000, 5000])
-
-        # Loading the test set
-        test_set = CIFAR10(root=DATASET_PATH, train=False, transform=transform, download=True)
+        log.debug("Loading data")
+        dataset = self.prepareData(img_seq, calibration)
+        log.debug("Splitting data")
+        train_set, val_set = self.splitData(dataset)
 
         # We define a set of data loaders that we can use for various purposes later.
-        train_loader = data.DataLoader(train_set, batch_size=256, shuffle=True, drop_last=True, pin_memory=True, num_workers=4)
-        val_loader = data.DataLoader(val_set, batch_size=256, shuffle=False, drop_last=False, num_workers=4)
-        test_loader = data.DataLoader(test_set, batch_size=256, shuffle=False, drop_last=False, num_workers=4)
-
-
-        def get_train_images(num):
-            return torch.stack([train_dataset[i][0] for i in range(num)], dim=0)
-
-
-        for id, frame in img_seq:
-            # Apply transform
-            w, h = frame.resolution()
-            frame = self.transform({'image': frame.get()[...,0:3]})['image']
-            frame = torch.from_numpy(frame).unsqueeze(0).to(self.device)
-            
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size=256, shuffle=True, drop_last=True, pin_memory=True, num_workers=4)
+        val_loader = torch.utils.data.DataLoader(val_set, batch_size=256, shuffle=False, drop_last=False, num_workers=4)
         
         # Start training
+        log.debug("Starting training")
         trainer = L.Trainer(
             accelerator="auto",
             devices=1,
             max_epochs=30,
             callbacks=[
                 #ModelCheckpoint(save_weights_only=True),
-                #GenerateCallback(get_train_images(8), every_n_epochs=10),
+                #GenerateCallback(self.getImages(dataset, 8), every_n_epochs=10),
                 #LearningRateMonitor("epoch"),
             ],
         )
         trainer.logger._default_hp_metric = None  # Optional logging argument that we don't need
         trainer.fit(model, train_loader, val_loader)
-        # Test best model on validation and test set
+        # Test best model on validation set
         val_result = trainer.test(model, dataloaders=val_loader, verbose=False)
-        test_result = trainer.test(model, dataloaders=test_loader, verbose=False)
-        result = {"test": test_result, "val": val_result}
-
+        log.info(f"Validation result {val_result}")
 
         # Store data in image sequence and metadata
         #self.sequence.append(ImgBuffer(img=depth), id)
@@ -95,6 +78,72 @@ class NeuralRti(Processor):
         
     def get(self) -> Sequence:
         return self.sequence
+    
+    
+    ## Data methods
+    def prepareData(self, img_seq: Sequence, calibration: Calibration):
+        num_lights = 50 #len(img_seq)
+        res_x, res_y = img_seq.get(0).resolution()
+        datalen = num_lights * res_y*res_x
+
+        # Read all images into single buffer        
+        #allimgdata = np.zeros((num_lights, res_y*res_x * 3),np.float32)
+        #for i, id in enumerate(img_seq.getKeys()):
+        #    img = img_seq[id].asDomain(ImgDomain.Lin).get(trunk_alpha=True)
+        #    allimgdata[i, :] = np.ravel(img)
+        
+        ## Build input and target tensors
+        # TODO: Unable to allocate 1.59 TiB for an array with shape (549504000, 795) and data type float32 WTF
+        #inputdata  = np.zeros((datalen, num_lights * 3), np.float32) # Pixel and direction data for encoder
+        lightdata  = np.zeros((datalen, 2), np.float32)  # Directions for all lights for decoder
+        targetdata = np.zeros((datalen, 3), np.float32)  # RGB pixel values of all lights
+        
+        for i, id in enumerate(img_seq.getKeys()):
+            if i >= 50:
+                break
+            
+            # Fill target data
+            target_tmp = img_seq[id].asDomain(ImgDomain.Lin).get(trunk_alpha=True)
+            #target_tmp = np.reshape(allimgdata[i], (res_y*res_x, 3))
+            target_tmp = np.reshape(target_tmp, (res_y*res_x, 3))
+            targetdata[(res_y*res_x * i):(res_y*res_x * (i+1)),:] = target_tmp
+            
+            # Fill input data
+            #input_tmp = np.reshape(allimgdata, (num_lights, res_y*res_x, 3))
+            #input_tmp = np.transpose(input_tmp, (1, 0, 2))
+            #input_tmp = np.reshape(input_tmp, (res_y*res_x, num_lights * 3))
+            #inputdata[(res_y*res_x * i):(res_y*res_x*(i+1)), :] = input_tmp
+            
+            # Fill light data
+            ld = np.transpose(calibration[id].getZVecNorm())
+            lt = np.tile(ld, (res_y*res_x, 1))
+            lt = np.reshape(lt, (res_y*res_x, 2))
+            lightdata[(res_y*res_x * i):(res_y*res_x*(i+1)),:] = lt
+            
+            # Delete temp vars to free up memory
+            del target_tmp, ld, lt # input_tmp
+                    
+        # Converting numpy array to Tensor
+        #inputdata  = torch.from_numpy(intputdata).float()
+        lightdata  = torch.from_numpy(lightdata).float()
+        targetdata = torch.from_numpy(targetdata).float()
+        
+        ## Transformations applied to input image data
+        transform = transforms.Compose([transforms.Normalize((0.5,), (0.5,))])
+        #input_transformed = transform(intputdata) # transform(torch.from_numpy(intputdata).float())
+        #inputdata = torch.stack([transform(targetdata), lightdata]) # tensor size ..., C, H, W expected
+
+        
+        return torch.utils.data.TensorDataset(lightdata, targetdata) # TODO single dataset? what order of tensors?
+
+    def splitData(self, datasets):
+        # Split and return
+        train_set, val_set = torch.utils.data.random_split(datasets, [0.9, 0.1])
+        return train_set, val_set
+    
+    def getImages(self, dataset, num):
+        return torch.stack([dataset[i][0] for i in range(num)], dim=0)
+
         
 
 class RtiEncoder(nn.Module):
@@ -162,8 +211,8 @@ class RtiAutoencoder(L.LightningModule):
 
     def _get_reconstruction_loss(self, batch):
         """Given a batch of images, this function returns the reconstruction loss (MSE in our case)."""
-        x, _ = batch  # We do not need the labels
-        x_hat = self.forward(x)
+        x, y = batch  # We do not need the labels
+        x_hat = self.forward(y, x)
         loss = F.mse_loss(x, x_hat, reduction="none")
         loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
         return loss

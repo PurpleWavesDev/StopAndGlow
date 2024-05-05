@@ -54,7 +54,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=0306_front.json", "--load", "fisch_untersichtig_expoblend", "--process", "fitting", "fitter=nrti", "--save", "data", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "fitting", "fitter=nrti", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -63,7 +63,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=0306_front.json", "--load", "fisch_untersichtig_expoblend", "--process", "generate", "generator=alpha", "--save", "data", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "generate", "generator=alpha", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
