@@ -18,7 +18,7 @@ class LightstackProcessor(Processor):
     name = "lightstack"
     
     def __init__(self):
-        self._result = ImgBuffer()
+        self._result = Sequence()
         self._mode = ''
     
     def getDefaultSettings() -> dict:
@@ -27,8 +27,8 @@ class LightstackProcessor(Processor):
     def process(self, seq: Sequence, calibration: Calibration, settings={}):
         # Settings
         self._mode = GetSetting(settings, 'mode', 'alpha')
-        threshold = GetSetting(settings, 'threshold', 30)
-        exposure = GetSetting(settings, 'exposure', 50)
+        threshold = GetSetting(settings, 'threshold', 20)
+        exposure = GetSetting(settings, 'exposure', 80)
         
         self._view_idx = 0
         
@@ -36,17 +36,25 @@ class LightstackProcessor(Processor):
         match self._mode:
             case 'alpha':
                 # Get average image of all lamps with position parallel to the image plane
-                buf = self.avgLights(seq, calibration, lambda lightpos: lightpos.getXYZ()[1] <= 0.5 and lightpos.getXYZ()[1] > 0.1)
-                buf.set(buf.get()*exposure)
-                imgutils.SaveEval(buf.get(), 'alpha_lights')
+                # TODO: Two images with only left and right lamps on, then merge sides -> hoping to get reflections in the background only on the "wrong" side
+                buf_r = self.avgLights(seq, calibration, lambda lightpos: lightpos.getXYZ()[1] <= 0.6 and lightpos.getXYZ()[1] > -0.6 and lightpos.getXYZ()[0] > 0.0)
+                buf_r.set(buf_r.get()*exposure)
+                buf_l = self.avgLights(seq, calibration, lambda lightpos: lightpos.getXYZ()[1] <= 0.6 and lightpos.getXYZ()[1] > -0.6 and lightpos.getXYZ()[0] < 0.0)
+                buf_l.set(buf_l.get()*exposure)
+                
+                #imgutils.SaveEval(buf.get(), 'alpha_lights')
                 # Binary Filter
-                threshold = cv.threshold(buf.asDomain(ImgDomain.sRGB).asInt().get(), threshold, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
+                threshold1 = cv.threshold(buf_r.asDomain(ImgDomain.sRGB).asInt().get(), threshold, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
+                threshold2 = cv.threshold(buf_l.asDomain(ImgDomain.sRGB).asInt().get(), threshold, 255, cv.THRESH_BINARY)[1] # + cv.THRESH_OTSU
+                
+                self._result.append(ImgBuffer(img=threshold1), 0)
+                self._result.append(ImgBuffer(img=threshold2), 1)
+                self._result.append(buf_r, 2)
+                self._result.append(buf_l, 3)
             
             case 'hdri':
                 # Sums up all lights with value from blurred HDRI
                 pass
-
-        self._result = ImgBuffer(img=threshold)
 
         
     def avgLights(self, seq, cal, func):
@@ -64,10 +72,7 @@ class LightstackProcessor(Processor):
         
     def get(self) -> Sequence:
         # Metadata
-        seq = Sequence()
-        seq.setMeta('lightstack_mode', self._mode)
-        seq.append(self._result, 0)
-        
-        return seq
+        self._result.setMeta('lightstack_mode', self._mode)
+        return self._result
     
 
