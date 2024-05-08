@@ -1,3 +1,5 @@
+import numpy as np
+
 from .pseudoinverse import PseudoinverseFitter
 from ...hw.calibration import *
 
@@ -6,21 +8,31 @@ import taichi.math as tm
 import taichi.types as tt
 from ...utils import ti_base as tib
 
+
 class NormalFitter(PseudoinverseFitter):
     name = "Normalmap Fitter"
     
     def __init__(self, settings = {}):
         super().__init__(settings)
-        self._settings['rgb'] = False
+        self._is_rgb = False
+        self._coord_sys = CoordSys.XYZ
         # Settings
         #self._scale_positive = settings['scale_to_positive'] if 'scale_to_positive' in settings else True
     
     def getCoefficientCount(self) -> int:
         """Returns number of coefficients"""
         return 3
+    
+    def needsReflectance(self) -> bool:
+        return True
             
     def fillLightMatrix(self, line, lightpos: LightPosition):
-        line = lightpos.getXYZ()
+        #latitude = tm.asin(self.xyz[2])
+        #longitude = tm.cos(tm.asin(self.xyz[0]/tm.cos(latitude))) # -pi/2 to pi/2 front side, zero is middle
+        vec = np.array([0, -1, 0], dtype=float)
+        xyz = lightpos.getXYZ()
+        #np.dot(vec, lightpos.getXYZ())
+        line[:] = [xyz[0], xyz[2], -xyz[1]] # np.dot(vec, xyz)
     
 """
 # bilder und lichter laden 

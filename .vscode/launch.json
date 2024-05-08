@@ -18,7 +18,16 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--load", "0422_eichhoernchen", "--view", "sequence"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Process Normal",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "stop_lighting.py",
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_tonkrug", "--process", "generate", "generator=normal", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -45,7 +54,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "stop_lighting.py",
-            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "fitting", "fitter=shm", "--save", "data", "--view", "sequence"],
+            "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_tonkrug", "--process", "fitting", "fitter=shm", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

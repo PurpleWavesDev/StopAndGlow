@@ -195,7 +195,7 @@ class ImgBuffer:
             match self._domain:
                 case ImgDomain.sRGB:
                     if img.dtype == IMAGE_DTYPE_FLOAT:
-                        tib.sRGB2Lin(img)
+                        tib.sRGB2Lin(img.copy())
                     else:
                         img = colour.cctf_decoding(img, 'sRGB')
                 case ImgDomain.Rec709:
@@ -206,7 +206,7 @@ class ImgBuffer:
             match domain:
                 case ImgDomain.sRGB:
                     if img.dtype == IMAGE_DTYPE_FLOAT:
-                        tib.lin2sRGB(img, 1)
+                        tib.lin2sRGB(img.copy(), 1)
                     else:
                         img = colour.cctf_encoding(img, 'sRGB')
                 case ImgDomain.Rec709:

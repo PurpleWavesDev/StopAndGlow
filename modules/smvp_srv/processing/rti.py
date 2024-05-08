@@ -51,7 +51,20 @@ class RtiProcessor(Processor):
         self._fitter.computeInverse(calibration, recalc)
         
         # Compute coefficients
-        self._fitter.computeCoefficients(img_seq, slices=4)
+        if self._fitter.needsReflectance():
+            # Use reflectance maps
+            # TODO: Where to get good reflectance maps from?!
+            reflectance = Sequence()
+            albedo = img_seq.getDataSequence('shm').get(0).asDomain(ImgDomain.Lin).RGB2Gray().get() # TODO: This is not really an albedo map
+            albedo = np.maximum(albedo, np.full(albedo.shape, 0.0005)) # TODO: What is a good value?
+            for id, img in img_seq:
+                reflectance[id] = ImgBuffer(img=img.asDomain(ImgDomain.Lin).RGB2Gray().get()/albedo, domain=ImgDomain.Lin)
+            self._fitter.computeCoefficients(reflectance, slices=4)
+            #img_seq.setDataSequence('reflectance', reflectance)
+        
+        else:
+            # Use normal image sequence
+            self._fitter.computeCoefficients(img_seq, slices=4)
         
         # Save coord bounds
         #coord_min, coord_max = calibration.getCoordBounds()
@@ -64,6 +77,12 @@ class RtiProcessor(Processor):
             seq = self._fitter.getCoefficients()
             #seq.setMeta('latlong_min', (self._u_min, self._v_min))
             #seq.setMeta('latlong_max', (self._u_max, self._v_max))
+            
+            # Normalize for normal map
+            if isinstance(self._fitter, NormalFitter):
+                normal = seq.get(0).get()
+                normal = normal/2 + 0.5
+                seq.get(0).set(normal)
             return seq
         return Sequence()
     

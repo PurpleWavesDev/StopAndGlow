@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import logging as log
+import math
 import numpy as np
 
 import taichi as ti
@@ -21,6 +22,7 @@ class PseudoinverseFitter(ABC):
         self._settings = settings
         self._is_rgb = GetSetting(self._settings, 'rgb', True)
         self._coord_sys = CoordSys[GetSetting(settings, 'coordinate_system', CoordSys.LatLong.name)].value
+        self._domain = ImgDomain[GetSetting(settings, 'domain', ImgDomain.Lin.name)].value
 
     def loadCoefficients(self, coefficient_seq):
         # Load metadata
@@ -31,25 +33,25 @@ class PseudoinverseFitter(ABC):
         
         # Init coefficient field and copy data
         res_x, res_y = coefficient_seq.get(0).resolution()
-        self._coefficients = ti.Vector.field(n=3, dtype=ti.f32, shape=(len(coefficient_seq), res_y, res_x))
+        self._coefficients = ti.Vector.field(n=3 if self._is_rgb else 1, dtype=ti.f32, shape=(len(coefficient_seq), res_y, res_x))
         arr = np.stack([frame[1].get() for frame in coefficient_seq], axis=0)
         self._coefficients.from_numpy(arr)
         
         
     def getCoefficients(self) -> Sequence:
         seq = Sequence()
-        arr = self._coefficients.to_numpy()
+        arr = np.squeeze(self._coefficients.to_numpy())
         
         
         # Add frames to sequence
         coefficient_count = self._coefficients.shape[0]
         if self._is_rgb:
             for i in range(coefficient_count):
-                seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
+                seq.append(ImgBuffer(img=arr[i], domain=self._domain), i)
         else:
-            # TODO: Three channels in one image
-            for i in range(coefficient_count):
-                seq.append(ImgBuffer(img=arr[i], domain=ImgDomain.Lin), i)
+            # Three channels in one image
+            for i in range(math.ceil(coefficient_count/3)):
+                seq.append(ImgBuffer(img=np.moveaxis(arr[i*3:min((i+1)*3, coefficient_count)], 0, -1), domain=self._domain), i) # TODO: Extend to 3 channels when not enough channels are available
         
         # Metadata
         seq.setMeta('fitter', type(self).__name__)
@@ -59,6 +61,9 @@ class PseudoinverseFitter(ABC):
         seq.setMeta('coordinate_system', CoordSys(self._coord_sys).name)
         
         return seq
+    
+    def needsReflectance(self) -> bool:
+        return False
 
     
     @abstractmethod
@@ -73,11 +78,11 @@ class PseudoinverseFitter(ABC):
         
         coefficient_count = self.getCoefficientCount()
         res_x, res_y = img_seq.get(0).resolution()
-        self._coefficients = ti.Vector.field(n=3, dtype=ti.f32, shape=(coefficient_count, res_y, res_x))
+        self._coefficients = ti.Vector.field(n=3 if self._is_rgb else 1, dtype=ti.f32, shape=(coefficient_count, res_y, res_x))
         
         # Image slices for memory reduction
         slice_length = res_y // slices
-        sequence_buf = ti.Vector.field(n=3, dtype=ti.f32, shape=(len(img_seq), slice_length, res_x))
+        sequence_buf = ti.Vector.field(n=3 if self._is_rgb else 1, dtype=ti.f32, shape=(len(img_seq), slice_length, res_x))
         for slice_count in range(res_y // slice_length):
             start = slice_count * slice_length
             end = min((slice_count+1) * slice_length, res_y)
@@ -85,10 +90,12 @@ class PseudoinverseFitter(ABC):
             # Copy frames to buffer
             for i, id in enumerate(img_seq.getKeys()):
                 if self._is_rgb:
-                    tib.copyRgbToSequence(sequence_buf, i, img_seq[id].asFloat().get()[start:end])
+                    tib.copyRgbToSequence(sequence_buf, i, img_seq[id].asDomain(self._domain, True).get()[start:end]) # TODO: Match in sRGB?
                 else:
-                    tib.copyLuminanceToSequence(sequence_buf, i, img_seq[id].asFloat().RGB2Gray().get()[start:end])
-            
+                    # TODO: Check if Sequence is single channel already
+                    #tib.copyLuminanceToSequence(sequence_buf, i, img_seq[id].asDomain(self._domain, True).RGB2Gray().get()[start:end])
+                    tib.copyLuminanceToSequence(sequence_buf, i, img_seq[id].asDomain(self._domain, True).get()[start:end])
+           
             # Compute coefficient slice
             computeCoefficientSlice(sequence_buf, self._coefficients, self._inverse, start) 
         del sequence_buf
