@@ -126,7 +126,7 @@ class LightCtl:
 
     def sampleHdri(self, longitude_offset=0):
         res_y, res_x = self._processed_hdri.get().shape[:2]
-        for id, pos in self._cal.getLights().items():
+        for id, pos in self._cal:
             # Sample point in HDRI
             latlong = pos.getLL()
             x = int(res_x * (2*math.pi - (latlong[1]+longitude_offset) % (2*math.pi)) / (2*math.pi)) # TODO: Is round here wrong? Indexing error when rounding up on last value!
@@ -134,12 +134,12 @@ class LightCtl:
             self._lightVals[id] = self._processed_hdri[x, y]
     
     def sampleWithUV(self, f):
-        for id, pos in self._cal.getLights().items():
+        for id, pos in self._cal:
             sample = f(pos.getLL())
             self._lightVals[id] = sample
     
     def sampleWithLatLong(self, f):
-        for id, pos in self._cal.getLights().items():
+        for id, pos in self._cal:
             sample = f(pos.getLL())
             self._lightVals[id] = sample
 

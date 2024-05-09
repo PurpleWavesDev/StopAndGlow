@@ -64,6 +64,9 @@ class PseudoinverseFitter(ABC):
     
     def needsReflectance(self) -> bool:
         return False
+    
+    def getFilterFn(self):
+        return lambda id, lp: False
 
     
     @abstractmethod
@@ -90,34 +93,29 @@ class PseudoinverseFitter(ABC):
             # Copy frames to buffer
             for i, id in enumerate(img_seq.getKeys()):
                 if self._is_rgb:
-                    tib.copyRgbToSequence(sequence_buf, i, img_seq[id].asDomain(self._domain, True).get()[start:end]) # TODO: Match in sRGB?
+                    tib.copyRgbToSequence(sequence_buf, i, img_seq[id].asDomain(self._domain, True).get()[start:end])
                 else:
-                    # TODO: Check if Sequence is single channel already
-                    #tib.copyLuminanceToSequence(sequence_buf, i, img_seq[id].asDomain(self._domain, True).RGB2Gray().get()[start:end])
-                    tib.copyLuminanceToSequence(sequence_buf, i, img_seq[id].asDomain(self._domain, True).get()[start:end])
+                    # Get image luminance
+                    tib.copyLuminanceToSequence(sequence_buf, i, img_seq[id].asDomain(self._domain, True).y().get()[start:end])
            
             # Compute coefficient slice
             computeCoefficientSlice(sequence_buf, self._coefficients, self._inverse, start) 
         del sequence_buf
         
 
-    def computeInverse(self, calibration, recalculate=True):
+    def computeInverse(self, lights: dict):
         # Init array
-        light_count = len(calibration)
+        light_count = len(lights)
         coefficient_count = self.getCoefficientCount()
         self._inverse = ti.ndarray(ti.f32, (coefficient_count, light_count))
         
-        if not recalculate and calibration.getInverse() is not None:
-            # Load from calibration
-            self._inverse.from_numpy(calibration.getInverse())
-        else:
-            # Create array and fill it with light positions
-            A = np.zeros((light_count, coefficient_count))
-            for i, light in enumerate(calibration.getPositions()):
-                self.fillLightMatrix(A[i], light)
-                
-            # Calculate inverse
-            self._inverse.from_numpy(np.linalg.pinv(A).astype(np.float32))
+        # Create array and fill it with light positions
+        A = np.zeros((light_count, coefficient_count))
+        for i, lp in enumerate(lights.values()):
+            self.fillLightMatrix(A[i], lp)
+            
+        # Calculate inverse
+        self._inverse.from_numpy(np.linalg.pinv(A).astype(np.float32))
             
     @abstractmethod
     def fillLightMatrix(self, line, lightpos: LightPosition):

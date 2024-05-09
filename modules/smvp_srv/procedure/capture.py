@@ -27,7 +27,7 @@ class Capture:
         # Generate preview frame
         nth = 4 # TODO
         if self._cal is not None:
-            self._preview = [id for id, light in self._cal.getLights().items() if light.getLL()[0] > radians(45) and light.getLL()[0] < radians(60)]
+            self._preview = [id for id, light in self._cal if light.getLL()[0] > radians(45) and light.getLL()[0] < radians(60)]
         else:
             self._preview = list(range(0, config['capture_max_addr'], step=nth))
 

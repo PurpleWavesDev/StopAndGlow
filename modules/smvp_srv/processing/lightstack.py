@@ -25,6 +25,8 @@ class LightstackProcessor(Processor):
         return {'mode': 'alpha'}
     
     def process(self, seq: Sequence, calibration: Calibration, settings={}):
+        self._result = Sequence()
+        
         # Settings
         self._mode = GetSetting(settings, 'mode', 'alpha')
         threshold = GetSetting(settings, 'threshold', 20)
@@ -33,6 +35,7 @@ class LightstackProcessor(Processor):
         self._view_idx = 0
         
         # Execute command for mode
+        log.info(f"Stacking lights with mode {self._mode}")
         match self._mode:
             case 'alpha':
                 # Get average image of all lamps with position parallel to the image plane
@@ -55,12 +58,28 @@ class LightstackProcessor(Processor):
             case 'hdri':
                 # Sums up all lights with value from blurred HDRI
                 pass
-
+            
+            case 'average':
+                # Takes average of all images
+                self._result.append(self.avgLights(seq, calibration, lambda lightpos: True), 0)
+            
+            # TODO: Reflectance only for front facing lights? (but avg for all)
+            case 'reflectance':
+                # Takes average of all images
+                avg = self.avgLights(seq, calibration, lambda lightpos: True)
+                # Set minimum value to make division stable
+                avg.set(np.maximum(avg.get(), np.full(avg.get().shape, 0.0005))) # TODO: What is a good value?
+                for id, img in seq:
+                    self._result.append(ImgBuffer(path=img.getPath(), img=img.get()/avg.get(), domain=ImgDomain.Lin), id)
+            
+            case _:
+                log.error(f"Unknown mode '{self._mode}'")
+                
         
-    def avgLights(self, seq, cal, func):
+    def avgLights(self, seq, cal, func) -> ImgBuffer:
         count = 0
         img = ImgBuffer.CreateEmpty(seq.get(0).resolution()).get()
-        for id, lightpos in cal.getLights().items():
+        for id, lightpos in cal:
             if func(lightpos):
                 if id in seq.getKeys():
                     img += seq[id].asDomain(ImgDomain.Lin).get()

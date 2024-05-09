@@ -25,6 +25,9 @@ class NormalFitter(PseudoinverseFitter):
     
     def needsReflectance(self) -> bool:
         return True
+    
+    def getFilterFn(self):
+        return lambda id, lp: lp.getXYZ()[1] > 0
             
     def fillLightMatrix(self, line, lightpos: LightPosition):
         #latitude = tm.asin(self.xyz[2])

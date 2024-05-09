@@ -232,10 +232,12 @@ class ImgBuffer:
         if self.get() is not None:
             return self._img.shape[2]
         return 0
-    def hasAlpha(self) -> int:
+    def hasAlpha(self) -> bool:
         if self.get() is not None:
             return self._img.shape[2] == 4
         return False
+    def isRgb(self) -> bool:
+        return self.channels() >= 3
     def resolution(self) -> [int, int]:
         if self.get() is not None:
             return (self._img.shape[1], self._img.shape[0])
@@ -252,6 +254,10 @@ class ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,2], domain=self._domain)
     def a(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=self.get()[...,3], domain=self._domain)
+    def y(self) -> ImgBuffer:
+        if self.isRgb():
+            return self.RGB2Gray()
+        return self
     def RGB2Gray(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=cv.cvtColor(self.get(), cv.COLOR_RGB2GRAY), domain=self._domain)
     def gray2RGB(self) -> ImgBuffer:

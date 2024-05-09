@@ -18,8 +18,8 @@ class Calibration:
         else:
             self._data = {
                 'version': '0.2.0',
-                'lights': [],
-                'fitter': {},
+                'lights': [], # TODO: Why is this no dict?
+                'fitter': {}, # TODO: Not used
             }
 
     def addLight(self, id, lightpos: LightPosition):
@@ -86,6 +86,9 @@ class Calibration:
     
     def __contains__(self, id):
         return next((True for light in self._data['lights'] if light['id'] == id), False)
+    
+    def __iter__(self):
+        return iter(self.getLights().items())
 
     def __len__(self) -> int:
         return len(self._data['lights'])
@@ -141,7 +144,7 @@ class Calibration:
             xyz = np.array([0,0,0], dtype=float)
             weight = 0.0
             for cal in cals:
-                if id in cal:
+                if id in cal.getIds():
                     # TODO: See if vector is totally off (what is the base though?)
                     #print(np.dot(self[id].getXYZ(), cal[id].getXYZ()))
                     # Weighted sum

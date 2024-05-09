@@ -9,6 +9,7 @@ from ..utils import *
 from ..utils import ti_base as tib
 
 from .processor import *
+from .lightstack import *
 from .fitter import *
 
 
@@ -34,37 +35,46 @@ class RtiProcessor(Processor):
         
     
     def process(self, img_seq: Sequence, calibration: Calibration, settings={}):
-        # Validate image sequence 
-        if len(img_seq) != len(calibration):
-            log.error(f"Image sequence length ({len(img_seq)}) and number of lights in calibration ({len(calibration)}) must match, aborting!")
-            return
-        # Get dict of light ids with coordinates that are both in the calibration and image sequence
-        #lights = {light['id']: Latlong2UV(light['latlong']) for light in calibration if light['id'] in img_seq.getKeys()}
-
         # Settings and initialization
         fitter = GetSetting(settings, 'fitter', PolyFitter.__name__)
-        recalc = GetSetting(settings, 'recalc_inverse', False)        
         self.initFitter(fitter, settings)        
         log.info(f"Generating RTI coefficients with {self._fitter.name}")
         
+        # Get light position image sequence and filter
+        lpseq = LpSequence(img_seq, calibration)
+        lpseq.filter(self._fitter.getFilterFn())
+        # TODO: Additional filters?
+        # TODO: Also duplicate frames maybe?
+        
         # Compute inverse
-        self._fitter.computeInverse(calibration, recalc)
+        log.debug(f"Calculate inverse")
+        self._fitter.computeInverse(lpseq.getLights())
         
         # Compute coefficients
+        log.debug(f"Calculate coefficients")
         if self._fitter.needsReflectance():
             # Use reflectance maps
             # TODO: Where to get good reflectance maps from?!
+            #reflectance = Sequence()
+            #albedo = img_seq.getDataSequence('shm').get(0).asDomain(ImgDomain.Lin).RGB2Gray().get() # TODO: This is not really an albedo map
+            #albedo = np.maximum(albedo, np.full(albedo.shape, 0.0005)) # TODO: What is a good value?
+            #for id, img in img_seq:
+            #    reflectance[id] = ImgBuffer(img=img.asDomain(ImgDomain.Lin).RGB2Gray().get()/albedo, domain=ImgDomain.Lin)
+            
+            # Lightstack reflectance (img/avg of front facing images), could be better (but similar to shm0-image)
+            lightstack = LightstackProcessor()
+            lightstack.process(img_seq, calibration, {'mode': 'average'})
+            avg = lightstack.get()
             reflectance = Sequence()
-            albedo = img_seq.getDataSequence('shm').get(0).asDomain(ImgDomain.Lin).RGB2Gray().get() # TODO: This is not really an albedo map
-            albedo = np.maximum(albedo, np.full(albedo.shape, 0.0005)) # TODO: What is a good value?
-            for id, img in img_seq:
-                reflectance[id] = ImgBuffer(img=img.asDomain(ImgDomain.Lin).RGB2Gray().get()/albedo, domain=ImgDomain.Lin)
+            for id, img, _ in lpseq:
+                reflectance.append(ImgBuffer(path=img.getPath(), img=img.get()/avg.get(0).get(), domain=ImgDomain.Lin), id)
             self._fitter.computeCoefficients(reflectance, slices=4)
+            
+            #img_seq.setDataSequence('average', avg)
             #img_seq.setDataSequence('reflectance', reflectance)
-        
         else:
             # Use normal image sequence
-            self._fitter.computeCoefficients(img_seq, slices=4)
+            self._fitter.computeCoefficients(lpseq.getImages(), slices=4)
         
         # Save coord bounds
         #coord_min, coord_max = calibration.getCoordBounds()
