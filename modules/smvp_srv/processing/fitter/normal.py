@@ -1,12 +1,12 @@
 import numpy as np
 
-from .pseudoinverse import PseudoinverseFitter
-from ...hw.calibration import *
-
 import taichi as ti
 import taichi.math as tm
 import taichi.types as tt
+
 from ...utils import ti_base as tib
+from ...data import *
+from .pseudoinverse import PseudoinverseFitter
 
 
 class NormalFitter(PseudoinverseFitter):

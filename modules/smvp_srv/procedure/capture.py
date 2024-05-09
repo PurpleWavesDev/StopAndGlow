@@ -12,9 +12,10 @@ from .calibrate import Calibrate
 from ..processing.exposureblend import ExpoBlender
 
 class Capture:
-    def __init__(self, hw, config):
+    def __init__(self, hw, cal, config):
         self._hw = hw
         self._cam = hw.cam
+        self._cal = cal
         self._config = config
         self._lgtctl = LightCtl(hw)
         self._id_list = []
@@ -25,8 +26,8 @@ class Capture:
 
         # Generate preview frame
         nth = 4 # TODO
-        if hw.cal is not None:
-            self._preview = [id for id, light in hw.cal.getLights().items() if light.getLL()[0] > radians(45) and light.getLL()[0] < radians(60)]
+        if self._cal is not None:
+            self._preview = [id for id, light in self._cal.getLights().items() if light.getLL()[0] > radians(45) and light.getLL()[0] < radians(60)]
         else:
             self._preview = list(range(0, config['capture_max_addr'], step=nth))
 
@@ -128,7 +129,7 @@ class Capture:
                 # Get exposure times and merge
                 exposure_times = [1/float(expo.split("/")[1]) for expo in sequences[0].getMeta('exposures')]
                 blender = ExpoBlender()
-                blender.process(sequences, self._hw.cal, {'exposure': exposure_times})
+                blender.process(sequences, self._cal, {'exposure': exposure_times})
                 sequence = blender.get()
 
                 # Delete video file maybe? TODO

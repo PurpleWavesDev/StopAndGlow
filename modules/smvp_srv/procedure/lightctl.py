@@ -10,18 +10,18 @@ from ..hw import *
 
 
 class LightCtl:
-    def __init__(self, hw = None):
+    def __init__(self, hw=None, cal=None):
         self.img_res_base = 1000
         self.img_background = 10
         self.blur_size = 15
         self._lightVals = dict()
-        if hw is not None:
-            self.setHw(hw)
+        if hw is not None and cal is not None:
+            self.setHw(hw, cal)
     
-    def setHw(self, hw):
-        self._cal = hw.cal
+    def setHw(self, hw, cal):
         self._lights = hw.lights
         self._lightVals.clear()
+        self._cal = cal
         return # TODO
         
         # Init (ti?) fields

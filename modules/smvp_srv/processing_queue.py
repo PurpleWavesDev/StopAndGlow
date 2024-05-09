@@ -71,9 +71,9 @@ class Worker:
         self.path = ""
         
         # Setup hardware
-        calibration = Calibration(path=os.path.join(self.config['cal_folder'], self.config['cal_name']))
-        self.hw = HW(Cam(), Lights(), calibration)
-        self.lightctl = LightCtl(self.hw)
+        self.cal = Calibration(path=os.path.join(self.config['cal_folder'], self.config['cal_name']))
+        self.hw = HW(Cam(), Lights())
+        self.lightctl = LightCtl(self.hw, self.cal)
                 
         # Rendering
         self.renderer = Renderer(BSDF(), self.config['resolution'])
@@ -138,14 +138,14 @@ class Worker:
                         name = GetSetting(settings, 'name', self.config['cal_name'])
                         path = os.path.join(folder, name)
                         if os.path.isfile(path):
-                            self.hw.cal.load(path)
-                            print(f"Loaded calibration file with {len(self.hw.cal)} lights")
+                            self.cal.load(path)
+                            print(f"Loaded calibration file with {len(self.cal)} lights")
                         else:
                             raise Exception(f"File {path} does not exist")
                     case 'save':
                         name = GetSetting(settings, 'name', GetDatetimeNow()+'.json')
                         path = os.path.join(folder, name)
-                        self.hw.cal.save(path)
+                        self.cal.save(path)
                     case _:
                         raise Exception(f"Unknown argument '{arg}' for --calibration command, use load/save")
 
@@ -158,8 +158,8 @@ class Worker:
                 if arg == 'live':
                     self.img_buf = self.hw.cam.capturePreview()
                 elif arg == 'baked': # TODO: Capture with camera preview
-                    capture = Capture(self.hw, settings)
-                    capture.captureSequence(self.hw.cal, self.hdri)
+                    capture = Capture(self.hw, self.cal, settings)
+                    capture.captureSequence(self.cal, self.hdri)
                     baked_seq = capture.downloadSequence(name, keep=False)
                     self.img_buf = self.process(baked_seq, 'rgbstack', {})[0]
                 else:
@@ -179,8 +179,8 @@ class Worker:
                 settings['seq_type'] = arg
                 
                 # Create capture object and capture
-                capture = Capture(self.hw, settings)
-                capture.captureSequence(self.hw.cal, self.hdri)
+                capture = Capture(self.hw, self.cal, settings)
+                capture.captureSequence(self.cal, self.hdri)
                 # Download
                 if arg != 'baked':
                     self.sequence = capture.downloadSequence(name, keep=False)
@@ -212,7 +212,7 @@ class Worker:
                         # Video file, add IDs to defaults according to sequence type
                         match GetSetting(settings, 'seq_type', 'lights'):
                             case 'lights':
-                                ids = self.hw.cal.getIds()
+                                ids = self.cal.getIds()
                             case 'baked':
                                 ids = [0, 1, 2]
                             case 'all':
@@ -249,7 +249,7 @@ class Worker:
                     processor = Calibrate()
                     processor.setSequence(self.sequence)
                     processor.process()
-                    self.hw = self.hw._replace(cal=processor.getCalibration())
+                    self.cal = processor.getCalibration()
                 elif arg == 'interactive':
                     # Init GUI and Viewer
                     resolution = (int(self.config['resolution'][0]), int(self.config['resolution'][1]))
@@ -262,14 +262,13 @@ class Worker:
                     # Launch
                     gui.launch()
                     # Assign new calibration
-                    self.hw = self.hw._replace(cal=viewer.getCalibration())
+                    self.cal = viewer.getCalibration()
                     
                 elif arg == 'merge':
                     folder = GetSetting(settings, 'folder', self.config['cal_folder'])
                     new_cals = [Calibration(os.path.join(folder, cal_name)) for cal_name in GetSetting(settings, 'calibrations', '').split(',')]
-                    self.hw.cal.align(new_cals)
-                    merged_cal = self.hw.cal.getMerged(new_cals)
-                    self.hw = self.hw._replace(cal=merged_cal)
+                    self.cal.align(new_cals)
+                    self.cal = self.cal.getMerged(new_cals)
                 
                  
             case Commands.Process:
@@ -290,7 +289,7 @@ class Worker:
                                 name, _, algo_settings = algorithms[algo_key]
                                 bsdf_class, bsdf_settings = bsdfs[algo_settings['bsdf']]
                                 bsdf = bsdf_class()
-                                if bsdf.load(self.sequence, self.hw.cal, algo_key, bsdf_settings):
+                                if bsdf.load(self.sequence, self.cal, algo_key, bsdf_settings):
                                     self.renderer = Renderer(bsdf, self.config['resolution'])
                                     # Set HDRI
                                     if self.hdri.get() is not None:
@@ -551,7 +550,7 @@ class Worker:
             target = GetSetting(settings, 'target', 'sequence')
             match target:
                 case 'sequence':
-                    processor.process(img_seq, self.hw.cal, settings)
+                    processor.process(img_seq, self.cal, settings)
                     
                     if GetSetting(settings, 'destination') == 'alpha':
                         for id, processed in processor.get():
@@ -560,7 +559,7 @@ class Worker:
                 case 'preview':
                     preview_seq = Sequence()
                     preview_seq.append(img_seq.getPreview(), 0)
-                    processor.process(preview_seq, self.hw.cal, settings)
+                    processor.process(preview_seq, self.cal, settings)
                     
                     if GetSetting(settings, 'destination') == 'alpha':
                         img_seq.setPreview(img_seq.getPreview().withAlpha(processor.get()[0].get()))

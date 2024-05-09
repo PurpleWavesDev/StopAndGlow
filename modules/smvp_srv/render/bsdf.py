@@ -6,7 +6,6 @@ import taichi.types as tt
 
 from ..utils import ti_base as tib
 from ..data import *
-from ..hw.calibration import *
 
 @ti.data_oriented
 class BSDF:
