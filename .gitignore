@@ -19,3 +19,7 @@ imgui.ini
 
 # Lighting longs
 **/lightning_logs/
+
+# Blender
+*.blend
+*.blend1
