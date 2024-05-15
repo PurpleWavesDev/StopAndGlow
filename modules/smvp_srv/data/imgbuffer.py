@@ -187,15 +187,15 @@ class ImgBuffer:
     
     def domain(self):
         return self._domain
-    def asDomain(self, domain: ImgDomain, as_float=True) -> ImgBuffer:
+    def asDomain(self, domain: ImgDomain, as_float=True, no_taich=False) -> ImgBuffer:
         """ti_buffer as GPU memory buffer to accelerate conversion"""
         if domain != ImgDomain.Keep and domain != self._domain:
             # Convert to optical/neutral
             img = self.get() if as_float is False else self.asFloat().get()
             match self._domain:
                 case ImgDomain.sRGB:
-                    if img.dtype == IMAGE_DTYPE_FLOAT:
-                        tib.sRGB2Lin(img.copy())
+                    if img.dtype == IMAGE_DTYPE_FLOAT and not no_taich:
+                            tib.sRGB2Lin(img.copy())
                     else:
                         img = colour.cctf_decoding(img, 'sRGB')
                 case ImgDomain.Rec709:
@@ -205,7 +205,7 @@ class ImgBuffer:
                     
             match domain:
                 case ImgDomain.sRGB:
-                    if img.dtype == IMAGE_DTYPE_FLOAT:
+                    if img.dtype == IMAGE_DTYPE_FLOAT and not no_taich:
                         tib.lin2sRGB(img.copy(), 1)
                     else:
                         img = colour.cctf_encoding(img, 'sRGB')
