@@ -180,7 +180,7 @@ class Renderer:
                 # Far future TODO (especially when we settled on one algorithm): Analytical integration or gradient estimation?
                 
                 #ti.randn(float) # univariate standard normal (Gaussian) distribution of mean 0 and variance 1
-                u = ti.random()*0.6 # TODO Quick fix to mask out lower part of PTM function that shows only rubbish
+                u = ti.random()#*0.6 # TODO Quick fix to mask out lower part of PTM function that shows only rubbish
                 v = ti.random()
                 hdri_y = ti.cast(u*hdri.shape[0], ti.i32)
                 hdri_x = ti.cast((1-v+rotation)%1.0 * hdri.shape[1], ti.i32)
