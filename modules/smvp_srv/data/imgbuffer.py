@@ -5,7 +5,6 @@ import os
 import re
 
 import logging as log
-from absl import flags
 
 from numpy.typing import ArrayLike
 import numpy as np
@@ -16,6 +15,7 @@ import colour.models as models
 import taichi as ti
 from ..utils.utils import logging_disabled
 from ..utils import ti_base as tib
+from .pixbuf import *
 imageio.plugins.freeimage.download()
 
 IMAGE_DTYPE_FLOAT='float32'
@@ -25,12 +25,6 @@ class ImgFormat(Enum):
     PNG = 0
     JPG = 1
     EXR = 2
-    Keep = -1
-    
-class ImgDomain(Enum):
-    sRGB = 0
-    Lin = 1
-    Rec709 = 2
     Keep = -1
 
     
@@ -263,9 +257,9 @@ class ImgBuffer:
     def gray2RGB(self) -> ImgBuffer:
         return ImgBuffer(path=self._path, img=np.dstack((self.get(),self.get(),self.get())), domain=self._domain)
     
-    def getPix(self, coord) -> ArrayLike:
-        return self.get()[coord[1]][coord[0]]
-    def setPix(self, coord, val):
+    def getPix(self, coord) -> PixBuf:
+        return PixBuf(self.get()[coord[1]][coord[0]], domain=self._domain)
+    def setPix(self, coord, val): # TODO: Pixbuf
         self.get()[coord[1]][coord[0]] = val
         
     def scale(self, factor, high_qual=True) -> ArrayLike:
@@ -309,13 +303,13 @@ class ImgBuffer:
 
     
     ### Operators ###
-    def __getitem__(self, coord) -> ImgBuffer:
+    def __getitem__(self, coord) -> ImgBuffer: # TODO: Pixbuf or remove
         return ImgBuffer(img=np.array([[self.get()[coord[1]][coord[0]]]]), domain=self._domain)
     
-    def __setitem__(self, coord, buf: ImgBuffer):
+    def __setitem__(self, coord, buf: ImgBuffer): # TODO: Pixbuf or remove
         val = buf.asDomain(self._domain, self.isFloat())
         self.get()[coord[1]][coord[0]] = val.asInt().get() if self.isInt().get() else val.get()
     
     # Factory for single pixel value
-    def FromPix(values, domain: ImgDomain = ImgDomain.sRGB) -> ImgBuffer:
+    def FromPix(values, domain: ImgDomain = ImgDomain.sRGB) -> ImgBuffer: # TODO Replace with Pixbuf
         return ImgBuffer(img=np.array([[values]]).astype(IMAGE_DTYPE_INT)) # TODO: int/float; default for int is int64 which causes problems!
