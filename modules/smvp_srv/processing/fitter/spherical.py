@@ -33,13 +33,13 @@ class SHFitter(PseudoinverseFitter):
             m = coeff_num - l * (l + 1)
             # l & m are parameters of the degree of the harmonics in the shape of:
             # (0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), ...
-            #line[coeff_num] = SHFitter.SH(l, m, u, v)
-            line[coeff_num] = SHFitter.SHHardCoded(l, m, x, y, z, lat, long)
+            line[coeff_num] = SHFitter.SHHardCoded(l, m, x, y, z)
+            #line[coeff_num] = scipy.special.sph_harm(l, m, lat, long)
             
         
     # Helper function for Spherical Harmonics calculation
     
-    def SHHardCoded(l, m, x, y, z, lat, long) -> float:
+    def SHHardCoded(l, m, x, y, z) -> float:
         match l:
             case 0:
                 return math.sqrt(1/(4*math.pi))
