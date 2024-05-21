@@ -7,6 +7,9 @@ import cv2 as cv
 import colour
 import colour.models as models
 
+IMAGE_DTYPE_FLOAT='float32'
+IMAGE_DTYPE_INT='uint8'
+
 class ImgDomain(Enum):
     sRGB = 0
     Lin = 1
@@ -45,9 +48,7 @@ class PixBuf:
             img = self.get() if as_float is False else self.asFloat().get()
             match self._domain:
                 case ImgDomain.sRGB:
-                    if img.dtype == IMAGE_DTYPE_FLOAT and not no_taich:
-                            tib.sRGB2Lin(img.copy())
-                    else:
+                    if img.dtype == IMAGE_DTYPE_FLOAT:
                         img = colour.cctf_decoding(img, 'sRGB')
                 case ImgDomain.Rec709:
                     img = colour.cctf_decoding(img, 'ITU-R BT.709')
@@ -56,9 +57,7 @@ class PixBuf:
                     
             match domain:
                 case ImgDomain.sRGB:
-                    if img.dtype == IMAGE_DTYPE_FLOAT and not no_taich:
-                        tib.lin2sRGB(img.copy(), 1)
-                    else:
+                    if img.dtype == IMAGE_DTYPE_FLOAT:
                         img = colour.cctf_encoding(img, 'sRGB')
                 case ImgDomain.Rec709:
                     img = colour.cctf_encoding(img, 'ITU-R BT.709')

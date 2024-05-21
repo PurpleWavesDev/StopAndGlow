@@ -6,6 +6,7 @@ import numpy as np
 # Axes3D import has side effects, it enables using projection='3d' in add_subplot
 from mpl_toolkits.mplot3d import Axes3D  
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 
 ## Define Data Plotter with coords from calibration
@@ -25,14 +26,15 @@ def plotData(data, trisurf, normalize=True, clip=True, trisurf_small=False, ax=N
     z_offset = -1.3 if normalize == True else -1.3 * z_max
     z_lim_max = 1.0 if normalize == True else z_max
     # Normalize & clip
-    if normalize:
+    if isinstance(normalize, bool) and normalize is True:
         z = z / z_max
     if clip:
         z = np.clip(z, 0, None)
+        z_maxclip = np.clip(z, None, z_lim_max)
         
     if trisurf:
         # Plot the surface.
-        ax.plot_trisurf(x, y, z, vmin=z.min()*2, cmap=plt.cm.YlGnBu_r, antialiased=True)
+        ax.plot_trisurf(x, y, z_maxclip, vmin=z.min()*2, cmap=plt.cm.YlGnBu_r, antialiased=True, norm=mpl.colors.Normalize(vmin=0, vmax=z_max, clip=False))
 
         # Plot projections of the contour
         ax.tricontourf(x, y, z, zdir='z', offset=z_offset, cmap=plt.cm.coolwarm)
@@ -43,7 +45,7 @@ def plotData(data, trisurf, normalize=True, clip=True, trisurf_small=False, ax=N
             xlabel='X', ylabel='Y', zlabel='Z')
     else:
         # Same as above
-        ax.plot_surface(x, y, z, cmap=plt.cm.YlGnBu_r, antialiased=True)
+        ax.plot_surface(x, y, z_maxclip, cmap=plt.cm.YlGnBu_r, antialiased=True, norm=mpl.colors.Normalize(vmin=0, vmax=z_max, clip=False))
         ax.contourf(x, y, z, zdir='z', offset=z_offset, cmap='coolwarm')
         ax.set(xlim=(-1.2, 1.2), ylim=(-1.2, 1.2), zlim=(z_offset, z_lim_max),\
             xlabel='X', ylabel='Y', zlabel='Z')

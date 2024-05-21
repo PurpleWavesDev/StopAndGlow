@@ -16,7 +16,7 @@ def sampleSeqData(lp_sequence, pix, rotation_steps=0):
         lp_rot = LightPosition.FromLatLong([ll[0], ll[1]+rotation_steps*pi_by_2])
         x = np.append(x, [lp_rot.getZVecNorm()[0]])
         y = np.append(y, [lp_rot.getZVecNorm()[1]])
-        z = np.append(z, [img.getPix(pix).lum().get()])
+        z = np.append(z, [img.getPix(pix).lum().get()]) # asDomain(ImgDomain.sRGB, no_taich=True)
         
     return x, y, z
 
