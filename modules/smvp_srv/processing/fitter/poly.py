@@ -14,6 +14,7 @@ class PolyFitter(PseudoinverseFitter):
         super().__init__(settings)
         # Settings: Limit polynom degree
         self._degree = max(2, min(6, GetSetting(settings, 'degree', 3)))
+        self._clamp = False
     
     def getCoefficientCount(self) -> int:
         """Returns number of coefficients"""
@@ -30,5 +31,8 @@ class PolyFitter(PseudoinverseFitter):
         idx = 3
         for n in range(2, self._degree+1):
             for i in range(n+1):
-                line[idx] = u**(n-i) * v**i
+                if self._clamp:
+                    line[idx] = max(0, u**(n-i) * v**i)
+                else:
+                    line[idx] = u**(n-i) * v**i
                 idx += 1

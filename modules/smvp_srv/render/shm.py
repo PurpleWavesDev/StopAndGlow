@@ -33,9 +33,8 @@ class ShmBsdf(BSDF):
         # Pixel buffer
         rgb = ti.Vector([0.0, 0.0, 0.0], dt=ti.f32)
         # Convert UV to 
-        lat_conv = -ti.sin(u*pi_by_2)
-        lat  = u*pi_by_2
-        long = v*tm.pi
+        lat  = pi_by_2 - u*pi_by_2
+        long = v*tm.pi + tm.pi
         
         for i in range(self._coeff.shape[0]):
             l = tm.floor(ti.sqrt(i))
@@ -46,6 +45,69 @@ class ShmBsdf(BSDF):
 
         return tm.max(rgb, 0.0)
     
+    #@ti.func
+    #def sph_harm(self, m, n, theta, phi): # l, m -> m, n
+    #    m_abs = ti.abs(m)
+    #    c_val = pmv(m_abs, n, ti.cos(phi))
+    #    if m < 0:
+    #        c_val *= ti.pow(-1, m_abs) * self.poch(n + m_abs + 1, -2 * m_abs)
+#
+    #    c_val *= ti.sqrt((2*n + 1) * self.poch(n + m + 1, -2*m) / (4*ti.pi))
+    #    c_val *= ti.exp(std::complex(0.0, m*theta))
+#
+    #    return c_val.real
+    #
+    #@ti.func
+    #def poch(self, a: ti.f32, m: ti.f32) -> ti.f32:
+    #    r = 1.0
+    #    while (m >= 1.0):
+    #        if a + m == 1:
+    #            break
+    #        
+    #        m -= 1.0
+    #        r *= (a + m)
+    #        if r != tm.inf or r == 0:
+    #            break
+#
+    #    while m <= -1.0:
+    #        if a + m == 0:
+    #            break
+    #        r /= a + m
+    #        m += 1.0
+    #        if r != tm.inf or r == 0:
+    #            break
+#
+    #    if m == 0:
+    #        val = r
+    #    elif a > 1e4 and ti.abs(m) <= 1:
+    #        val = r * std::pow(a, m) *
+    #               (1 + m * (m - 1) / (2 * a) + m * (m - 1) * (m - 2) * (3 * m - 1) / (24 * a * a) +
+    #                m * m * (m - 1) * (m - 1) * (m - 2) * (m - 3) / (48 * a * a * a))
+#
+    #    elif self.is_nonpos_int(a + m) and not self.is_nonpos_int(a) and a + m != m:
+    #        val = std::numeric_limits<double>::infinity()
+    #    elif not self.is_nonpos_int(a + m) and detail::is_nonpos_int(a):
+    #        val = 0
+    #    else:
+    #        val = r * std::exp(lgam(a + m) - lgam(a)) * gammasgn(a + m) * gammasgn(a)
+#
+    #    return val
+    
+    #@ti.func
+    #def pmv(m: ti.f32, v: ti.f32, x: ti.f32) -> ti.f32:
+    #m_int = ti.cast(m, ti.i32)
+    #val = 0.0
+
+    #val = specfun::lpmv(x, int_m, v);
+    #SPECFUN_CONVINF("pmv", out);
+    #return val
+    #
+    #@ti.func
+    #def is_nonpos_int(self, x: ti.f32) -> ti.f32:
+    #    return x <= 0 and x == ti.ceil(x) and ti.abs(x) < 1e13
+
+
+
     @ti.func
     def shHardCoded(self, l, m, lat: ti.f32, long: ti.f32) -> ti.f32:
         val = 0.0
@@ -54,22 +116,22 @@ class ShmBsdf(BSDF):
             val = ti.sqrt(1/(4*math.pi))
         elif l == 1:
             if m == -1:
-                val = ti.sqrt(3/(4*math.pi)) * -tm.cos(lat) * tm.cos(long)
+                val = ti.sqrt(3/(4*math.pi)) * tm.sin(lat) * tm.sin(long)
             elif m == 0:
-                val = ti.sqrt(3/(4*math.pi)) * tm.sin(lat)
+                val = ti.sqrt(3/(4*math.pi)) * tm.cos(lat)
             else: # m == 1:
-                val = ti.sqrt(3/(4*math.pi)) * -tm.cos(lat) * -tm.sin(long)
+                val = ti.sqrt(3/(4*math.pi)) * tm.sin(lat) * tm.cos(long)
         elif l == 2:
             if m == -2:
-                val = ti.sqrt(15/(16*math.pi)) * (-tm.cos(lat))**2 * tm.cos(2*long)
+                val = ti.sqrt(15/(16*math.pi)) * tm.sin(lat)**2 * tm.sin(2*long)
             if m == -1:
-                val = ti.sqrt(15/(16*math.pi)) * -tm.cos(2*lat) * tm.cos(long)
+                val = ti.sqrt(15/(16*math.pi)) * tm.sin(2*lat) * tm.sin(long)
             elif m == 0:
-                val = ti.sqrt(5/(16*math.pi)) * (3*tm.sin(lat)**2 - 1)
+                val = ti.sqrt(5/(16*math.pi)) * (3*tm.cos(lat)**2 - 1)
             elif m == 1:
-                val = ti.sqrt(15/(16*math.pi)) * -tm.cos(2*lat) * -tm.sin(long)
+                val = ti.sqrt(15/(16*math.pi)) * tm.sin(2*lat) * tm.cos(long)
             else: #if m == 2:
-                val = ti.sqrt(15/(4*math.pi)) * (-tm.cos(lat))**2 * -tm.sin(2*long)
+                val = ti.sqrt(15/(4*math.pi)) * tm.sin(lat)**2 * tm.cos(2*long)
         return val
     
     

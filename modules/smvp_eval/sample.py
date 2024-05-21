@@ -80,7 +80,7 @@ def calcShm(coord, pix, seq):
         # (0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), ...
         #line[coeff_num] = SHFitter.SH(l, m, u, v)
         #val += SHFitter.SHHardCoded(l, m, x, y, z) * seq[i].getPix(pix).lum().get()
-        val += scipy.special.sph_harm(m, l, np.pi+long*np.pi, pi_by_2-lat*pi_by_2).real * seq[i].getPix(pix).lum().get()
+        val += scipy.special.sph_harm(m, l, long*np.pi + (pi_by_2 if m < 0 else 0), pi_by_2 - lat*pi_by_2).real * seq[i].getPix(pix).lum().get()
         
     return val
 
