@@ -78,7 +78,14 @@ def exposure_blending(images: tt.ndarray(tib.pixvec, 3), exposure_values: tt.nda
             # Next frame was darker, adjust exposure of first image
             images[0, y, x] *= exposure_values[n] / exposure_values[0]
             # Alpha is brightest parts of next image -> parts that have more information than merged frame
-            alpha = tm.clamp((images[n, y, x]-blend_threshold) * blend_factor, 0, 1)
+            alpha = tm.clamp((images[n, y, x]-blend_threshold) * blend_factor, 0.0, 1.0)
             # Take values from new frame where alpha is high
-            images[0, y, x] = images[0, y, x] * (1-alpha) + images[n, y, x] * alpha 
+            images[0, y, x] = images[0, y, x] * (1-alpha) + images[n, y, x] * alpha
+            
+            ## Code to visualize mask
+            #if n == 1:
+            #    val = images[0, y, x][0] * exposure_values[0] / exposure_values[2] # Make R channel as bright as 3. exposure
+            #    images[0, y, x] = [val * (1.0-alpha[0]), val * alpha[0], 0.0]
+            #elif n == 2:
+            #    images[0, y, x] = [images[0, y, x][0] * (1.0-alpha[0]), images[0, y, x][1] * (1.0-alpha[0]), alpha[0]]
 

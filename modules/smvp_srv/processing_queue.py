@@ -223,6 +223,23 @@ class Worker:
                     # Replace sequence and load
                     self.sequence = Sequence()
                     self.sequence.load(self.path, defaults=default_config, overrides=settings)
+                    
+                    # HDR Stacking
+                    if os.path.splitext(self.path)[1] != '' and self.sequence.getMeta('exposures') is not None:
+                        # Read exposure times
+                        exposure_times = [1/float(expo.split("/")[1]) for expo in self.sequence.getMeta('exposures')]
+                        # Load first sequence
+                        sequences = [self.sequence.convertSequence({'resolution': (1920, 1080)})]
+                        # Continue loading others from last sequence
+                        name = os.path.basename(self.path)
+                        for i in range(1, self.sequence.getMeta('exposure_count', 1)):
+                            sequences.append(Sequence.ContinueVideoSequence(sequences[i-1], os.path.join(default_config['seq_folder'], name+f"_{i}"), default_config['video_frame_list'], i)\
+                            .convertSequence({'resolution': (1920, 1080)}))
+
+                        # Merge
+                        blender = ExpoBlender()
+                        blender.process(sequences, self.cal, {'exposure': exposure_times})
+                        self.sequence = blender.get()
 
             case Commands.LoadHdri:
                 # --loadHdri <path> folder=<path> rotation=0
