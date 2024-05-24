@@ -16,7 +16,11 @@ class Calibrate(Viewer):
         self._recalc = False
         self._cal = Calibration()
         self._sequence = Sequence()
-    
+
+        self._cb_edges = None
+        self._mask_rgb = None
+        self._reflections = None
+        
     ## Viewer functions
     def setResolution(self, resolution):
         self._resolution = resolution
@@ -29,6 +33,13 @@ class Calibrate(Viewer):
         self.findCenter()
         self.findReflections()
         self._recalc = False
+        
+        if self._cb_edges is not None:
+            imgutils.SaveEval(np.dstack([self._cb_edges, self._cb_edges, self._cb_edges]), 'chromeball_filtered')
+        if self._mask_rgb is not None:
+            imgutils.SaveEval(self._mask_rgb, 'chromeball_center')
+        if self._reflections is not None:
+            imgutils.SaveEval(self._reflections, "reflections")
         
     def getRenderSettings(self, mode) -> RenderSettings:
         return RenderSettings(as_int=True, req_keypress_events=True, req_inputs=True)
