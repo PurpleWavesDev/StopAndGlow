@@ -87,12 +87,7 @@ class RtiProcessor(Processor):
             seq = self._fitter.getCoefficients()
             #seq.setMeta('latlong_min', (self._u_min, self._v_min))
             #seq.setMeta('latlong_max', (self._u_max, self._v_max))
-            
-            # Normalize for normal map
-            if isinstance(self._fitter, NormalFitter):
-                normal = seq.get(0).get()
-                normal = normal/2 + 0.5
-                seq.get(0).set(normal)
             return seq
+        
         return Sequence()
     

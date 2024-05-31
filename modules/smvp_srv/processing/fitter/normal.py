@@ -24,70 +24,42 @@ class NormalFitter(PseudoinverseFitter):
         return 3
     
     def needsReflectance(self) -> bool:
-        return True
+        return False
     
     def getFilterFn(self):
         return lambda id, lp: lp.getXYZ()[1] > 0
             
     def fillLightMatrix(self, line, lightpos: LightPosition):
-        #latitude = tm.asin(self.xyz[2])
-        #longitude = tm.cos(tm.asin(self.xyz[0]/tm.cos(latitude))) # -pi/2 to pi/2 front side, zero is middle
-        vec = np.array([0, -1, 0], dtype=float)
         xyz = lightpos.getXYZ()
-        #np.dot(vec, lightpos.getXYZ())
         line[:] = [xyz[0], xyz[2], -xyz[1]] # np.dot(vec, xyz)
     
-"""
-# bilder und lichter laden 
-images= []
-light_directions = []
+    def getCoefficients(self) -> Sequence:
+        normals = np.ascontiguousarray(np.moveaxis(np.squeeze(self._coefficients.to_numpy())[0:3], 0, -1))
+        albedo = np.empty_like(normals)
+        alpha = np.empty_like(normals)
+        val_max = normals.max()
+        NormalizeNormals(normals, albedo, alpha, val_max)
+        
+        seq = Sequence()
+        seq.append(ImgBuffer(img=normals, domain=ImgDomain.Lin), 0)
+        seq.append(ImgBuffer(img=albedo, domain=ImgDomain.Lin), 1)
+        seq.append(ImgBuffer(img=alpha, domain=ImgDomain.Lin), 2)
+        seq.setMeta('fitter', type(self).__name__)
+        
+        return seq
 
-# bilder des frame sets in graustufenbilder (nach luminanz) wandeln und in array speichern
-imgs_luminance = [cv.cvtColor(img,cv.COLOR_RGB2GRAY) for img in images]
 
-# optional glätten gegen rauschen z.B. mit Gaussian Blur, das erhält aber die Kanten nicht evtl TODO besserer filter hierfür?
-    #imgs_smoothed = [cv.GaussianBlur(img, (5,5), 0 ) for img in imgs_luminance]
+@ti.kernel
+def NormalizeNormals(normals: tib.pixarr, albedo: tib.pixarr, alpha: tib.pixarr, val_max: ti.f32):
+    for y, x in normals:
+        length = tm.length(normals[y, x])
+        albedo[y, x] = [length/val_max, length/val_max, length/val_max]
+        #normal = normal/2 + 0.5
+        if length > val_max * 0.00015:
+            # Range from range -1 to 1 -> 0 to 1
+            normals[y, x] = normals[y, x] / (2*length) + 0.5
+            alpha[y, x] = [1, 1, 1]
+        else:
+            normals[y, x] = [0.5, 0.5, 1]
+            alpha[y, x] = [0, 0, 0]
 
-# gradientenkarten aus den bilddaten berechnen (sobel z.b.)
-# bin nicht sicher, wie ich das mache, so dass ich nicht zwei karten habe (x und y gradienten)
-# geht aber eventuell auch im vergleich mit zwei karten ?
-
-
-def estimateReflection(images, light_directions): #eigentlich gradientenkarten statt images zum vergleichen notwendig
-
-    height, width = images[0].shape # Form der Images abgreifen
-    initial_reflectance = np.ones((height, width)) # Vollständig weißes Bild als Startwert der Berechnung
-    
-    def initial_loss_func(reflectance): # parameter für die least_squares, gibt den ersten fehlerwert zurück
-        reflectance = reflectance.reshape((height, width))  # Form vom Reflektanzarray anpassen
-        residuals = []
-        for img, light_dir in zip(images, light_directions):
-            # Erwarteten Gradienten aus der aktuellen Reflektanzschätzung berechnen
-            expected_gradient = np.dot(reflectance, light_dir)
-            # Fehler zwischen dem erwarteten und dem beobachteten Gradienten berechnen
-            error = expected_gradient - img
-            residuals.extend(error)  # Fehlerliste erweitern
-        return residuals
-
-    # Reflektanz schätzen
-    result = least_squares(initial_loss_func(initial_reflectance), initial_reflectance.flatten(), method='lm')
-
-# reflektanzschätzung mit least_squares aus scipy.optimize. (numpy.linalg.lstsq wohl besser für lineare probleme(??))
-# funktioniert wohl gut für große datensätze und hier lässt sich der algorithmus wählen
-# levenberg-marquardt soll ein guter kompromiss aus geschwindigkeit und genauigkeit sein
-# mögliche algorithmen: 
-#        'trf' : Trust Region Reflective algorithm, particularly suitable for large sparse problems with bounds. Generally robust method.
-
-#        'dogbox' : dogleg algorithm with rectangular trust regions, typical use case is small problems with bounds. Not recommended for problems with rank-deficient Jacobian.
-
-#        'lm' : Levenberg-Marquardt algorithm as implemented in MINPACK. Doesn't handle bounds and sparse Jacobians. Usually the most efficient method for small unconstrained problems.
-
-    # Reflektanz in 2D-Array-Form zurückgeben
-    return result.x.reshape((height, width)) 
-
-#normalenberechnung
-
-#normalisieren und visualisieren der normalen
-#normalen von [-1,1] auf Bereich von [0,1] skalieren
-#auf [0,225] der rgb kanäle umrechnen 
-"""
