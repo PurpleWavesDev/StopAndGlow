@@ -11,8 +11,8 @@ from .bsdf import BSDF
 
 
 class PtmBsdf(BSDF):
-    def load(self, data: Sequence, calibration: Calibration, data_key: str, settings={}) -> bool:
-        rti_seq = data.getDataSequence(data_key)
+    def load(self, sequence: Sequence) -> bool:
+        rti_seq = sequence.getDataSequence(self._data_key)
         if len(rti_seq) > 0:
             # Load data into fields
             res_x, res_y = rti_seq.get(0).resolution()
@@ -23,7 +23,7 @@ class PtmBsdf(BSDF):
             self._coeff.from_numpy(arr)
             
             # Set coordinate system switch
-            self.coord_sys = GetSetting(settings, 'coordinate_system', CoordSys.LatLong)
+            self.coord_sys = GetSetting(self._settings, 'coordinate_system', CoordSys.LatLong)
             return True
         return False
     

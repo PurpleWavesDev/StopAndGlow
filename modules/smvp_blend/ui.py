@@ -88,6 +88,9 @@ class VIEW3D_PT_sl_canvas(bpy.types.Panel):
             row.prop(algs, "algs_dropdown_items", expand=False, text="")
             #row = layout.row()
             row.operator(SMVP_CANVAS_OT_applyRenderAlgorithm.bl_idname, text="Apply")  
+            # Update scene OP
+            row = layout.row()
+            row.operator(SMVP_CANVAS_OT_updateEnv.bl_idname)
         
         # Ghosting
         ghostIcon =  "GHOST_ENABLED" if obj.smvp_ghost.show_ghost else "GHOST_DISABLED"

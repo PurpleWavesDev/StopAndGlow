@@ -23,6 +23,9 @@ class Renderer:
         self._scene = Scene()
         self._buffer = ti.field(tib.pixvec)
         self._sample_buffer = ti.field(tib.pixvec)
+        self._hdri_samples = 0
+        self._hdri_sample_steps = 64
+        self._sample_count = 0
         ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._buffer)
         ti.root.dense(ti.ij, (resolution[1], resolution[0])).place(self._sample_buffer)
         
@@ -30,17 +33,25 @@ class Renderer:
     def getScene(self):
         return self._scene
     
+    def loadSequence(self, sequence) -> bool:
+        return self._bsdf.load(sequence)
+    
     def getBsdfCoordSys(self) -> CoordSys:
         return self._bsdf.coord_sys
 
     ## Rendering    
-    def initRender(self, hdri_samples=0):  
+    def initRender(self, hdri_samples=0, hdri_sample_steps=64):  
         # Reset sample buffer
         self._sample_buffer.fill(0.0)
         self._hdri_samples = hdri_samples
+        self._hdri_sample_steps = hdri_sample_steps
         self._sample_count = 0
     
     def reset(self):
+        self._sample_count = 0
+        self._sample_buffer.fill(0.0)
+
+    def clear(self):
         self._scene.clear()
     
     def sample(self) -> bool:
@@ -67,7 +78,7 @@ class Renderer:
         env_data = self._scene.getHdri()
         if self._sample_count < self._hdri_samples and env_data.power != 0 and env_data.hdri is not None:
             # Sample0
-            self.sampleHdri(env_data.hdri, env_data.rotation, env_data.power, 64)
+            self.sampleHdri(env_data.hdri, env_data.rotation, env_data.power, self._hdri_sample_steps)
             self._sample_count += 1
         if self._sample_count != 0:
             # Add scaled down to render buffer
@@ -192,4 +203,4 @@ class Renderer:
                     # Get ZVec from LatLong
                     u, v = LightPosTi().LL2ZVecNorm([u, v], normalized=True)
                     
-                self._sample_buffer[y, x] += self._bsdf.sample(x, y, u, v) * hdri[hdri_y, hdri_x] * power / samples
+                self._sample_buffer[y, x] += self._bsdf.sample(x, y, u, v) * hdri[hdri_y, hdri_x] * 10 * power / samples

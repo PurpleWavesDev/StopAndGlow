@@ -12,7 +12,12 @@ class BSDF:
     def __init__(self):
         self.coord_sys = CoordSys.LatLong
     
-    def load(self, sequence: Sequence, calibration: Calibration, data_key: str, settings={}) -> bool:
+    def configure(self, calibration: Calibration, data_key: str, settings={}):
+        self._cal = calibration
+        self._data_key = data_key
+        self._settings = settings
+
+    def load(self, sequence: Sequence) -> bool:
         return True
     
     @ti.func

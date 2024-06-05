@@ -44,8 +44,9 @@ class Command(Enum):
     CanvasSet = 37
     
     # Image requests
-    RequestSequence = 61
-    RequestCamera = 62
+    RequestSequence = 61 # TODO: Split in RequestData/RequestImage and RequestRender?
+    RequestCamera = 62 # TODO: Rename to RequestLive
+    RequestRender = 63 # UNUSED!
     RequestStop = 65
     
     # Render Algorithmns

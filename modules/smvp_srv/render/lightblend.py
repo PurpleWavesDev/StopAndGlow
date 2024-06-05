@@ -20,7 +20,7 @@ class LightblendBsdf:
     def __init__(self):
         pass
     
-    def load(self, data: Sequence, calibration: Calibration, data_key: str, settings={}) -> bool:
+    def load(self, sequence: Sequence) -> bool:
         return True
     
     @ti.func

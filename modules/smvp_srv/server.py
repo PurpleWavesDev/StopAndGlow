@@ -136,15 +136,29 @@ def execute(socket, port, queue):
             
             ## LightInfo
             case Command.LightsSet:
-                # Reset light data
-                queue.putCommand(Commands.Render, 'reset')
+                # Clear light data
+                queue.putCommand(Commands.Render, 'clear')
                 # Add each light separately
                 for light in message.data:
                     queue.putCommand(Commands.Render, 'light', light)
                 send(socket, Message(Command.CommandOkay))
                 
-            #case Command.LightsHdriRotation:
-            #case Command.LightsHdriTexture:
+            case Command.LightsHdriRotation:
+                queue.putCommand(Commands.Render, 'hdri_data') # TODO data missing
+                queue.putCommand(Commands.Render, 'reset')
+                send(socket, Message(Command.CommandOkay))
+
+            case Command.LightsHdriTexture:
+                path = message.data['path']
+                if os.path.exists(path):
+                    send(socket, Message(Command.CommandOkay)) 
+                    queue.putCommand(Commands.LoadHdri, path)
+                    queue.putCommand(Commands.Render, 'hdri')
+                    queue.putCommand(Commands.Render, 'reset')
+                    
+                else:
+                    # HDRI Path does not exist
+                    send(socket, Message(Command.CommandError, {'message': "Path '{path}' doesn not exist"}))
             
             case Command.CanvasSet:
                 # Hier kommen die transform daten an
@@ -209,6 +223,7 @@ def execute(socket, port, queue):
                     queue.putCommand(Commands.EndIf, 'empty')
                     # Configure renderer
                     queue.putCommand(Commands.Render, 'config', message.data)
+                    queue.putCommand(Commands.Render, 'init')
                 else:
                     send(socket, Message(Command.CommandError, {'message': 'No valid algorithm specified'}))
 

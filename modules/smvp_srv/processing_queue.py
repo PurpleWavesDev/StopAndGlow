@@ -306,27 +306,39 @@ class Worker:
                                 name, _, algo_settings = algorithms[algo_key]
                                 bsdf_class, bsdf_settings = bsdfs[algo_settings['bsdf']]
                                 bsdf = bsdf_class()
-                                if bsdf.load(self.sequence, self.cal, algo_key, bsdf_settings):
-                                    self.renderer = Renderer(bsdf, self.config['resolution'])
-                                    # Set HDRI
-                                    if self.hdri.get() is not None:
-                                        self.renderer.getScene().setHdri(self.hdri)
-                                else:
+                                bsdf.configure(self.cal, algo_key, bsdf_settings)
+                                self.renderer = Renderer(bsdf, self.config['resolution'])
+                                # Set HDRI
+                                if self.hdri.get() is not None:
+                                    self.renderer.getScene().setHdri(self.hdri)
+                                # Set sequence
+                                if not self.renderer.loadSequence(self.sequence):
                                     log.error("Can't load BSDF data!")
+                                # Init
+                                self.renderer.initRender(hdri_samples=50, hdri_sample_steps=128)
                             else:
                                 log.error(f"Render configuration with bsdf '{algo_key}'")
-                    case 'reset':
-                        self.renderer.reset()
+                    case 'init':
+                        self.renderer.initRender(hdri_samples=50, hdri_sample_steps=128) # TODO: Data
+                    case 'update': # TODO Implement in server
+                        if not self.renderer.loadSequence(self.sequence):
+                            log.error("Can't load BSDF data!")
                     case 'light':
                         self.renderer.getScene().addLight(settings)
+                    case 'clear':
+                        self.renderer.clear()
                     case 'canvas':
                         pass # TODO: Transform vom Canvas-Objekt hinzufügen
                     case 'hdri':
-                        pass
+                        if self.hdri.get() is not None:
+                            self.renderer.getScene().setHdri(self.hdri)
+                            self.renderer.reset()
                     case 'hdri_data':
-                        pass
+                        self.renderer.getScene().setHdriData() # TODO: rotation, power
+                        self.renderer.reset()
+                    case 'reset':
+                        self.renderer.reset()
                     case 'render':
-                        self.renderer.initRender()
                         self.renderer.sample() # TODO
             
             case Commands.View:

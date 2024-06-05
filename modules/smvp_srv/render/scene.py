@@ -68,7 +68,7 @@ class Scene:
         hdri_buf.from_numpy(hdri.asDomain(ImgDomain.Lin).get())
         self._hdri = EnvironmentData(hdri_buf, rotation, power)
     
-    def setHdriData(self, rotation, power=None):
+    def setHdriData(self, rotation=None, power=None):
         if rotation is not None:
             self._hdri.rotation = rotation
         if power is not None:

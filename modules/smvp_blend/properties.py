@@ -37,6 +37,8 @@ class SMVP_SceneProps(PropertyGroup):
     # Internal props
     canvas_ids: IntProperty()
     connected: BoolProperty(get=lambda self: client.connected)
+    # Camera for environment renders
+    render_cam: StringProperty()
 
 class SMVP_CANVAS_FrameCollection(PropertyGroup):
     #name: StringProperty() -> Instantiated by default
@@ -62,6 +64,8 @@ class SMVP_CanvasProps(PropertyGroup):
     
     canvas_id: IntProperty()
     frame_ids: IntProperty()
+    
+    env_tex_path: StringProperty()
 
 
 

@@ -1,5 +1,8 @@
 import math
 import mathutils
+import tempfile
+import os
+
 import bpy
 from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
@@ -116,6 +119,28 @@ class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
         # Update object
         setUpdateFlags(obj)
         updateScene(scn)
+        return{'FINISHED'}
+
+
+class SMVP_CANVAS_OT_updateEnv(Operator):
+    """Updates the environment lighting for the rendering"""
+    bl_label = "Update Environment"
+    bl_idname = "smvp_canvas.update_env"
+    bl_description = "Updates the environment lighting for the rendering"
+    bl_options = {'REGISTER'}
+    
+    @classmethod
+    def poll(cls, context):
+        return context.scene.sl_canvas is not None
+    
+    def execute(self, context):
+        scn = context.scene
+        obj = scn.sl_canvas
+        updateEnvLighting(obj)
+        message = Message(Command.LightsHdriTexture, {'path': obj.smvp_canvas.env_tex_path})
+        client.sendMessage(message)
+        updateCanvas(scn, obj)
+        
         return{'FINISHED'}
 
 
@@ -242,11 +267,18 @@ def updateTextures(scene):
             updateCanvas(scene, obj)
 
 
-def updateScene(scene):
+def updateScene(scene, force_env_update=False):
     """Function to call when the scene has changed"""
     global scene_light_data
     
     if client.connected:
+        # Check if environment map has been rendered
+        if force_env_update or scene.sl_canvas.smvp_canvas.env_tex_path == '':
+            updateEnvLighting(scene.sl_canvas)
+            message = Message(Command.LightsHdriTexture, {'path': scene.sl_canvas.smvp_canvas.env_tex_path})
+            client.sendMessage(message)
+            updateCanvas(scene, scene.sl_canvas)
+        
         # Get lights and check if anything has changed since last call
         new_lights = getLights()
         if len(new_lights) != len(scene_light_data) or new_lights != scene_light_data:
@@ -300,20 +332,74 @@ def getLights():
             match light.data.type:
                 case 'SUN':
                     # Direction, angle, power, color
-                    light_data.append({'type': 'sun', 'dir': list(dir), 'angle': light.data.angle, 'power': power, 'color': color})
+                    light_data.append({'type': 'sun', 'dir': list(dir), 'angle': light.data.angle, 'power': power/100, 'color': color})
                 case 'POINT':
                     # Position, size, power, color
-                    light_data.append({'type': 'point', 'pos': pos, 'size': light.data.shadow_soft_size, 'power': power, 'color': color})
+                    light_data.append({'type': 'point', 'pos': pos, 'size': light.data.shadow_soft_size, 'power': power/10, 'color': color})
                 case 'SPOT':
                     # Position, rotation, size, power, color
                     light_data.append({'type': 'spot', 'pos': pos, 'dir': list(dir), 'angle': light.data.spot_size,\
-                        'blend': light.data.spot_blend, 'size': light.data.shadow_soft_size, 'power': power, 'color': color})
+                        'blend': light.data.spot_blend, 'size': light.data.shadow_soft_size, 'power': power/10, 'color': color})
                 case 'AREA':
                     light_data.append({'type': 'area', 'pos': pos, 'dir': list(dir), 'angle': light.data.spread,\
-                        'shape': light.data.shape, 'size': light.data.size, 'power': power, 'color': color})
+                        'shape': light.data.shape, 'size': light.data.size, 'power': power/10, 'color': color})
                 
     return light_data
 
+def updateEnvLighting(canvas_obj):
+    scn = bpy.context.scene
+    smvp_scn = scn.smvp_scene
+    
+    # Find camera
+    if not smvp_scn.render_cam in scn.objects:
+        # create the first camera
+        cam = bpy.data.cameras.new("SMVP Env Cam")
+        cam.type = 'PANO'
+        cam.panorama_type = 'EQUIRECTANGULAR'
+
+        # create the first camera object
+        cam_obj = bpy.data.objects.new("SMVP Env Cam", cam)
+        cam_obj.location = (0,0,0)
+        cam_obj.rotation_euler = (math.radians(90), 0, math.radians(180))
+        bpy.context.collection.objects.link(cam_obj)
+        cam_obj.hide_set(True) # hide_set?
+        smvp_scn.render_cam = cam_obj.name
+        
+    env_cam = scn.objects[smvp_scn.render_cam]
+        
+    # Store render settings
+    tmp_filepath = scn.render.filepath
+    tmp_camera = scn.camera
+    tmp_res = (scn.render.resolution_x, scn.render.resolution_y)
+    tmp_engine = scn.render.engine
+    tmp_img_settings = scn.render.image_settings
+    tmp_threshold = scn.cycles.adaptive_threshold
+    
+    # Activate camera and set new settings
+    canvas_obj.smvp_canvas.env_tex_path = os.path.join(tempfile.gettempdir(), f'{canvas_obj.name}_env_tex.exr')
+    scn.render.filepath = canvas_obj.smvp_canvas.env_tex_path
+    scn.camera = env_cam
+    scn.render.resolution_x, scn.render.resolution_y = (1024, 512)
+    scn.render.engine = 'CYCLES'
+    scn.cycles.device = 'GPU'
+    scn.cycles.adaptive_threshold = 0.1
+    scn.render.image_settings.color_mode = 'RGB'
+    scn.render.image_settings.file_format = 'OPEN_EXR'
+    
+    # Disable canvas, Render, enable again
+    canvas_obj = True
+    bpy.ops.render.render(write_still=True)
+    canvas_obj = False
+    
+    # Reapply stored settings
+    scn.render.filepath = tmp_filepath
+    scn.camera = tmp_camera
+    scn.render.resolution_x, scn.render.resolution_y = tmp_res
+    scn.render.engine = tmp_engine
+    scn.render.image_settings.color_mode = tmp_img_settings.color_mode
+    scn.render.image_settings.file_format = tmp_img_settings.file_format
+    scn.cycles.adaptive_threshold = tmp_threshold
+    
 
 # -------------------------------------------------------------------
 #   Register & Unregister
@@ -323,6 +409,7 @@ classes = (
     SMVP_CANVAS_OT_setCanvasActive,
     SMVP_CANVAS_OT_setDisplayMode,
     SMVP_CANVAS_OT_applyRenderAlgorithm,
+    SMVP_CANVAS_OT_updateEnv,
     SMVP_CANVAS_OT_setGhostMode,
     SMVP_CANVAS_OT_updateScene,
     OBJECT_OT_smvpCanvasAdd,

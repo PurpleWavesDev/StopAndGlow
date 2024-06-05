@@ -11,9 +11,8 @@ from ..data import *
 
 @ti.dataclass
 class NeuralRtiBsdf:
-    def load(self, data: Sequence, calibration: Calibration, data_key: str, settings={}) -> bool:
-        pass
-    
+    def load(self, sequence: Sequence) -> bool:
+        return True
     
     @ti.func
     def sample(self, x: ti.i32, y: ti.i32, u: ti.f32, v: ti.f32) -> tib.pixvec:
