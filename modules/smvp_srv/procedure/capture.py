@@ -17,7 +17,7 @@ class Capture:
         self._cam = hw.cam
         self._cal = cal
         self._config = config
-        self._lgtctl = LightCtl(hw)
+        self._lgtctl = LightCtl(hw, cal)
         self._id_list = []
         self._hdr_capture = GetSetting(self._config, 'hdr_capture', False, dtype=bool)
 
