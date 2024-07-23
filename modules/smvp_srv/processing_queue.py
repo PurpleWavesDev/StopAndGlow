@@ -123,7 +123,7 @@ class Worker:
                             self.config[key] = val
                     # TODO: get?
                     case 'save':
-                        self.config.save(path)
+                        self.config.save(os.path.join(path, name))
                     case _:
                         raise Exception(f"Unknown argument '{arg}' for --config command, use load/set/save")
             
