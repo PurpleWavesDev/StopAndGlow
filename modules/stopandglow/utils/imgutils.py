@@ -8,7 +8,7 @@ import cv2 as cv
 from ..data.imgbuffer import *
 
 # TODO: Unify, input variable?
-DATA_BASE_PATH='../HdM_BA/data/'
+DATA_BASE_PATH='./data/'
 
 
 ### Color channel stacking ###

@@ -15,7 +15,7 @@ class LiveViewer(Viewer):
     
     def __init__(self, hw):
         self.hw = hw
-        self._live_dummy = ImgBuffer(path="../HdM_BA/data/live_dummy.JPG")
+        self._live_dummy = ImgBuffer(path="./data/live_dummy.JPG")
         self.fps = 24
         self.timer = 0
         self.scaled_array = list()
