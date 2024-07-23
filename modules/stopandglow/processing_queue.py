@@ -5,7 +5,7 @@ import logging as log
 import time
 import zmq
 
-from smvp_ipc import *
+from sng_ipc import *
 
 from .commands import *
 from .hw import *

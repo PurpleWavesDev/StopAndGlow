@@ -6,7 +6,7 @@ import os
 import numpy as np
 import math
 
-CALIBRATION_FILE = os.path.expanduser("~/Raumfisch/HdM_BA/data/calibration/lightdome.json")
+CALIBRATION_FILE = "./data/calibration/lightdome.json"
 COLLECTION_NAME = "Domelights"
 
 def create_lights(path):

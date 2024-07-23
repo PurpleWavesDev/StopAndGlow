@@ -5,7 +5,7 @@ from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
 import numpy as np
 import cv2 as cv
-import smvp_ipc as ipc
+import sng_ipc as ipc
 
 from . import properties as props
 from . import client
@@ -13,7 +13,7 @@ from . import client
 # -------------------------------------------------------------------
 #   Ghosting
 # -------------------------------------------------------------------
-class SMVP_CANVAS_OT_ghosting(Operator):
+class SNG_CANVAS_OT_ghosting(Operator):
     """Show Ghostframes"""
     bl_idname = "object.show_ghostframes"
     bl_label = "Modal Show Ghostframes"
@@ -26,16 +26,16 @@ class SMVP_CANVAS_OT_ghosting(Operator):
         scn = context.scene
         obj = context.scene.sl_canvas
                
-        obj.smvp_ghost.show_ghost = True
+        obj.sng_ghost.show_ghost = True
         updateCanvas(scn, obj) #does this keep calling the fuction while true?
         return {'FINISHED'}
 
     def modal(self, context, event):
         obj = context.scene.sl_canvas
-        obj.smvp_ghost.show_ghost = True
+        obj.sng_ghost.show_ghost = True
         if not context.window_manager.ghost_toggle:
-            obj.smvp_ghost.show_ghost = False
-            bpy.ops.smvp_canvas.display_mode(display_mode=obj.display_mode)
+            obj.sng_ghost.show_ghost = False
+            bpy.ops.sng_canvas.display_mode(display_mode=obj.display_mode)
             return {'FINISHED'}
            
         return {'PASS_THROUGH'}
@@ -57,7 +57,7 @@ def updateCanvas(scene, obj):
     # Get texture to show
     img = getTexture(obj, scene.frame_current)
     
-    if img is not None and obj.smvp_ghost.show_ghost:
+    if img is not None and obj.sng_ghost.show_ghost:
         frames= []
         keyframes = getKeyframes(obj)
         w,h = img.size
@@ -66,7 +66,7 @@ def updateCanvas(scene, obj):
         post_ghost_data = np.zeros((w,h,4), 'f')
         frame_img_data = None #space for array for current frame texture pixels
         ghost_img_data = None #space for array for final combined texture pixels
-        opac1 = obj.smvp_ghost.opacity # opacity from ui prop
+        opac1 = obj.sng_ghost.opacity # opacity from ui prop
         opac2 = 1 - opac1
         postghost = False
         preghost = False
@@ -109,7 +109,7 @@ def updateCanvas(scene, obj):
         if preghost and postghost:
             ghost_img_data= cv.addWeighted(prev_ghost_data, 0.5, post_ghost_data,0.5, 0.0)
         
-        img = bpy.data.images[obj.smvp_canvas.ghost_texture]
+        img = bpy.data.images[obj.sng_canvas.ghost_texture]
         img.pixels.foreach_set(ghost_img_data.ravel())
 
     try:
@@ -125,7 +125,7 @@ def updateCanvas(scene, obj):
 def createCanvasMat(obj):
     """Creates a new material for a canvas object"""
     # Create empty material
-    mat = bpy.data.materials.new(name=f"canvas_{obj.smvp_canvas.canvas_id:02d}_mat")
+    mat = bpy.data.materials.new(name=f"canvas_{obj.sng_canvas.canvas_id:02d}_mat")
     mat.use_nodes = True
     mat.node_tree.nodes.remove(mat.node_tree.nodes['Principled BSDF'])
 
@@ -177,13 +177,13 @@ def createCanvasMat(obj):
 
 def createFrameTextures(obj, index, resolution):
     """Creates textures for frame"""    
-    item = obj.smvp_canvas.frame_list[index]
-    canvas_id = obj.smvp_canvas.canvas_id
+    item = obj.sng_canvas.frame_list[index]
+    canvas_id = obj.sng_canvas.canvas_id
     frame_id = item.id
 
     # Create textures
-    tex_name = f"smvp_{canvas_id:02d}-{frame_id:04d}"
-    prev_name = f"smvp_prev_{canvas_id:02d}-{frame_id:04d}"
+    tex_name = f"sng_{canvas_id:02d}-{frame_id:04d}"
+    prev_name = f"sng_prev_{canvas_id:02d}-{frame_id:04d}"
     texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1], float_buffer=True)
     preview = bpy.data.images.new(prev_name, width=resolution[0], height=resolution[1], float_buffer=True)
     
@@ -193,7 +193,7 @@ def createFrameTextures(obj, index, resolution):
 
 
 def getTexture(canvas_obj, frame):
-    canvas = canvas_obj.smvp_canvas
+    canvas = canvas_obj.sng_canvas
     
     # Live and baked lights
     if canvas.display_mode in ['live', 'baked']:
@@ -223,7 +223,7 @@ def getTexture(canvas_obj, frame):
 
 def getTextureForIdx(canvas_obj, index, display_mode=None):
     """Returns the texture for the index and display_mode. Uses active display mode if none provided""" 
-    canvas = canvas_obj.smvp_canvas
+    canvas = canvas_obj.sng_canvas
     canvas_frame = canvas.frame_list[index % len(canvas.frame_list)]
     # Get image name for display mode and check if image needs to be requested
     image_name = ""
@@ -247,7 +247,7 @@ def getTextureForIdx(canvas_obj, index, display_mode=None):
     if not image_name in bpy.data.images:
         if image_name != "":
             print(f"Error: Image {image_name} missing")
-            createFrameTextures(canvas_obj, index, bpy.context.scene.smvp_scene.resolution)
+            createFrameTextures(canvas_obj, index, bpy.context.scene.sng_scene.resolution)
             getTextureForIdx(canvas_obj, index, display_mode)
     
     # If command is set, generate ID for requested image and send request
@@ -280,7 +280,7 @@ def rgb2_lumin_grey(orig_img):
 # -------------------------------------------------------------------
 
 classes = (
-    SMVP_CANVAS_OT_ghosting,
+    SNG_CANVAS_OT_ghosting,
 )
 
 def register():

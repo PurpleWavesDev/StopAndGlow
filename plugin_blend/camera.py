@@ -3,7 +3,7 @@ import bpy
 from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
 
-from smvp_ipc import *
+from sng_ipc import *
 
 from . import properties as props
 from . import client
@@ -13,9 +13,9 @@ from . import client
 #   Operators
 # -------------------------------------------------------------------
 
-class SMVP_CAMERA_OT_addLinked(Operator):
+class SNG_CAMERA_OT_addLinked(Operator):
     """Add a new camera that is linked to the active canvas"""
-    bl_idname = "smvp_camera.add_linked"
+    bl_idname = "sng_camera.add_linked"
     bl_label = "Add linked camera"
     bl_description = "Add a new camera that is linked to the active canvas"
     bl_options = {'REGISTER', 'UNDO'}
@@ -56,7 +56,7 @@ class SMVP_CAMERA_OT_addLinked(Operator):
 # -------------------------------------------------------------------
 
 classes = (
-    SMVP_CAMERA_OT_addLinked,
+    SNG_CAMERA_OT_addLinked,
 )
 
 def register():

@@ -33,7 +33,7 @@ import sys
 import os.path as path
 
 # Add parent path as module path
-parent_module_path = path.abspath("..")
+parent_module_path = path.abspath("./modules")
 if not parent_module_path in sys.path:
     sys.path.append(parent_module_path)
     
@@ -57,7 +57,7 @@ def checkDependencies():
 def register():
     checkDependencies()
     
-    from . import properties, client, domectl, canvas, canvas_frames, camera, scene, ui
+    from .plugin_blend import properties, client, domectl, canvas, canvas_frames, camera, scene, ui
     properties.register()
     client.register()
     domectl.register()
@@ -68,7 +68,7 @@ def register():
     ui.register()
 
 def unregister():
-    from . import properties, client, domectl, canvas, canvas_frames, camera, scene, ui
+    from .plugin_blend import properties, client, domectl, canvas, canvas_frames, camera, scene, ui
     ui.unregister()
     scene.unregister()
     camera.unregister()

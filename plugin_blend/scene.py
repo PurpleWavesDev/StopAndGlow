@@ -7,7 +7,7 @@ import bpy
 from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
 
-from smvp_ipc import *
+from sng_ipc import *
 
 from . import properties as props
 from . import client
@@ -29,24 +29,24 @@ class VIEW3D_OT_setupScene(Operator):
     bl_label ="Setup SMVP Scene"
     bl_id = "smvp.setup_scene"
 
-class SMVP_CANVAS_OT_setCanvasActive(Operator):
+class SNG_CANVAS_OT_setCanvasActive(Operator):
     """Sets the selected canvas object active for actions in scene"""
     bl_label = "Set Active"
-    bl_idname = "smvp_canvas.set_active"
+    bl_idname = "sng_canvas.set_active"
     bl_description = "Set selected canvas object active in scene"
     bl_options = {'REGISTER', 'UNDO'}
     
     @classmethod
     def poll(cls, context):
-        return context.object is not None and context.object.smvp_canvas.is_canvas
+        return context.object is not None and context.object.sng_canvas.is_canvas
 
     def execute(self, context):
         obj = context.object
-        canvas = obj.smvp_canvas
+        canvas = obj.sng_canvas
         scn = context.scene
 
         # Set property 'sl_canvas' with selected canvas 
-        if obj.smvp_canvas.is_canvas:
+        if obj.sng_canvas.is_canvas:
             scn.sl_canvas = obj
             return{'FINISHED'}
 
@@ -54,7 +54,7 @@ class SMVP_CANVAS_OT_setCanvasActive(Operator):
         return{'CANCELLED'}
 
 
-class SMVP_CANVAS_OT_updateScene(Operator):
+class SNG_CANVAS_OT_updateScene(Operator):
     """Updates lights and canvas positions for the SMVP server"""
     bl_label = "Update Scene"
     bl_idname = "smvp.update_scene"
@@ -66,10 +66,10 @@ class SMVP_CANVAS_OT_updateScene(Operator):
         return{'FINISHED'}
 
 
-class SMVP_CANVAS_OT_setDisplayMode(Operator):
+class SNG_CANVAS_OT_setDisplayMode(Operator):
     """Changing the display mode of the selected or active canvas"""
     bl_label = "Set display mode"
-    bl_idname = "smvp_canvas.display_mode"
+    bl_idname = "sng_canvas.display_mode"
     bl_description = "Changing the display mode of the selected or active canvas"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -82,7 +82,7 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
     def execute(self, context):
         scn = context.scene
         obj = scn.sl_canvas
-        canvas = obj.smvp_canvas
+        canvas = obj.sng_canvas
         
         # Stop receiving images for live mode
         client.serviceRemoveReq(canvas.canvas_texture)
@@ -97,10 +97,10 @@ class SMVP_CANVAS_OT_setDisplayMode(Operator):
 
 
 # TODO: OP for canvas object or globally? Can server handle object based render algorithms (probably not)?
-class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
+class SNG_CANVAS_OT_applyRenderAlgorithm(Operator):
     """Applys the selected render algorithm"""
     bl_label = "Apply Algorithm"
-    bl_idname = "smvp_canvas.apply_algorithm"
+    bl_idname = "sng_canvas.apply_algorithm"
     bl_description = "Applys the selected render algorithm"
     bl_options = {'REGISTER'}
     
@@ -111,10 +111,10 @@ class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
     def execute(self, context):
         scn = context.scene
         obj = scn.sl_canvas
-        canvas = obj.smvp_canvas
+        canvas = obj.sng_canvas
         
         # Send set renderer command
-        message = Message(Command.SetRenderer, {'algorithm': scn.smvp_algorithms.algs_dropdown_items})
+        message = Message(Command.SetRenderer, {'algorithm': scn.sng_algorithms.algs_dropdown_items})
         client.sendMessage(message)
         # Update object
         setUpdateFlags(obj)
@@ -122,10 +122,10 @@ class SMVP_CANVAS_OT_applyRenderAlgorithm(Operator):
         return{'FINISHED'}
 
 
-class SMVP_CANVAS_OT_updateEnv(Operator):
+class SNG_CANVAS_OT_updateEnv(Operator):
     """Updates the environment lighting for the rendering"""
     bl_label = "Update Environment"
-    bl_idname = "smvp_canvas.update_env"
+    bl_idname = "sng_canvas.update_env"
     bl_description = "Updates the environment lighting for the rendering"
     bl_options = {'REGISTER'}
     
@@ -137,15 +137,15 @@ class SMVP_CANVAS_OT_updateEnv(Operator):
         scn = context.scene
         obj = scn.sl_canvas
         updateEnvLighting(obj)
-        message = Message(Command.LightsHdriTexture, {'path': obj.smvp_canvas.env_tex_path})
+        message = Message(Command.LightsHdriTexture, {'path': obj.sng_canvas.env_tex_path})
         client.sendMessage(message)
         updateCanvas(scn, obj)
         
         return{'FINISHED'}
 
 
-class SMVP_CANVAS_OT_setGhostMode(Operator):
-    bl_idname = "smvp_canvas.ghost_on"
+class SNG_CANVAS_OT_setGhostMode(Operator):
+    bl_idname = "sng_canvas.ghost_on"
     bl_label= "Show Ghostframes"
     bl_options = {'REGISTER'}
     
@@ -156,7 +156,7 @@ class SMVP_CANVAS_OT_setGhostMode(Operator):
         return True
 
     def execute(self, context):
-        context.object.smvp_ghost.show_ghost = not context.object.smvp_ghost.show_ghost 
+        context.object.sng_ghost.show_ghost = not context.object.sng_ghost.show_ghost 
        
         updateCanvas(context.scene, context.object)
         
@@ -169,7 +169,7 @@ class SMVP_CANVAS_OT_setGhostMode(Operator):
 class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
     """Creates an canvas object"""
     
-    bl_idname = "object.smvp_canvas_add"
+    bl_idname = "object.sng_canvas_add"
     bl_label = "Creates an canvas object"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -181,7 +181,7 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
         
         # Properties
         obj.name = "Canvas"
-        obj.smvp_canvas.is_canvas = True
+        obj.sng_canvas.is_canvas = True
         obj['exposure'] = 1.0
         #canvas['exposure_preview'] = 1.0
         obj['frame_keys'] = True
@@ -192,8 +192,8 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
         obj.data.transform(matrix)
         
         # Set ID and increment
-        obj.smvp_canvas.canvas_id = scn.smvp_scene.canvas_ids
-        scn.smvp_scene.canvas_ids += 1
+        obj.sng_canvas.canvas_id = scn.sng_scene.canvas_ids
+        scn.sng_scene.canvas_ids += 1
         
         # Set material, create slot and assign
         mat = createCanvasMat(obj)
@@ -203,13 +203,13 @@ class OBJECT_OT_smvpCanvasAdd(bpy.types.Operator):
         mat.shadow_method = 'HASHED'
         
         # Create image for live texture
-        tex_name = f"smvp_{obj.smvp_canvas.canvas_id:02d}"
-        ghosting_name = f"smvp_ghosting_{obj.smvp_canvas.canvas_id:02d}"
-        resolution = scn.smvp_scene.resolution
+        tex_name = f"sng_{obj.sng_canvas.canvas_id:02d}"
+        ghosting_name = f"sng_ghosting_{obj.sng_canvas.canvas_id:02d}"
+        resolution = scn.sng_scene.resolution
         texture = bpy.data.images.new(tex_name, width=resolution[0], height=resolution[1], float_buffer=True)
         ghost = bpy.data.images.new(ghosting_name, width=resolution[0], height=resolution[1], float_buffer=True)
-        obj.smvp_canvas.canvas_texture = texture.name
-        obj.smvp_canvas.ghost_texture = ghost.name
+        obj.sng_canvas.canvas_texture = texture.name
+        obj.sng_canvas.ghost_texture = ghost.name
                 
         # Set active canvas object if current one is not available / not set
         if scn.sl_canvas is None:
@@ -243,7 +243,7 @@ def timerCallback():
     
     # Update active canvas (live or render) TODO: only send out calls when frames got received
     if scene.sl_canvas is not None:
-        match scene.sl_canvas.smvp_canvas.display_mode:
+        match scene.sl_canvas.sng_canvas.display_mode:
             case 'rend':
                 if update_scene:
                     # Update lights and update flags of canvases
@@ -252,7 +252,7 @@ def timerCallback():
             case 'live':
                 updateCanvas(scene, scene.sl_canvas)
         
-    return 1.0 / scene.smvp_scene.update_rate
+    return 1.0 / scene.sng_scene.update_rate
 
 
 # -------------------------------------------------------------------
@@ -262,7 +262,7 @@ def updateTextures(scene):
     """Function to call when current frame has changed"""
     #bpy.data.materials["Video"].node_tree.nodes["texture"].inputs[1].default_value = frame_numscene.frame_current
     for obj in bpy.data.objects:
-        if obj.smvp_canvas.is_canvas:
+        if obj.sng_canvas.is_canvas:
             # Canvas found!
             updateCanvas(scene, obj)
 
@@ -273,9 +273,9 @@ def updateScene(scene, force_env_update=False):
     
     if client.connected:
         # Check if environment map has been rendered
-        if force_env_update or scene.sl_canvas.smvp_canvas.env_tex_path == '':
+        if force_env_update or scene.sl_canvas.sng_canvas.env_tex_path == '':
             updateEnvLighting(scene.sl_canvas)
-            message = Message(Command.LightsHdriTexture, {'path': scene.sl_canvas.smvp_canvas.env_tex_path})
+            message = Message(Command.LightsHdriTexture, {'path': scene.sl_canvas.sng_canvas.env_tex_path})
             client.sendMessage(message)
             updateCanvas(scene, scene.sl_canvas)
         
@@ -290,7 +290,7 @@ def updateScene(scene, force_env_update=False):
         
             # Set update flags for all render textures of all canvases (TODO: or just active one?)
             #for obj in bpy.data.objects:
-            #    if obj.smvp_canvas.is_canvas:
+            #    if obj.sng_canvas.is_canvas:
             #        setUpdateFlags(obj)
             if scene.sl_canvas is not None:
                 setUpdateFlags(scene.sl_canvas)
@@ -308,10 +308,10 @@ def updateScene(scene, force_env_update=False):
 
 def setUpdateFlags(canvas_obj, preview=False):
     """Mark all frames as not updated"""
-    for i in range(len(canvas_obj.smvp_canvas.frame_list)):
-        canvas_obj.smvp_canvas.frame_list[i].texture_updated = False
+    for i in range(len(canvas_obj.sng_canvas.frame_list)):
+        canvas_obj.sng_canvas.frame_list[i].texture_updated = False
         if preview:
-            canvas_obj.smvp_canvas.frame_list[i].preview_updated = False
+            canvas_obj.sng_canvas.frame_list[i].preview_updated = False
             
 
 
@@ -348,10 +348,10 @@ def getLights():
 
 def updateEnvLighting(canvas_obj):
     scn = bpy.context.scene
-    smvp_scn = scn.smvp_scene
+    sng_scn = scn.sng_scene
     
     # Find camera
-    if not smvp_scn.render_cam in scn.objects:
+    if not sng_scn.render_cam in scn.objects:
         # create the first camera
         cam = bpy.data.cameras.new("SMVP Env Cam")
         cam.type = 'PANO'
@@ -363,9 +363,9 @@ def updateEnvLighting(canvas_obj):
         cam_obj.rotation_euler = (math.radians(90), 0, math.radians(180))
         bpy.context.collection.objects.link(cam_obj)
         cam_obj.hide_set(True) # hide_set?
-        smvp_scn.render_cam = cam_obj.name
+        sng_scn.render_cam = cam_obj.name
         
-    env_cam = scn.objects[smvp_scn.render_cam]
+    env_cam = scn.objects[sng_scn.render_cam]
         
     # Store render settings
     tmp_filepath = scn.render.filepath
@@ -376,8 +376,8 @@ def updateEnvLighting(canvas_obj):
     tmp_threshold = scn.cycles.adaptive_threshold
     
     # Activate camera and set new settings
-    canvas_obj.smvp_canvas.env_tex_path = os.path.join(tempfile.gettempdir(), f'{canvas_obj.name}_env_tex.exr')
-    scn.render.filepath = canvas_obj.smvp_canvas.env_tex_path
+    canvas_obj.sng_canvas.env_tex_path = os.path.join(tempfile.gettempdir(), f'{canvas_obj.name}_env_tex.exr')
+    scn.render.filepath = canvas_obj.sng_canvas.env_tex_path
     scn.camera = env_cam
     scn.render.resolution_x, scn.render.resolution_y = (1024, 512)
     scn.render.engine = 'CYCLES'
@@ -406,12 +406,12 @@ def updateEnvLighting(canvas_obj):
 # -------------------------------------------------------------------
 
 classes = (
-    SMVP_CANVAS_OT_setCanvasActive,
-    SMVP_CANVAS_OT_setDisplayMode,
-    SMVP_CANVAS_OT_applyRenderAlgorithm,
-    SMVP_CANVAS_OT_updateEnv,
-    SMVP_CANVAS_OT_setGhostMode,
-    SMVP_CANVAS_OT_updateScene,
+    SNG_CANVAS_OT_setCanvasActive,
+    SNG_CANVAS_OT_setDisplayMode,
+    SNG_CANVAS_OT_applyRenderAlgorithm,
+    SNG_CANVAS_OT_updateEnv,
+    SNG_CANVAS_OT_setGhostMode,
+    SNG_CANVAS_OT_updateScene,
     OBJECT_OT_smvpCanvasAdd,
 )
 

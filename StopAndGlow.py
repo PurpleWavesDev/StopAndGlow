@@ -12,7 +12,8 @@ from importlib import reload
 import logging as log
 
 # Stop Lighting imports
-from smvp_srv.commands import *
+from stopandglow.commands import *
+import stopandglow.server as server
 
 
 ## Type-defs
@@ -31,7 +32,7 @@ class ArgParser:
         self.commands = []
         is_arg = False
         for arg in args:
-            if arg[0:2] == '--':
+            if arg[0:2] == '--' or arg[0:1] == '-':
                 # Check for valid command
                 try:
                     command = Commands(arg)
@@ -39,9 +40,12 @@ class ArgParser:
                     self.commands.append(Cmd(command, "", {}))
                     is_arg = True
                 except:
-                    if arg != '--help' and arg != '-h':
-                        log.error(f"Unknown command '{arg}'")
-                    self.print_help = True
+                    if arg == '--server':
+                        server.run()
+                    else:
+                        if arg != '--help' and arg != '-h':
+                            log.error(f"Unknown command '{arg}'")
+                        self.print_help = True
                     break
             elif self.commands:
                 # Add argument if it's right after the command string
@@ -71,7 +75,7 @@ class ArgParser:
             self.printHelp()
         else:
             log.info(f"Launching {self.name}...")
-            from smvp_srv.processing_queue import ProcessingQueue
+            from stopandglow.processing_queue import ProcessingQueue
             
             queue = ProcessingQueue()
             for command in self.commands:
@@ -107,7 +111,8 @@ Commands are:
     --send: 
     --lights: 
     --sleep: 
-    --loglevel: 
+    --loglevel:
+    --server:
 """)
 
 

@@ -5,7 +5,7 @@ from bpy.props import *
 from bpy.types import Operator, Panel, PropertyGroup, UIList
 import numpy as np
 
-import smvp_ipc as ipc
+import sng_ipc as ipc
 
 from .canvas import *
 from . import properties as props
@@ -16,9 +16,9 @@ from . import client
 #   Frame UI List Operators
 # -------------------------------------------------------------------
 
-class SMVP_CANVAS_OT_overrideConfirm(Operator):
+class SNG_CANVAS_OT_overrideConfirm(Operator):
     """Override current frame?"""
-    bl_idname = "smvp_canvas.override_confirm"
+    bl_idname = "sng_canvas.override_confirm"
     bl_label = "Override current frame?"
     bl_options = {'REGISTER', 'INTERNAL'}
 
@@ -35,14 +35,14 @@ class SMVP_CANVAS_OT_overrideConfirm(Operator):
     def execute(self, context):
         # Call operator again with override set
         if self.capture:
-            bpy.ops.smvp_canvas.capture('INVOKE_DEFAULT', override=True, use_active=self.use_active)
+            bpy.ops.sng_canvas.capture('INVOKE_DEFAULT', override=True, use_active=self.use_active)
         else:
-            bpy.ops.smvp_canvas.frame_add('INVOKE_DEFAULT', override=True)
+            bpy.ops.sng_canvas.frame_add('INVOKE_DEFAULT', override=True)
         return {'FINISHED'}
     
-class SMVP_CANVAS_OT_addFrame(Operator):
+class SNG_CANVAS_OT_addFrame(Operator):
     """Add new frame from sequence folder"""
-    bl_idname = "smvp_canvas.frame_add"
+    bl_idname = "sng_canvas.frame_add"
     bl_label = "Load Sequence"
     bl_description = "Add new frame from sequence folder"
     bl_options = {'REGISTER'}
@@ -71,7 +71,7 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             keyframes = getKeyframes(obj)
             for x, y in keyframes:
                 if x == scn.frame_current:
-                    bpy.ops.smvp_canvas.override_confirm('INVOKE_DEFAULT')
+                    bpy.ops.sng_canvas.override_confirm('INVOKE_DEFAULT')
                     return {'RUNNING_MODAL'}
 
         # Open browser, will write selected path into our directory property
@@ -82,7 +82,7 @@ class SMVP_CANVAS_OT_addFrame(Operator):
     def execute(self, context):
         scn = context.scene
         obj = scn.sl_canvas if self.use_active else context.object
-        canvas = obj.smvp_canvas
+        canvas = obj.sng_canvas
         #idx = canvas.frame_list_index
                 
         # Check if directory is a valid folder
@@ -119,7 +119,7 @@ class SMVP_CANVAS_OT_addFrame(Operator):
             canvas.frame_list_index = new_index
 
             # Create texture images
-            createFrameTextures(obj, new_index, scn.smvp_scene.resolution)
+            createFrameTextures(obj, new_index, scn.sng_scene.resolution)
             
             # Insert keyframe
             obj.keyframe_insert(data_path='["frame_keys"]')
@@ -145,9 +145,9 @@ class SMVP_CANVAS_OT_addFrame(Operator):
       
 
 
-class SMVP_CANVAS_OT_actions(Operator):
+class SNG_CANVAS_OT_actions(Operator):
     """Move items up and down, add and remove"""
-    bl_idname = "smvp_canvas.frame_action"
+    bl_idname = "sng_canvas.frame_action"
     bl_label = "Frame List Actions"
     bl_description = "Move frame items up and down, add and remove"
     bl_options = {'REGISTER'}
@@ -160,45 +160,45 @@ class SMVP_CANVAS_OT_actions(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(context.object.smvp_canvas.frame_list) > 0
+        return len(context.object.sng_canvas.frame_list) > 0
     
     def invoke(self, context, event):
         obj = context.object
-        idx = obj.smvp_canvas.frame_list_index
+        idx = obj.sng_canvas.frame_list_index
         
         try:
-            item = obj.smvp_canvas.frame_list[idx]
+            item = obj.sng_canvas.frame_list[idx]
         except IndexError:
             pass
         else:
-            if self.action == 'DOWN' and idx < len(obj.smvp_canvas.frame_list) - 1:
-                item_next = obj.smvp_canvas.frame_list[idx+1].name
-                obj.smvp_canvas.frame_list.move(idx, idx+1)
-                obj.smvp_canvas.frame_list_index += 1
-                info = 'Frame "%s" moved to position %d' % (item.name, obj.smvp_canvas.frame_list_index + 1)
+            if self.action == 'DOWN' and idx < len(obj.sng_canvas.frame_list) - 1:
+                item_next = obj.sng_canvas.frame_list[idx+1].name
+                obj.sng_canvas.frame_list.move(idx, idx+1)
+                obj.sng_canvas.frame_list_index += 1
+                info = 'Frame "%s" moved to position %d' % (item.name, obj.sng_canvas.frame_list_index + 1)
                 self.report({'INFO'}, info)
 
             elif self.action == 'UP' and idx >= 1:
-                item_prev = obj.smvp_canvas.frame_list[idx-1].name
-                obj.smvp_canvas.frame_list.move(idx, idx-1)
-                obj.smvp_canvas.frame_list_index -= 1
-                info = 'Frame "%s" moved to position %d' % (item.name, obj.smvp_canvas.frame_list_index + 1)
+                item_prev = obj.sng_canvas.frame_list[idx-1].name
+                obj.sng_canvas.frame_list.move(idx, idx-1)
+                obj.sng_canvas.frame_list_index -= 1
+                info = 'Frame "%s" moved to position %d' % (item.name, obj.sng_canvas.frame_list_index + 1)
                 self.report({'INFO'}, info)
 
             elif self.action == 'REMOVE':
-                info = 'Frame "%s" removed from list' % (obj.smvp_canvas.frame_list[idx].name)
+                info = 'Frame "%s" removed from list' % (obj.sng_canvas.frame_list[idx].name)
                 deleteFrameEntry(obj, idx)
-                if obj.smvp_canvas.frame_list_index >= idx:
-                    obj.smvp_canvas.frame_list_index -= 1
+                if obj.sng_canvas.frame_list_index >= idx:
+                    obj.sng_canvas.frame_list_index -= 1
                 self.report({'INFO'}, info)
             
         updateCanvas(context.scene, obj)
         return {"RUNNING_MODAL"}
 
 
-class SMVP_CANVAS_OT_capture(Operator):
+class SNG_CANVAS_OT_capture(Operator):
     """Capture frame data for rendering or with baked lighting"""
-    bl_idname = "smvp_canvas.capture"
+    bl_idname = "sng_canvas.capture"
     bl_label = "Capture"
     bl_description = "Capture frame data for rendering or with baked lighting"
     bl_options = {'REGISTER'}
@@ -228,7 +228,7 @@ class SMVP_CANVAS_OT_capture(Operator):
             keyframes = getKeyframes(obj)
             for x, y in keyframes:
                 if x == scn.frame_current:
-                    bpy.ops.smvp_canvas.override_confirm('INVOKE_DEFAULT', capture=True)
+                    bpy.ops.sng_canvas.override_confirm('INVOKE_DEFAULT', capture=True)
                     return {'RUNNING_MODAL'}
 
         # Execute capture command
@@ -245,29 +245,29 @@ class SMVP_CANVAS_OT_capture(Operator):
         
         if answer.command == ipc.Command.CommandProcessing:
             # Add frame to list
-            bpy.ops.smvp_canvas.frame_add(directory=answer.data['path'], override=True, use_active=self.use_active)
+            bpy.ops.sng_canvas.frame_add(directory=answer.data['path'], override=True, use_active=self.use_active)
             return {'FINISHED'}
 
         self.report({'WARNING'}, f"Received error from server: {answer.data['message']}")
         return {'CANCELLED'}
 
-class SMVP_CANVAS_OT_clearFrames(Operator):
+class SNG_CANVAS_OT_clearFrames(Operator):
     """Clear all frames of the list"""
-    bl_idname = "smvp_canvas.frames_clear"
+    bl_idname = "sng_canvas.frames_clear"
     bl_label = "Clear Frames"
     bl_description = "Clear all frames of the list"
     bl_options = {'INTERNAL'}
 
     @classmethod
     def poll(cls, context):
-        return bool(context.object.smvp_canvas.frame_list)
+        return bool(context.object.sng_canvas.frame_list)
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
         obj = context.object
-        if bool(obj.smvp_canvas.frame_list):
+        if bool(obj.sng_canvas.frame_list):
             clearFrames(context.scene, obj)
             self.report({'INFO'}, "All items removed")
         else:
@@ -275,9 +275,9 @@ class SMVP_CANVAS_OT_clearFrames(Operator):
         return{'FINISHED'}
 
 
-class SMVP_CANVAS_OT_removeDuplicates(Operator):
+class SNG_CANVAS_OT_removeDuplicates(Operator):
     """Remove all duplicates"""
-    bl_idname = "smvp_canvas.frames_remove_duplicates"
+    bl_idname = "sng_canvas.frames_remove_duplicates"
     bl_label = "Remove Duplicates"
     bl_description = "Remove all duplicates"
     bl_options = {'INTERNAL'}
@@ -285,7 +285,7 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
     def find_duplicates(self, context):
         """find all duplicates by name"""
         name_lookup = {}
-        for c, i in enumerate(context.object.smvp_canvas.frame_list):
+        for c, i in enumerate(context.object.sng_canvas.frame_list):
             name_lookup.setdefault(i.name, []).append(c)
         duplicates = set()
         for name, indices in name_lookup.items():
@@ -295,7 +295,7 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.object.smvp_canvas.frame_list)
+        return bool(context.object.sng_canvas.frame_list)
 
     def execute(self, context):
         obj = context.object
@@ -305,7 +305,7 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
             deleteFrameEntry(obj, i)
             removed_items.append(i)
         if removed_items:
-            obj.smvp_canvas.frame_list_index = min(obj.smvp_canvas.frame_list_index, len(obj.smvp_canvas.frame_list)-1)
+            obj.sng_canvas.frame_list_index = min(obj.sng_canvas.frame_list_index, len(obj.sng_canvas.frame_list)-1)
             info = ', '.join(map(str, removed_items))
             self.report({'INFO'}, "Removed indices: %s" % (info))
             updateCanvas(context.scene, obj)
@@ -317,9 +317,9 @@ class SMVP_CANVAS_OT_removeDuplicates(Operator):
         return context.window_manager.invoke_confirm(self, event)
 
 
-class SMVP_CANVAS_OT_selectFrame(Operator):
+class SNG_CANVAS_OT_selectFrame(Operator):
     """Jump to Frame in the Timeline"""
-    bl_idname = "smvp_canvas.frames_select"
+    bl_idname = "sng_canvas.frames_select"
     bl_label = "Jump to Frame"
     bl_description = "Jump to Frame in the Timeline"
     bl_options = {'REGISTER', 'UNDO'}
@@ -331,16 +331,16 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.object.smvp_canvas.frame_list)
+        return bool(context.object.sng_canvas.frame_list)
 
     def execute(self, context):
         scn = context.scene
         obj = context.object
 
         if self.jump_to_selected:
-            idx = obj.smvp_canvas.frame_list_index
+            idx = obj.sng_canvas.frame_list_index
             try:
-                item = obj.smvp_canvas.frame_list[idx]
+                item = obj.sng_canvas.frame_list[idx]
             except IndexError:
                 self.report({'INFO'}, "Nothing selected in the list")
                 return{'CANCELLED'}
@@ -359,8 +359,8 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
                 idx += 1
             # Index is previous key (except for first key)
             idx = max(idx-1, 0)
-            obj.smvp_canvas.frame_list_index = idx
-            self.report({'INFO'}, f"Selected frame {idx} '{obj.smvp_canvas.frame_list[idx].name}'")
+            obj.sng_canvas.frame_list_index = idx
+            self.report({'INFO'}, f"Selected frame {idx} '{obj.sng_canvas.frame_list[idx].name}'")
         
         return{'FINISHED'}
     
@@ -370,16 +370,16 @@ class SMVP_CANVAS_OT_selectFrame(Operator):
 # -------------------------------------------------------------------
 def deleteFrameEntry(obj, index):
     """Deletes the entry at index of the canvas object frame list"""
-    item = obj.smvp_canvas.frame_list[index]
+    item = obj.sng_canvas.frame_list[index]
     
     # Delete textures
     if item.render_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.render_texture])
     if item.preview_texture in bpy.data.images: bpy.data.images.remove(bpy.data.images[item.preview_texture])
     
     # Remove entry from canvas list and move index
-    obj.smvp_canvas.frame_list.remove(index)
-    if obj.smvp_canvas.frame_list_index >= index:
-        obj.smvp_canvas.frame_list_index -= 1
+    obj.sng_canvas.frame_list.remove(index)
+    if obj.sng_canvas.frame_list_index >= index:
+        obj.sng_canvas.frame_list_index -= 1
     
     try:
         # Delete index-th keyframe
@@ -390,9 +390,9 @@ def deleteFrameEntry(obj, index):
 
 
 def clearFrames(scn, obj):
-    for i in reversed(range(len(obj.smvp_canvas.frame_list))):
+    for i in reversed(range(len(obj.sng_canvas.frame_list))):
         deleteFrameEntry(obj, i)
-    obj.smvp_canvas.frame_list_index = 0
+    obj.sng_canvas.frame_list_index = 0
     updateCanvas(scn, obj)
 
 
@@ -402,14 +402,14 @@ def clearFrames(scn, obj):
 
 classes = (
     # Override warning OP
-    SMVP_CANVAS_OT_overrideConfirm,
+    SNG_CANVAS_OT_overrideConfirm,
     # Frame operators
-    SMVP_CANVAS_OT_addFrame,
-    SMVP_CANVAS_OT_actions,
-    SMVP_CANVAS_OT_capture,
-    SMVP_CANVAS_OT_clearFrames,
-    SMVP_CANVAS_OT_removeDuplicates,
-    SMVP_CANVAS_OT_selectFrame,
+    SNG_CANVAS_OT_addFrame,
+    SNG_CANVAS_OT_actions,
+    SNG_CANVAS_OT_capture,
+    SNG_CANVAS_OT_clearFrames,
+    SNG_CANVAS_OT_removeDuplicates,
+    SNG_CANVAS_OT_selectFrame,
 )
 
 def register():

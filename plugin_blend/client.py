@@ -10,7 +10,7 @@ import zmq
 import bpy
 from bpy.types import WindowManager as wm
 
-from smvp_ipc import *
+from sng_ipc import *
 
 # Connection infos
 context = None
@@ -103,7 +103,7 @@ def sendMessage(message, reconnect=True, force=False) -> Message|None:
     
     if not connected and reconnect:
         # Try to connect
-        bpy.ops.wm.smvp_connect()
+        bpy.ops.wm.sng_connect()
     if connected or force:
         # Send message
         try:

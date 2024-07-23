@@ -1,5 +1,5 @@
 # Imports and data loading
-from ..smvp_srv.data import *
+from stopandglow.data import *
 import numpy as np
 import scipy
 
@@ -45,7 +45,7 @@ def sampleRtiData(fn, calibration, coord_system, rotation_steps=0):
 
 
 ## Define RTI fitter functions
-from modules.smvp_srv.processing.fitter.spherical import *
+from stopandglow.processing.fitter.spherical import *
 
 # General PTM function
 def calcPtm(coord, pix, seq):

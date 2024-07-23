@@ -1,5 +1,5 @@
 # Imports and data loading
-from ..smvp_srv.data import *
+from stopandglow.data import *
 
 import numpy as np
 

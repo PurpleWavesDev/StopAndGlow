@@ -3,7 +3,7 @@ import zmq
 import logging as log
 import pathlib
 
-from smvp_ipc import *
+from sng_ipc import *
 
 from .processing_queue import *
 from .commands import *

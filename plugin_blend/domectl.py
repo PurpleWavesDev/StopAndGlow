@@ -2,14 +2,14 @@
 
 import bpy
 
-from smvp_ipc import *
+from sng_ipc import *
 from . import client
 
 
-class WM_OT_smvp_connect(bpy.types.Operator):
+class WM_OT_sng_connect(bpy.types.Operator):
     """Connect to Stop Motion VP Server"""
 
-    bl_idname = "wm.smvp_connect"
+    bl_idname = "wm.sng_connect"
     bl_label = "Connect to Stop Motion VP Server"
     bl_options = {"REGISTER"}
 
@@ -30,10 +30,10 @@ class WM_OT_smvp_connect(bpy.types.Operator):
             return {"CANCELLED"}
         return {"FINISHED"}
     
-class WM_OT_smvp_launch(bpy.types.Operator):
+class WM_OT_sng_launch(bpy.types.Operator):
     """Launches the Stop Motion VP service"""
 
-    bl_idname = "wm.smvp_launch"
+    bl_idname = "wm.sng_launch"
     bl_label = "Launch Stop Motion VP Service"
     bl_options = {"REGISTER"}
 
@@ -51,13 +51,13 @@ class WM_OT_smvp_launch(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return not context.scene.smvp_scene.connected
+        return not context.scene.sng_scene.connected
 
 
-class WM_OT_smvp_lightctl(bpy.types.Operator):
+class WM_OT_sng_lightctl(bpy.types.Operator):
     """To open an connection to the Stop Motion VP server for accessing pre-rendered or captured frames"""
 
-    bl_idname = "wm.smvp_lightctl"
+    bl_idname = "wm.sng_lightctl"
     bl_label = "Set the state of the lights of the dome"
     bl_options = {"REGISTER", "UNDO"}
     
@@ -86,10 +86,10 @@ class WM_OT_smvp_lightctl(bpy.types.Operator):
         client.sendMessage(message)
         return {"FINISHED"}
     
-class WM_OT_smvp_viewer(bpy.types.Operator):
+class WM_OT_sng_viewer(bpy.types.Operator):
     """To open the (live) viewer of the server"""
 
-    bl_idname = "wm.smvp_viewer"
+    bl_idname = "wm.sng_viewer"
     bl_label = "Open the viewer on the server"
     bl_options = {"REGISTER"}
 
@@ -104,10 +104,10 @@ class WM_OT_smvp_viewer(bpy.types.Operator):
 # -------------------------------------------------------------------
 
 classes = (
-    WM_OT_smvp_connect,
-    WM_OT_smvp_launch,
-    WM_OT_smvp_lightctl,
-    WM_OT_smvp_viewer,
+    WM_OT_sng_connect,
+    WM_OT_sng_launch,
+    WM_OT_sng_lightctl,
+    WM_OT_sng_viewer,
 )
 
 def register():

@@ -8,8 +8,8 @@
             "name": "Server",
             "type": "debugpy",
             "request": "launch",
-            "program": "server.py",
-            "args": [],
+            "program": "StopAndGlow.py",
+            "args": ["--loglevel", "DEBUG", "--server"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -17,7 +17,7 @@
             "name": "Convert Video",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "fisch.MP4", "--process", "expoblend", "--save", "sequence", "format=exr", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -26,7 +26,7 @@
             "name": "View Sequence",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "0422_eichhoernchen", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -35,7 +35,7 @@
             "name": "Process Normal",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "synthetic_statue", "--process", "generate", "generator=normal", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -44,7 +44,7 @@
             "name": "Process PTM",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "synthetic_statue", "--process", "fitting", "fitter=ptm", "--process", "generate", "generator=normal", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -53,7 +53,7 @@
             "name": "Process PTMZ",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "synthetic_statue", "--process", "fitting", "fitter=ptmz4", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -62,7 +62,7 @@
             "name": "Process SHM",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "synthetic_statue", "--process", "fitting", "fitter=shm", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -71,7 +71,7 @@
             "name": "Process SHM2",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "synthetic_statue", "--process", "fitting", "fitter=shm2", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -80,7 +80,7 @@
             "name": "Process NeuralRTI",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "0422_eichhoernchen", "--process", "fitting", "fitter=nrti", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -89,7 +89,7 @@
             "name": "Process Alpha",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=lightdome.json", "--load", "synthetic_statue", "--process", "generate", "generator=alpha", "--save", "data", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -98,7 +98,7 @@
             "name": "Render PTM",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "synthetic_statue", "--load_hdri", "hdri.exr", "--render", "config", "algorithm=ptm", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -107,7 +107,7 @@
             "name": "Render PTMZ",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "synthetic_statue", "--load_hdri", "coord_test.exr", "--render", "config", "algorithm=ptmz", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -116,7 +116,7 @@
             "name": "Render SHM",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "synthetic_statue", "--load_hdri", "coord_test_long.exr", "--render", "config", "algorithm=shm", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -125,7 +125,7 @@
             "name": "Render SHM2",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "synthetic_statue", "--load_hdri", "coord_test.exr", "--render", "config", "algorithm=shm2", "--view", "render"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -134,7 +134,7 @@
             "name": "Estimate Depth for Preview",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "fisch_untersichtig_expoblend", "--process", "depth", "target=preview", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -143,7 +143,7 @@
             "name": "Capture Lights & Save",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--capture", "lights", "--save", "all"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -152,7 +152,7 @@
             "name": "Convert video and view sequence",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "20240410_1348.MP4", "--save", "all", "--view", "sequence"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -161,7 +161,7 @@
             "name": "Capture & calibrate",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--capture", "lights", "hdr_capture=0", "capture_exposure=1/200", "--save", "sequence", "format=jpg", "--calibrate", "interactive", "focal_length=135", "--calibration", "save"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -170,7 +170,7 @@
             "name": "Calibrate",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--load", "20240418_1741_lights", "--calibrate", "interactive", "focal_length=135"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -179,7 +179,7 @@
             "name": "Merge Calibrations",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--calibration", "load", "name=0422_front.json", "--calibrate", "merge", "calibrations=0422_left.json,0422_back.json,0422_right.json", "--calibration", "save", "name=merged.json"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -188,7 +188,7 @@
             "name": "Lights Random",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--lights", "rand", "power=0.2", "amount=0.3"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -197,7 +197,7 @@
             "name": "Lights Top",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--lights", "top", "power=0.2", "amount=0.3"],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -206,7 +206,7 @@
             "name": "Lights Off",
             "type": "debugpy",
             "request": "launch",
-            "program": "stop_lighting.py",
+            "program": "StopAndGlow.py",
             "args": ["--loglevel", "DEBUG", "--lights", "off"],
             "console": "integratedTerminal",
             "justMyCode": true

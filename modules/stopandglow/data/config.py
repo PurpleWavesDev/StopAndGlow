@@ -10,13 +10,13 @@ class Config:
             'loglevel': 'debug',
             'resolution': [1920, 1080],
             # Folders and default files
-            'seq_folder': '../HdM_BA/data/capture',
-            'cal_folder': '../HdM_BA/data/calibration',
+            'seq_folder': './data/capture',
+            'cal_folder': './data/calibration',
             'cal_name': 'lightdome.json',
-            'hdri_folder': '../HdM_BA/data/hdri',
+            'hdri_folder': './data/hdri',
             'hdri_name': 'hdri.exr',
             # Config TODO: self-referencing? should replace path variable or only be available there
-            'config_folder': '../HdM_BA/data/config',
+            'config_folder': './data/config',
             'config_name': 'config.json',
             # Capture settings
             'hdr_capture': True,

@@ -36,11 +36,11 @@ class VIEW3D_PT_sl_scene(Panel):
         split.label(text ="Active Canvas")
         split.prop_search(scn, "sl_canvas", scn, "objects", text="", icon=icon, )
         # Assign current
-        if obj is not None and obj.smvp_canvas.is_canvas:
+        if obj is not None and obj.sng_canvas.is_canvas:
             # only draw icon to refresh, if selected isn't active
             if canvas != obj:
                 row = self.layout.row()
-                row.operator("smvp_canvas.set_active", text = "Assign current",  icon = "FILE_REFRESH")
+                row.operator("sng_canvas.set_active", text = "Assign current",  icon = "FILE_REFRESH")
 
         # Setup Scene OP
         layout.separator()
@@ -70,53 +70,53 @@ class VIEW3D_PT_sl_canvas(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        algs = scene.smvp_algorithms
+        algs = scene.sng_algorithms
         ghostIcon = ""
         obj = context.scene.sl_canvas
 
         # Display modes
         row = layout.row()
         row.label(text="Display Modes")
-        row.prop(obj.smvp_canvas,'display_mode',expand = True)
+        row.prop(obj.sng_canvas,'display_mode',expand = True)
         # Update lighting
-        if obj.smvp_canvas.display_mode == 'baked':
+        if obj.sng_canvas.display_mode == 'baked':
             row = layout.row()
-            row.operator(SMVP_CANVAS_OT_updateScene.bl_idname, icon="RECOVER_LAST", text="Update Lighting")
+            row.operator(SNG_CANVAS_OT_updateScene.bl_idname, icon="RECOVER_LAST", text="Update Lighting")
         # Algorithm
-        elif obj.smvp_canvas.display_mode == 'rend':
+        elif obj.sng_canvas.display_mode == 'rend':
             row = layout.row()
             row.prop(algs, "algs_dropdown_items", expand=False, text="")
             #row = layout.row()
-            row.operator(SMVP_CANVAS_OT_applyRenderAlgorithm.bl_idname, text="Apply")  
+            row.operator(SNG_CANVAS_OT_applyRenderAlgorithm.bl_idname, text="Apply")  
             # Update scene OP
             row = layout.row()
-            row.operator(SMVP_CANVAS_OT_updateEnv.bl_idname)
+            row.operator(SNG_CANVAS_OT_updateEnv.bl_idname)
         
         # Ghosting
-        ghostIcon =  "GHOST_ENABLED" if obj.smvp_ghost.show_ghost else "GHOST_DISABLED"
-        ghostLabel = "Hide Ghostframes" if obj.smvp_ghost.show_ghost else "Display Ghostframes"
+        ghostIcon =  "GHOST_ENABLED" if obj.sng_ghost.show_ghost else "GHOST_DISABLED"
+        ghostLabel = "Hide Ghostframes" if obj.sng_ghost.show_ghost else "Display Ghostframes"
         layout.separator()
         header, panel = self.layout.panel("sl_ghosting_id", default_closed=True)
-        header.operator(SMVP_CANVAS_OT_setGhostMode.bl_idname, icon=ghostIcon, text="")
+        header.operator(SNG_CANVAS_OT_setGhostMode.bl_idname, icon=ghostIcon, text="")
         header.label(text="Ghost Frames")
         if panel:
             row = panel.row()
             row.label(text="Previous")
-            row.prop(obj.smvp_ghost, "previous_frames", text="")
+            row.prop(obj.sng_ghost, "previous_frames", text="")
 
             row = panel.row()
             row.label(text="Post")
-            row.prop(obj.smvp_ghost, "following_frames", text="") 
+            row.prop(obj.sng_ghost, "following_frames", text="") 
             row = panel.row()
-            row.prop(obj.smvp_ghost, "opacity", text= "Opacity", slider = True)
+            row.prop(obj.sng_ghost, "opacity", text= "Opacity", slider = True)
         
         # Capturing
         layout.separator()
         row = layout.row()
         row.label(text="Capture")
         row = layout.row(align=True)
-        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Sequence").use_active=True
-        op = row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Baked")
+        row.operator(SNG_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Sequence").use_active=True
+        op = row.operator(SNG_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Baked")
         op.baked=True
         op.use_active=True
             
@@ -140,8 +140,8 @@ class VIEW3D_PT_sl_ctl(Panel):
         # Lights
         split = lay.split(factor=0.4, align=True)
         split.label(text="Lights")
-        split.operator(WM_OT_smvp_lightctl.bl_idname, text="On", icon = "OUTLINER_OB_LIGHT").light_state = "TOP"
-        split.operator(WM_OT_smvp_lightctl.bl_idname, text="Off", icon = "OUTLINER_DATA_LIGHT").light_state = "OFF"
+        split.operator(WM_OT_sng_lightctl.bl_idname, text="On", icon = "OUTLINER_OB_LIGHT").light_state = "TOP"
+        split.operator(WM_OT_sng_lightctl.bl_idname, text="Off", icon = "OUTLINER_DATA_LIGHT").light_state = "OFF"
         
         # Camera
         lay.separator()
@@ -156,9 +156,9 @@ class VIEW3D_PT_sl_ctl(Panel):
         header.label(text="Server")
         if panel:
             split = panel.split(factor=0.4, align=True)
-            split.label(text="Connected" if context.scene.smvp_scene.connected else "Disconnected")
-            split.operator(WM_OT_smvp_connect.bl_idname, text="Connect")
-            split.operator(WM_OT_smvp_launch.bl_idname, text="Launch")
+            split.label(text="Connected" if context.scene.sng_scene.connected else "Disconnected")
+            split.operator(WM_OT_sng_connect.bl_idname, text="Connect")
+            split.operator(WM_OT_sng_launch.bl_idname, text="Launch")
 
 
 
@@ -190,7 +190,7 @@ class OBJECT_PT_sl_canvas(Panel):
     @classmethod
     def poll(cls, context):
         # Only draw panel for canvas objects
-        return context.object.smvp_canvas.is_canvas
+        return context.object.sng_canvas.is_canvas
     
     def draw(self, context):
         layout = self.layout
@@ -199,27 +199,27 @@ class OBJECT_PT_sl_canvas(Panel):
 
         # Frame List
         row = layout.row()
-        row.template_list(SL_CANVAS_UL_frames.bl_idname, "", obj.smvp_canvas, "frame_list", obj.smvp_canvas, "frame_list_index", rows=4)
+        row.template_list(SL_CANVAS_UL_frames.bl_idname, "", obj.sng_canvas, "frame_list", obj.sng_canvas, "frame_list_index", rows=4)
         # Frame Action OPs
         col = row.column(align=True)
-        col.operator(SMVP_CANVAS_OT_addFrame.bl_idname, icon='ADD', text="")
-        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='REMOVE', text="").action = 'REMOVE'
+        col.operator(SNG_CANVAS_OT_addFrame.bl_idname, icon='ADD', text="")
+        col.operator(SNG_CANVAS_OT_actions.bl_idname, icon='REMOVE', text="").action = 'REMOVE'
         col.separator()
-        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='TRIA_UP', text="").action = 'UP'
-        col.operator(SMVP_CANVAS_OT_actions.bl_idname, icon='TRIA_DOWN', text="").action = 'DOWN'
+        col.operator(SNG_CANVAS_OT_actions.bl_idname, icon='TRIA_UP', text="").action = 'UP'
+        col.operator(SNG_CANVAS_OT_actions.bl_idname, icon='TRIA_DOWN', text="").action = 'DOWN'
         # Other Frame OPs
         row = layout.row()
         col = row.column(align=True)
         row = col.row(align=True)
-        row.operator(SMVP_CANVAS_OT_selectFrame.bl_idname, icon="LAYER_ACTIVE", text="Select current frame")
-        row.operator(SMVP_CANVAS_OT_selectFrame.bl_idname, icon="ARROW_LEFTRIGHT", text="Jump to selected").jump_to_selected = True
+        row.operator(SNG_CANVAS_OT_selectFrame.bl_idname, icon="LAYER_ACTIVE", text="Select current frame")
+        row.operator(SNG_CANVAS_OT_selectFrame.bl_idname, icon="ARROW_LEFTRIGHT", text="Jump to selected").jump_to_selected = True
         row = col.row(align=True)
-        row.operator(SMVP_CANVAS_OT_removeDuplicates.bl_idname, icon="TRASH")
-        row.operator(SMVP_CANVAS_OT_clearFrames.bl_idname, icon="PANEL_CLOSE")
+        row.operator(SNG_CANVAS_OT_removeDuplicates.bl_idname, icon="TRASH")
+        row.operator(SNG_CANVAS_OT_clearFrames.bl_idname, icon="PANEL_CLOSE")
         # Capture OPs
         row = layout.row(align=True)
-        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Sequence")
-        row.operator(SMVP_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked").baked=True
+        row.operator(SNG_CANVAS_OT_capture.bl_idname, icon="RENDER_ANIMATION", text="Capture Sequence")
+        row.operator(SNG_CANVAS_OT_capture.bl_idname, icon="RENDER_STILL", text="Capture Baked").baked=True
         
         # Other OPs for changing display modes etc?
 
@@ -240,10 +240,10 @@ class OBJECT_MT_sl_submenu(Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator(OBJECT_OT_smvpCanvasAdd.bl_idname, text="Canvas", icon="IMAGE_PLANE")
-        layout.operator(SMVP_CAMERA_OT_addLinked.bl_idname, text="Linked Camera", icon="VIEW_CAMERA")
+        layout.operator(SNG_CAMERA_OT_addLinked.bl_idname, text="Linked Camera", icon="VIEW_CAMERA")
     
         
-def smvp_objects_menu(self, context):
+def sng_objects_menu(self, context):
     self.layout.separator()
     self.layout.menu(OBJECT_MT_sl_submenu.bl_idname, text="SMVP", icon="GHOST_DISABLED")
 
@@ -273,7 +273,7 @@ def register():
         bpy.utils.register_class(cls)
     
     # Add menus
-    bpy.types.VIEW3D_MT_add.append(smvp_objects_menu)
+    bpy.types.VIEW3D_MT_add.append(sng_objects_menu)
     
    
 
@@ -282,6 +282,6 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
    # Remove menus
-    bpy.types.VIEW3D_MT_add.remove(smvp_objects_menu)
+    bpy.types.VIEW3D_MT_add.remove(sng_objects_menu)
     
 

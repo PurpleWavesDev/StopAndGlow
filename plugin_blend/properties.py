@@ -2,7 +2,7 @@ import bpy
 from bpy.types import Scene, Object, Camera, PropertyGroup
 from bpy.props import *
 
-from smvp_ipc import *
+from sng_ipc import *
 
 from . import client
 
@@ -21,16 +21,16 @@ def DisplayModeProp(callback=None):
 
 def DisplayModeUpdate(self, context):
     # Call operator
-    bpy.ops.smvp_canvas.display_mode(display_mode=self.display_mode)
+    bpy.ops.sng_canvas.display_mode(display_mode=self.display_mode)
 
 ## Property pollers
 def IsCanvasPoll(self, obj):
-    return obj.smvp_canvas.is_canvas
+    return obj.sng_canvas.is_canvas
     
 
 
 ## Property classes
-class SMVP_SceneProps(PropertyGroup):
+class SNG_SceneProps(PropertyGroup):
     # Settings
     resolution: IntVectorProperty(size=2, default=(1920, 1080))
     update_rate: FloatProperty(default=5.0)
@@ -40,7 +40,7 @@ class SMVP_SceneProps(PropertyGroup):
     # Camera for environment renders
     render_cam: StringProperty()
 
-class SMVP_CANVAS_FrameCollection(PropertyGroup):
+class SNG_CANVAS_FrameCollection(PropertyGroup):
     #name: StringProperty() -> Instantiated by default
     seq_path: StringProperty()
     id: IntProperty()
@@ -51,10 +51,10 @@ class SMVP_CANVAS_FrameCollection(PropertyGroup):
     preview_updated: BoolProperty(default=False)
     texture_updated: BoolProperty(default=False)
 
-class SMVP_CanvasProps(PropertyGroup):
+class SNG_CanvasProps(PropertyGroup):
     is_canvas: BoolProperty()
     frame_list_index: IntProperty()
-    frame_list: CollectionProperty(type=SMVP_CANVAS_FrameCollection)
+    frame_list: CollectionProperty(type=SNG_CANVAS_FrameCollection)
     canvas_texture: StringProperty()
     ghost_texture: StringProperty()
     
@@ -77,7 +77,7 @@ def ghost_update_func(self, context):
         VIEW3D_OT_modalGhosting.bl_idname('INVOKE_DEFAULT')
     return
 
-class SMVP_GhostProps(PropertyGroup):
+class SNG_GhostProps(PropertyGroup):
       
     show_ghost: BoolProperty(
         name="Show Ghostframes", 
@@ -102,7 +102,7 @@ class SMVP_GhostProps(PropertyGroup):
     falloff: FloatProperty()
 
 
-class SMVP_CameraProps(PropertyGroup):
+class SNG_CameraProps(PropertyGroup):
     canvas_link: StringProperty()
 
 
@@ -110,7 +110,7 @@ def getAlgorithms(self, context) -> list:
     """Returns a list of available render algorithms but only when a connection to the server is established"""
     global algorithms
     
-    if not algorithms and context.scene.smvp_scene.connected:
+    if not algorithms and context.scene.sng_scene.connected:
         message = Message(Command.GetRenderAlgorithms)
         answer = client.sendMessage(message)
         if answer.command == Command.CommandAnswer:
@@ -124,14 +124,14 @@ def getAlgorithms(self, context) -> list:
 
 def getAlgorithmSettings(self, context) -> dict:
     """Returns the options of the renderer/algorithm"""
-    if context.scene.smvp_scene.connected:
+    if context.scene.sng_scene.connected:
         message = Message(Command.Command.GetRenderSettings)
         answer = client.sendMessage(message)
         if answer.command == Command.CommandAnswer:
             return answer.data
     return {}
 
-class SMVP_Algorithms_Props(PropertyGroup):
+class SNG_Algorithms_Props(PropertyGroup):
     
     algs_dropdown_items : bpy.props.EnumProperty(
         name="Algorithms",
@@ -142,12 +142,12 @@ class SMVP_Algorithms_Props(PropertyGroup):
 
 
 classes = (
-    SMVP_SceneProps,
-    SMVP_CANVAS_FrameCollection,
-    SMVP_CanvasProps,
-    SMVP_CameraProps,
-    SMVP_Algorithms_Props,
-    SMVP_GhostProps
+    SNG_SceneProps,
+    SNG_CANVAS_FrameCollection,
+    SNG_CanvasProps,
+    SNG_CameraProps,
+    SNG_Algorithms_Props,
+    SNG_GhostProps
 )
 
 def register():
@@ -163,11 +163,11 @@ def register():
 
     
     # Assign properties
-    Scene.smvp_scene = PointerProperty(type=SMVP_SceneProps, name="SMVP Scene Properties")
-    Object.smvp_canvas = PointerProperty(type=SMVP_CanvasProps, name="SMVP Canvas Properties")
-    Camera.smvp = PointerProperty(type=SMVP_CameraProps, name="SMVP Camera Properties")
-    Scene.smvp_algorithms = PointerProperty(type=SMVP_Algorithms_Props, name="Algorithms Properties")
-    Object.smvp_ghost = PointerProperty(type= SMVP_GhostProps, name="Ghosting Properties")
+    Scene.sng_scene = PointerProperty(type=SNG_SceneProps, name="SMVP Scene Properties")
+    Object.sng_canvas = PointerProperty(type=SNG_CanvasProps, name="SMVP Canvas Properties")
+    Camera.smvp = PointerProperty(type=SNG_CameraProps, name="SMVP Camera Properties")
+    Scene.sng_algorithms = PointerProperty(type=SNG_Algorithms_Props, name="Algorithms Properties")
+    Object.sng_ghost = PointerProperty(type= SNG_GhostProps, name="Ghosting Properties")
 
 
    
@@ -178,10 +178,10 @@ def unregister():
         unregister_class(cls)
     
     # Delete properties
-    del Scene.smvp_scene
-    del Object.smvp_canvas
+    del Scene.sng_scene
+    del Object.sng_canvas
     del Camera.smvp
-    del Scene.smvp_algorithms
+    del Scene.sng_algorithms
 
     del bpy.types.WindowManager.ghost_toggle
 
